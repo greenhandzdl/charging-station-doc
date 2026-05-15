@@ -1,0 +1,12 @@
+'@startuml
+left to right direction
+skinparam linetype ortho
+
+package "Cluster" {
+  [Ingress]
+  [App] --> [DB]
+  [App] --> [Redis]
+  [App] --> [MockPayments]
+}
+
+@enduml

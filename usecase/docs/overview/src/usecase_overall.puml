@@ -1,0 +1,47 @@
+'@startuml
+left to right direction
+skinparam linetype ortho
+
+
+actor "用户" as U
+actor "管理员" as A
+actor "维修人员" as M
+actor "支付网关" as P
+actor "系统" as S
+
+database "Postgres (时序/温度数据库)" as DB
+
+actor "用户" as U
+actor "管理员" as A
+actor "支付网关" as P
+actor "系统" as S
+
+"(用户注册/登录)" as UC
+"(账户充值)" as RA
+"(启动充电)" as SC
+"(结束充电并扣费)" as EC
+"(查看充电记录)" as VCR
+"(管理充电站/充电桩)" as MM
+"(提交故障报修)" as SRT
+"(生成统计报表)" as GS
+
+U --> UC
+U --> RA
+U --> SC
+U --> EC
+U --> VCR
+U --> SRT
+
+A --> MM
+A --> SRT
+
+P --> RA
+P --> EC
+DB --> RA
+DB --> EC
+DB --> VCR
+DB --> GS
+
+S --> GS
+
+@enduml

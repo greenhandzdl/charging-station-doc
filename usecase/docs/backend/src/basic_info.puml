@@ -1,0 +1,15 @@
+'@startuml
+left to right direction
+skinparam linetype ortho
+
+actor "管理员" as A
+
+"(管理充电站)" as MS
+"(管理充电桩)" as MC
+"(管理用户)" as MU
+
+A --> MS
+A --> MC
+A --> MU
+
+@enduml
