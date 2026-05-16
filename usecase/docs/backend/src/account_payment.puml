@@ -1,0 +1,21 @@
+'@startuml
+skinparam linetype ortho
+
+actor "未授权用户" as G
+actor "用户" as U
+actor "维修人员" as M
+actor "支付网关" as P
+actor "系统" as S
+
+(注册)
+(登录)
+(账户充值)
+(支付回调)
+
+G --> 注册
+G --> 登录
+U --> 账户充值
+M --> 账户充值
+P --> 支付回调
+S --> 账户充值
+@enduml

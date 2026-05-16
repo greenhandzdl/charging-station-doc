@@ -1,0 +1,30 @@
+'@startuml
+title 用户用例
+skinparam useCaseShape rectangle
+
+actor "未授权用户" as G
+actor "用户" as U
+actor "维修人员" as M
+
+usecase "注册" as REG
+usecase "登录" as LOG
+usecase "账户充值" as RCH
+usecase "启动充电" as CS
+usecase "查看充电记录" as VCR
+usecase "提交故障报修" as SRT
+usecase "处理报修" as HR
+
+G --> REG
+G --> LOG
+U --> RCH
+U --> CS
+U --> VCR
+U --> SRT
+M --> RCH
+M --> CS
+M --> VCR
+M --> SRT
+M --> HR
+
+note bottom of CS : 含结束充电并扣费
+@enduml

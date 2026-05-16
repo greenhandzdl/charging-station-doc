@@ -1,23 +1,32 @@
 '@startuml
-left to right direction
-skinparam linetype ortho
+title 前端用例 — 用户操作
+skinparam useCaseShape rectangle
 
+actor "未授权用户" as G
 actor "用户" as U
-actor "管理员" as A
+actor "维修人员" as M
 
-"(查看站点列表)" as VSL
-"(选择充电桩)" as SC
-"(启动/结束充电)" as CS
-"(充值支付)" as PAY
-"(提交报修)" as SRT
+usecase "注册/登录" as LOG
+usecase "查看站点列表" as VSL
+usecase "选择充电桩" as SC
+usecase "启动/结束充电" as CS
+usecase "充值支付" as PAY
+usecase "查看充电记录" as VCR
+usecase "提交报修" as SRT
+usecase "处理报修" as HR
 
+G --> LOG
 U --> VSL
 U --> SC
 U --> CS
 U --> PAY
+U --> VCR
 U --> SRT
-
-A --> SRT
-A --> VSL
-
+M --> VSL
+M --> SC
+M --> CS
+M --> PAY
+M --> VCR
+M --> SRT
+M --> HR
 @enduml

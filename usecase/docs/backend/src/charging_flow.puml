@@ -1,0 +1,24 @@
+'@startuml
+skinparam linetype ortho
+
+actor "用户" as U
+actor "维修人员" as M
+actor "管理员" as A
+actor "系统" as S
+actor "支付网关" as P
+
+(启动充电)
+(结束充电并扣费)
+(查看充电记录)
+
+U --> 启动充电
+U --> 结束充电并扣费
+U --> 查看充电记录
+M --> 启动充电
+M --> 结束充电并扣费
+M --> 查看充电记录
+A --> 结束充电并扣费
+A --> 查看充电记录
+S --> 结束充电并扣费
+P --> 结束充电并扣费
+@enduml

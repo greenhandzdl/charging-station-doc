@@ -1,0 +1,19 @@
+'@startuml
+skinparam linetype ortho
+
+actor "用户" as U
+actor "维修人员" as M
+actor "管理员" as A
+
+(提交报修)
+(处理报修)
+(查看报修记录)
+
+U --> 提交报修
+U --> 查看报修记录
+M --> 提交报修
+M --> 处理报修
+M --> 查看报修记录
+A --> 处理报修
+A --> 查看报修记录
+@enduml
