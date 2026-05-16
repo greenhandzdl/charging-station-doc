@@ -1,110 +1,188 @@
 #!/usr/bin/env python3
-"""Render PlantUML .puml files in ../docs/src to ../docs/img.
+"""Render PlantUML .puml files in docs/{module}/src/ to docs/{module}/img/.
 
-Checks (in order):
-- `plantuml` command on PATH (often installed via package manager)
-- `plantuml.jar` located next to this script or in ../docs
-- Docker image `plantuml/plantuml`
+Searches commands in order (first match wins):
+  - plantuml       (apt/brew/pacman package)
+  - plantuml-native (AUR / manual install)
+  - java -jar plantuml.jar  (jar in scripts/ or docs/)
+  - docker run plantuml/plantuml
 
 Usage:
   python3 usecase/scripts/render_plantuml.py
-  # or from usecase/docs: python3 ../scripts/render_plantuml.py
+  python3 usecase/scripts/render_plantuml.py --module backend
+  python3 usecase/scripts/render_plantuml.py --module overview,frontend
 """
 import sys
 import os
 import shutil
 import subprocess
 import glob
+import argparse
+
+SEARCH_COMMANDS = ['plantuml', 'plantuml-native']
+
+JAR_CANDIDATES = [
+    'plantuml.jar',                              # next to this script
+    os.path.join('..', 'docs', 'plantuml.jar'),  # under usecase/docs/
+]
+
+DOCKER_IMAGE = 'plantuml/plantuml'
 
 
-def render_with_cmd(plantuml_cmd, src_files, img_dir, extra_args=None):
+def locate_cmd() -> str | None:
+    for cmd in SEARCH_COMMANDS:
+        path = shutil.which(cmd)
+        if path:
+            print(f"Detected `{cmd}` at {path}")
+            return path
+    return None
+
+
+def locate_jar(script_dir: str) -> str | None:
+    for rel in JAR_CANDIDATES:
+        jar = os.path.normpath(os.path.join(script_dir, rel))
+        if os.path.isfile(jar):
+            print(f"Found plantuml.jar at {jar}")
+            return jar
+    return None
+
+
+def find_modules(src_root: str) -> list[str]:
+    """Return list of module directories under src_root (e.g. ['overview', 'backend'])."""
+    modules = []
+    for entry in sorted(os.listdir(src_root)):
+        full = os.path.join(src_root, entry)
+        if os.path.isdir(full) and os.path.isdir(os.path.join(full, 'src')):
+            modules.append(entry)
+    return modules
+
+
+def puml_files(module_src: str) -> list[str]:
+    return sorted(glob.glob(os.path.join(module_src, '*.puml')))
+
+
+def render_batch(cmd_template: list[str], src_files: list[str], img_dir: str) -> bool:
     ok = True
     for f in src_files:
         try:
-            cmd = [plantuml_cmd, '-tsvg', '-o', img_dir, f]
+            cmd = cmd_template + ['-tsvg', '-o', img_dir, f]
             subprocess.run(cmd, check=True)
-            print(f"Rendered: {os.path.basename(f)} -> {img_dir}")
+            print(f"  Rendered: {os.path.basename(f)}")
         except subprocess.CalledProcessError as e:
-            print(f"Error rendering {f} with {plantuml_cmd}: {e}")
+            print(f"  Error rendering {f}: {e}")
             ok = False
     return ok
 
 
-def render_with_jar(jar_path, src_files, img_dir):
-    ok = True
-    for f in src_files:
-        try:
-            cmd = ['java', '-jar', jar_path, '-tsvg', '-o', img_dir, f]
-            subprocess.run(cmd, check=True)
-            print(f"Rendered via jar: {os.path.basename(f)} -> {img_dir}")
-        except subprocess.CalledProcessError as e:
-            print(f"Error rendering {f} with jar {jar_path}: {e}")
-            ok = False
-    return ok
+def render_via_cmd(command: str, modules: list[str], docs_root: str) -> bool:
+    all_ok = True
+    for mod in modules:
+        src_dir = os.path.join(docs_root, mod, 'src')
+        img_dir = os.path.join(docs_root, mod, 'img')
+        files = puml_files(src_dir)
+        if not files:
+            continue
+        os.makedirs(img_dir, exist_ok=True)
+        print(f"[{mod}] rendering {len(files)} diagram(s) with `{command}`")
+        if not render_batch([command], files, img_dir):
+            all_ok = False
+    return all_ok
 
 
-def render_with_docker(src_files, src_dir, img_dir):
-    ok = True
-    for f in src_files:
-        basename = os.path.basename(f)
-        try:
-            cmd = [
-                'docker', 'run', '--rm',
-                '-v', f'{src_dir}:/workspace',
-                '-v', f'{img_dir}:/output',
-                'plantuml/plantuml', '-tsvg', '-o', '/output', f'/workspace/{basename}'
-            ]
-            subprocess.run(cmd, check=True)
-            print(f"Rendered via docker: {basename} -> {img_dir}")
-        except subprocess.CalledProcessError as e:
-            print(f"Docker render error for {basename}: {e}")
-            ok = False
-    return ok
+def render_via_jar(jar_path: str, modules: list[str], docs_root: str) -> bool:
+    all_ok = True
+    for mod in modules:
+        src_dir = os.path.join(docs_root, mod, 'src')
+        img_dir = os.path.join(docs_root, mod, 'img')
+        files = puml_files(src_dir)
+        if not files:
+            continue
+        os.makedirs(img_dir, exist_ok=True)
+        print(f"[{mod}] rendering {len(files)} diagram(s) via java -jar")
+        if not render_batch(['java', '-jar', jar_path], files, img_dir):
+            all_ok = False
+    return all_ok
+
+
+def render_via_docker(modules: list[str], docs_root: str) -> bool:
+    all_ok = True
+    for mod in modules:
+        src_dir = os.path.join(docs_root, mod, 'src')
+        img_dir = os.path.join(docs_root, mod, 'img')
+        files = puml_files(src_dir)
+        if not files:
+            continue
+
+        abs_src = os.path.abspath(src_dir)
+        abs_img = os.path.abspath(img_dir)
+        os.makedirs(abs_img, exist_ok=True)
+
+        for f in files:
+            basename = os.path.basename(f)
+            try:
+                cmd = [
+                    'docker', 'run', '--rm',
+                    '-v', f'{abs_src}:/workspace/src',
+                    '-v', f'{abs_img}:/workspace/img',
+                    DOCKER_IMAGE, '-tsvg', '-o', '/workspace/img', f'/workspace/src/{basename}'
+                ]
+                subprocess.run(cmd, check=True)
+                print(f"  [{mod}] Rendered via docker: {basename}")
+            except subprocess.CalledProcessError as e:
+                print(f"  Docker render error for {basename}: {e}")
+                all_ok = False
+    return all_ok
 
 
 def main():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    src_dir = os.path.normpath(os.path.join(script_dir, '..', 'docs', 'src'))
-    img_dir = os.path.normpath(os.path.join(script_dir, '..', 'docs', 'img'))
-    os.makedirs(img_dir, exist_ok=True)
+    parser = argparse.ArgumentParser(description='Render PlantUML diagrams')
+    parser.add_argument('--module', '-m', help='Comma-separated module names (e.g. overview,backend). Default: all')
+    args = parser.parse_args()
 
-    puml_files = sorted(glob.glob(os.path.join(src_dir, '*.puml')))
-    if not puml_files:
-        print(f"No .puml files found in {src_dir}")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    docs_root = os.path.normpath(os.path.join(script_dir, '..', 'docs'))
+
+    all_modules = find_modules(docs_root)
+    if not all_modules:
+        print(f"No module directories with src/ found under {docs_root}")
         sys.exit(0)
 
-    # 1) plantuml CLI
-    plantuml_cmd = shutil.which('plantuml')
-    if plantuml_cmd:
-        print('Detected `plantuml` command (likely installed via package manager). Using it.')
-        success = render_with_cmd(plantuml_cmd, puml_files, img_dir)
-        if success:
-            print('All diagrams rendered with plantuml.')
+    if args.module:
+        requested = [m.strip() for m in args.module.split(',')]
+        modules = [m for m in all_modules if m in requested]
+        missing = set(requested) - set(modules)
+        if missing:
+            print(f"Unknown modules: {', '.join(missing)}")
+            sys.exit(2)
+    else:
+        modules = all_modules
+
+    # 1) Try native commands in order
+    command = locate_cmd()
+    if command:
+        if render_via_cmd(command, modules, docs_root):
+            print("All diagrams rendered successfully.")
             sys.exit(0)
 
-    # 2) plantuml.jar in script or docs
-    candidate_jars = [
-        os.path.join(script_dir, 'plantuml.jar'),
-        os.path.join(script_dir, '..', 'docs', 'plantuml.jar'),
-    ]
-    for jar in candidate_jars:
-        if os.path.isfile(jar):
-            print(f'Found plantuml.jar at {jar}; rendering via java -jar.')
-            if render_with_jar(jar, puml_files, img_dir):
-                print('All diagrams rendered with plantuml.jar.')
-                sys.exit(0)
+    # 2) Try plantuml.jar
+    jar = locate_jar(script_dir)
+    if jar:
+        if render_via_jar(jar, modules, docs_root):
+            print("All diagrams rendered successfully.")
+            sys.exit(0)
 
-    # 3) docker
+    # 3) Try Docker
     if shutil.which('docker'):
-        print('Docker detected. Trying to render diagrams with plantuml Docker image.')
-        if render_with_docker(puml_files, src_dir, img_dir):
-            print('All diagrams rendered with Docker image plantuml/plantuml.')
+        print("Docker detected. Trying plantuml/plantuml image.")
+        if render_via_docker(modules, docs_root):
+            print("All diagrams rendered successfully.")
             sys.exit(0)
 
-    print('\n未能找到可用的渲染器：请确保至少安装下列之一：')
-    print('- `plantuml` 命令（可通过系统包管理器安装，例如 apt/brew/pacman）')
-    print('- `plantuml.jar`（放到 usecase/scripts 或 usecase/docs 下）')
-    print('- Docker（用于运行 plantuml 镜像）')
+    print('\nNo renderer available. Install one of:')
+    print('  - `plantuml`          (apt/brew/pacman)')
+    print('  - `plantuml-native`   (AUR / local install)')
+    print(f'  - `plantuml.jar`      (place in scripts/ or usecase/docs/)')
+    print(f'  - Docker + `{DOCKER_IMAGE}` image')
     sys.exit(2)
 
 

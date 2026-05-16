@@ -1,0 +1,24 @@
+'@startuml
+title 数据库用例图
+skinparam useCaseShape rectangle
+
+actor "后端服务" as BE
+
+usecase "写入用户记录" as UC1
+usecase "查询用户凭证" as UC2
+usecase "记录支付流水" as UC3
+usecase "更新用户余额" as UC4
+usecase "创建充电记录" as UC5
+usecase "更新桩状态" as UC6
+usecase "统计报表聚合" as UC7
+usecase "记录审计日志" as UC8
+
+BE --> UC1
+BE --> UC2
+BE --> UC3
+BE --> UC4
+BE --> UC5
+BE --> UC6
+BE --> UC7
+BE --> UC8
+@enduml

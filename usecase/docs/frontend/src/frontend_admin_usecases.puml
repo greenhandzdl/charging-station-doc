@@ -1,0 +1,19 @@
+'@startuml
+title 前端用例 — 管理操作
+skinparam useCaseShape rectangle
+
+actor "管理员" as A
+actor "维修人员" as M
+actor "最高管理者" as SA
+
+usecase "处理报修" as HR
+usecase "管理充电站/充电桩" as MM
+usecase "用户权限管理" as PM
+
+A --> HR
+A --> MM
+A --> PM
+M --> HR
+SA --> MM
+SA --> PM
+@enduml

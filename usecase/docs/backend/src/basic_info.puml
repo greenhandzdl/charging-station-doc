@@ -1,15 +1,17 @@
 '@startuml
-left to right direction
 skinparam linetype ortho
 
 actor "管理员" as A
+actor "最高管理者" as SA
 
-"(管理充电站)" as MS
-"(管理充电桩)" as MC
-"(管理用户)" as MU
+(管理充电站)
+(管理充电桩)
+(管理用户)
 
-A --> MS
-A --> MC
-A --> MU
-
+A --> 管理充电站
+A --> 管理充电桩
+A --> 管理用户
+SA --> 管理充电站
+SA --> 管理充电桩
+SA --> 管理用户
 @enduml

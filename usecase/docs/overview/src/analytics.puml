@@ -1,0 +1,20 @@
+'@startuml
+left to right direction
+skinparam useCaseShape rectangle
+
+actor "系统" as S
+actor "管理员" as A
+actor "最高管理者" as SA
+
+usecase "生成统计报表" as GR
+usecase "查看使用率" as VU
+usecase "导出 CSV" as EXP
+
+S --> GR
+A --> GR
+A --> VU
+A --> EXP
+SA --> GR
+SA --> VU
+SA --> EXP
+@enduml

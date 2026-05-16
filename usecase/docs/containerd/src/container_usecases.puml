@@ -1,0 +1,18 @@
+'@startuml
+title 容器部署用例
+skinparam useCaseShape rectangle
+
+actor "用户/管理员" as UA
+
+usecase "访问前端应用" as UC1
+usecase "调用后端 API" as UC2
+usecase "读写数据库" as UC3
+usecase "调用支付模拟器" as UC4
+usecase "读写 Redis 缓存" as UC5
+
+UA --> UC1
+UC1 ..> UC2 : <<依赖>>
+UC2 ..> UC3 : <<依赖>>
+UC2 ..> UC4 : <<依赖>>
+UC2 ..> UC5 : <<依赖>>
+@enduml

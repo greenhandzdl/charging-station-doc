@@ -1,12 +1,33 @@
 '@startuml
-left to right direction
 skinparam linetype ortho
 
-package "Cluster" {
-  [Ingress]
-  [App] --> [DB]
-  [App] --> [Redis]
-  [App] --> [MockPayments]
+actor "用户/管理员" as UA
+
+frame "前端层" {
+  component "Flutter / Web" as FE
 }
 
+frame "后端层" {
+  component "Spring Boot" as BE
+}
+
+frame "基础设施层" {
+  database "PostgreSQL" as DB
+  component "Redis" as CACHE
+  component "Mock 支付网关" as MOCK
+}
+
+UA --> FE
+FE -right-> BE : REST API (HTTPS)
+BE -down-> DB : JDBC/JPA
+BE -right-> MOCK : HTTP 回调
+BE -down-> CACHE : 会话/缓存
+
+note right of MOCK
+  **支付模拟器说明**
+  - 当前阶段: 始终返回 success
+  - 后期扩展: failed / timeout
+  - 回调带模拟签名
+  - 后端需设计幂等处理
+end note
 @enduml

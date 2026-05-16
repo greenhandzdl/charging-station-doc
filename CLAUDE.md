@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目结构说明
 
 - `doc/` — 根本约束文档 `1.Java开发项目实训题目及评分标准.md` 及原始文件
-- `usecase/` — 所有 UML 文档与图，按模块（overview/backend/frontend/containerd）组织，各模块下含 `src/`（PlantUML 源）、`img/`（渲染 SVG）、README 及用例文档（后续可能加入类图、时序图等，目录会随需求扩充）
+- `usecase/` — 所有 UML 文档与图，按模块（overview/backend/frontend/containerd/database）组织，各模块下含 `src/`（PlantUML 源）、`img/`（渲染 SVG）、README 及用例文档
 - `agent/` — 工作跟踪文件：`plan.md`（进度）、`conflicts.md`（冲突决断）、`prompts.md`（可复用提示词模板）
 
 ## 评分标准映射（核心约束）
