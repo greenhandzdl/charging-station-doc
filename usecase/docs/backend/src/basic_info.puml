@@ -1,4 +1,5 @@
 '@startuml
+title 基础信息管理用例
 skinparam linetype ortho
 
 actor "管理员" as A
@@ -14,4 +15,6 @@ A --> 管理用户
 SA --> 管理充电站
 SA --> 管理充电桩
 SA --> 管理用户
+
+管理充电站 <.down. 管理充电桩 : <<include>>
 @enduml

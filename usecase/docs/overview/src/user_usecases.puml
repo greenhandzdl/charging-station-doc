@@ -10,9 +10,12 @@ usecase "注册" as REG
 usecase "登录" as LOG
 usecase "账户充值" as RCH
 usecase "启动充电" as CS
+usecase "余额校验" as BAL
 usecase "查看充电记录" as VCR
 usecase "提交故障报修" as SRT
 usecase "处理报修" as HR
+usecase "充电记录快捷视图" as QV
+usecase "充电桩状态快捷查询" as QC
 
 G --> REG
 G --> LOG
@@ -20,11 +23,16 @@ U --> RCH
 U --> CS
 U --> VCR
 U --> SRT
+U --> QV
+U --> QC
 M --> RCH
 M --> CS
 M --> VCR
 M --> SRT
 M --> HR
+M --> QV
+M --> QC
 
-note bottom of CS : 含结束充电并扣费
+CS <.left. BAL : <<include>>
+note bottom of CS : 启动前校验余额 >= 10元
 @enduml

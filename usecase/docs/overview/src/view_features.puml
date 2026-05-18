@@ -1,0 +1,15 @@
+'@startuml
+title 视图与便捷功能
+skinparam useCaseShape rectangle
+
+actor "用户" as U
+actor "管理员" as A
+
+usecase "充电记录快捷视图" as QV
+usecase "充电桩状态快捷查询" as QC
+
+U --> QV
+U --> QC
+A --> QV
+A --> QC
+@enduml

@@ -14,4 +14,7 @@ P --> CB
 S --> AUTO
 S --> GS
 S --> AUDIT
+
+AUTO <.left. CB : <<include>>
+GS ..> AUDIT : <<extend>>
 @enduml

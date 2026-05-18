@@ -1,4 +1,5 @@
 '@startuml
+title 充电流程用例
 skinparam linetype ortho
 
 actor "用户" as U
@@ -8,6 +9,7 @@ actor "系统" as S
 actor "支付网关" as P
 
 (启动充电)
+(余额校验)
 (结束充电并扣费)
 (查看充电记录)
 
@@ -21,4 +23,6 @@ A --> 结束充电并扣费
 A --> 查看充电记录
 S --> 结束充电并扣费
 P --> 结束充电并扣费
+
+启动充电 <.left. 余额校验 : <<include>>
 @enduml

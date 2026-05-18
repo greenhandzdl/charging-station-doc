@@ -9,11 +9,14 @@ actor "最高管理者" as SA
 usecase "处理报修" as HR
 usecase "管理充电站/充电桩" as MM
 usecase "用户权限管理" as PM
+usecase "充电桩状态快捷查询" as QC
 
 A --> HR
 A --> MM
 A --> PM
+A --> QC
 M --> HR
 SA --> MM
 SA --> PM
+SA --> QC
 @enduml

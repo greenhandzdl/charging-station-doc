@@ -1,4 +1,5 @@
 '@startuml
+title 账户与支付用例
 skinparam linetype ortho
 
 actor "未授权用户" as G
@@ -18,4 +19,6 @@ U --> 账户充值
 M --> 账户充值
 P --> 支付回调
 S --> 账户充值
+
+账户充值 <.down. 支付回调 : <<include>>
 @enduml

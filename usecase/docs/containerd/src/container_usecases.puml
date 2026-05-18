@@ -11,8 +11,8 @@ usecase "调用支付模拟器" as UC4
 usecase "读写 Redis 缓存" as UC5
 
 UA --> UC1
-UC1 ..> UC2 : <<依赖>>
-UC2 ..> UC3 : <<依赖>>
-UC2 ..> UC4 : <<依赖>>
-UC2 ..> UC5 : <<依赖>>
+UC1 --> UC2
+UC2 --> UC3
+UC2 --> UC4
+UC2 --> UC5
 @enduml

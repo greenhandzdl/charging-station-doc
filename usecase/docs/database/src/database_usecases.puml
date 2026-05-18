@@ -1,5 +1,5 @@
 '@startuml
-title 数据库用例图
+title 数据库交互用例
 skinparam useCaseShape rectangle
 
 actor "后端服务" as BE
@@ -21,4 +21,7 @@ BE --> UC5
 BE --> UC6
 BE --> UC7
 BE --> UC8
+
+UC4 <.down. UC3 : <<include>>
+UC5 ..> UC6 : <<extend>>
 @enduml

@@ -1,4 +1,5 @@
 '@startuml
+title 故障报修用例
 skinparam linetype ortho
 
 actor "用户" as U
@@ -16,4 +17,6 @@ M --> 处理报修
 M --> 查看报修记录
 A --> 处理报修
 A --> 查看报修记录
+
+处理报修 <.down. 查看报修记录 : <<include>>
 @enduml

@@ -13,6 +13,7 @@ usecase "用户权限管理" as PM
 usecase "处理报修" as HR
 usecase "查看报修记录" as VR
 usecase "生成统计报表" as GS
+usecase "充电桩状态快捷查询" as QC
 
 A --> MS
 A --> MC
@@ -20,10 +21,12 @@ A --> MU
 A --> PM
 A --> HR
 A --> VR
+A --> QC
 SA --> MS
 SA --> MC
 SA --> PM
 SA --> GS
+SA --> QC
 M --> HR
 M --> VR
 @enduml
