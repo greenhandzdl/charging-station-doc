@@ -1,0 +1,145 @@
+@startuml
+title 充电站管理系统类图
+
+package "基础信息" {
+
+  class Station {
+    - id: UUID
+    - name: String
+    - location: String
+    - chargerCount: int
+    - status: String
+    + CRUD()
+  }
+
+  class Charger {
+    - id: UUID
+    - chargerCode: String
+    - type: ChargerType
+    - status: ChargerStatus
+    + updateStatus()
+  }
+
+  enum ChargerType {
+    FAST
+    SLOW
+  }
+
+  enum ChargerStatus {
+    IDLE
+    CHARGING
+    FAULT
+  }
+
+  Station "1" --> "0..*" Charger : 包含
+  Charger --> ChargerType
+  Charger --> ChargerStatus
+}
+
+package "用户与权限" {
+
+  class User {
+    - id: UUID
+    - name: String
+    - phone: String
+    - plateNumber: String
+    - passwordHash: String
+    - role: UserRole
+    - balance: BigDecimal
+    + login()
+    + recharge()
+  }
+
+  enum UserRole {
+    USER
+    MAINTAINER
+    ADMIN
+    SUPER_ADMIN
+  }
+
+  User --> UserRole
+}
+
+package "充电业务" {
+
+  class ChargeRecord {
+    - id: UUID
+    - startTime: LocalDateTime
+    - endTime: LocalDateTime
+    - energyKwh: BigDecimal
+    - fee: BigDecimal
+    - status: RecordStatus
+    + startCharge()
+    + stopCharge()
+    + calculateFee()
+  }
+
+  enum RecordStatus {
+    PROCESSING
+    COMPLETED
+    ARREARS
+  }
+
+  ChargeRecord --> RecordStatus
+}
+
+package "支付" {
+
+  class Payment {
+    - id: UUID
+    - method: String
+    - amount: BigDecimal
+    - status: PaymentStatus
+    + processCallback()
+  }
+
+  enum PaymentStatus {
+    PENDING
+    SUCCESS
+    FAILED
+  }
+
+  Payment --> PaymentStatus
+}
+
+package "报修" {
+
+  class Repair {
+    - id: UUID
+    - description: String
+    - status: RepairStatus
+    - reportedAt: LocalDateTime
+    - handledAt: LocalDateTime
+    + submit()
+    + assign()
+    + resolve()
+  }
+
+  enum RepairStatus {
+    OPEN
+    IN_PROGRESS
+    CLOSED
+  }
+
+  Repair --> RepairStatus
+}
+
+package "审计" {
+
+  class AuditLog {
+    - id: UUID
+    - actorType: String
+    - action: String
+    - resource: String
+    - payload: JSON
+  }
+}
+
+Charger "1" --> "0..*" ChargeRecord : 被使用
+User "1" --> "0..*" ChargeRecord : 发起
+User "1" --> "0..*" Payment : 支付
+User "1" --> "0..*" Repair : 报修/处理
+ChargeRecord "1" --> "0..1" Payment : 产生
+User "1" --> "0..*" AuditLog : 操作记录
+
+@enduml

@@ -43,6 +43,28 @@
 
 ![视图与便捷功能](img/view_features.svg)
 
+## 类图
+
+![充电站管理系统类图](img/class_diagram.svg)
+
+## 核心流程时序图
+
+### 启动充电
+
+![启动充电时序图](img/sequence_charging.svg)
+
+### 结束充电与自动扣费
+
+![结束充电时序图](img/sequence_stop_charge.svg)
+
+## 状态图
+
+![充电桩状态图](img/state_charger.svg)
+
+## 活动图
+
+![故障报修处理活动图](img/activity_repair.svg)
+
 ### 系统与外部交互用例
 
 ![系统与外部交互用例](img/external_usecases.svg)

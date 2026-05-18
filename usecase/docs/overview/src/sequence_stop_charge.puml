@@ -1,0 +1,43 @@
+'@startuml
+title 结束充电与自动扣费时序图
+actor 用户 as U
+participant 前端 as FE
+participant 充电控制器 as Ctrl
+participant 计费服务 as Bill
+participant 支付服务 as Pay
+database 数据库 as DB
+
+U -> FE: 点击"结束充电"
+FE -> Ctrl: POST /charges/stop {recordId}
+Ctrl -> DB: SELECT charge_record, charger, user FROM ...
+DB --> Ctrl: 充电记录、桩信息、用户余额
+
+Ctrl -> Bill: 计算充电量与费用
+Bill --> Ctrl: energyKwh=15.0, fee=22.50
+
+group 事务开始
+  Ctrl -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=15.0, fee=22.50, status='completed'
+  DB --> Ctrl: 更新成功
+
+  Ctrl -> Pay: 执行扣费 22.50 元
+  Pay -> DB: UPDATE users SET balance = balance - 22.50 WHERE id = ? AND balance >= 22.50
+  DB --> Pay: 扣费成功
+
+  Pay -> DB: INSERT INTO payments (user_id, charge_record_id, amount, status='success')
+  DB --> Pay: 记录成功
+
+  Ctrl -> DB: UPDATE chargers SET status = 'idle' WHERE id = ?
+  DB --> Ctrl: 桩已释放
+
+  Ctrl -> DB: INSERT INTO audit_logs ... action='stop_charge'
+end
+
+alt 余额不足
+  Ctrl -> DB: UPDATE charge_records SET status = 'arrears'
+  Ctrl -> DB: INSERT INTO audit_logs ... action='charge_arrears'
+  Ctrl --> FE: 返回"欠费"提示
+end
+
+Ctrl --> FE: 充电结束 {fee=22.50, energy=15.0}
+FE --> U: 显示结算信息
+@enduml

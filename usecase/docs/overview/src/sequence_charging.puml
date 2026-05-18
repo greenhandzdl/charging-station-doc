@@ -1,0 +1,32 @@
+'@startuml
+title 启动充电时序图
+actor 用户 as U
+participant 前端 as FE
+participant 充电控制器 as Ctrl
+participant 用户服务 as US
+participant 充电桩服务 as CS
+database 数据库 as DB
+
+U -> FE: 选择充电桩，点击"启动充电"
+FE -> Ctrl: POST /charges/start {userId, chargerId}
+Ctrl -> US: 查询用户信息
+US -> DB: SELECT * FROM users WHERE id = ?
+DB --> US: 用户信息
+US --> Ctrl: 用户存在，余额 >= 10元
+
+Ctrl -> CS: 查询充电桩状态
+CS -> DB: SELECT status FROM chargers WHERE id = ?
+DB --> CS: status = idle
+CS --> Ctrl: 桩空闲
+
+Ctrl -> CS: 锁定充电桩
+CS -> DB: UPDATE chargers SET status = 'charging' WHERE id = ? AND status = 'idle'
+DB --> CS: 更新成功
+
+Ctrl -> DB: INSERT INTO charge_records (id, user_id, charger_id, start_time, status)
+DB --> Ctrl: 创建成功
+
+Ctrl -> DB: INSERT INTO audit_logs ... action='start_charge'
+Ctrl --> FE: 充电已启动 {recordId, startTime}
+FE --> U: 显示"充电中"状态
+@enduml
