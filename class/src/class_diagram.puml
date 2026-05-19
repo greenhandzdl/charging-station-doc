@@ -1,4 +1,6 @@
 @startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
 title 充电站管理系统类图
 
 package "基础信息" {

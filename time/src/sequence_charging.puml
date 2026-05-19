@@ -1,4 +1,6 @@
 '@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
 title 启动充电时序图
 actor 用户 as U
 participant 前端 as FE

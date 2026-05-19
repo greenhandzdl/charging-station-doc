@@ -1,6 +1,7 @@
 '@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
 title 充电桩状态图
-skinparam style strictuml
 
 state "空闲" as IDLE
 state "使用中" as CHARGING

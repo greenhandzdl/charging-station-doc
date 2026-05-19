@@ -1,4 +1,6 @@
 '@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
 title 统计与可视化用例
 left to right direction
 skinparam useCaseShape rectangle
