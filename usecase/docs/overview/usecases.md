@@ -56,13 +56,19 @@
 | 部署 | [containerd/](../containerd/README.md) | 容器化与部署用例、部署架构 |
 | 数据库 | [database/](../database/db.md) | 数据库表结构、后端-数据库交互用例 |
 | 视图便捷 | [view-features](view-features.md) | 充电记录快捷视图、充电桩状态快捷查询 |
-| 设计图 | [design](../../../design/README.md) | 类图、时序图、状态图、活动图 |
+| 类图 | [class](../../../class/README.md) | 系统核心类及其关系 |
+| 时序图 | [time](../../../time/README.md) | 启动充电、结束扣费对象交互 |
+| 状态图 | [status](../../../status/README.md) | 充电桩状态流转 |
+| 活动图 | [activity](../../../activity/README.md) | 故障报修全流程 |
 
 ## 相关文档
 
 - [统计与可视化](analytics.md) — 统计报表与导出用例
 - [视图与便捷功能](view-features.md) — 充电记录快捷视图与桩状态快捷查询
-- [设计图](../../../design/README.md) — 类图、时序图、状态图、活动图
+- [类图](../../../class/README.md) — 系统核心类设计
+- [时序图](../../../time/README.md) — 充电业务流程对象交互
+- [状态图](../../../status/README.md) — 充电桩状态流转
+- [活动图](../../../activity/README.md) — 故障报修处理流程
 - [后端 API 与权限映射](../backend/README.md) — API 定义、权限控制、安全措施
 - [前端用例](../frontend/README.md) — 前端界面与交互契约
 - [数据库设计](../database/db.md) — 数据库表结构
