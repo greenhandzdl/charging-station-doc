@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Render PlantUML .puml files in docs/{module}/src/ to docs/{module}/img/.
+"""Render PlantUML .puml files to SVG.
+
+Scopes (in order):
+  1. usecase/docs/{module}/ — legacy modules (overview, backend, frontend, containerd, database)
+  2. {module}/ — root-level modules (class, time, status, activity)
 
 Searches commands in order (first match wins):
   - plantuml       (apt/brew/pacman package)
@@ -47,6 +51,9 @@ def locate_jar(script_dir: str) -> str | None:
     return None
 
 
+ROOT_LEVEL_MODULES = ['class', 'time', 'status', 'activity']
+
+
 def find_modules(src_root: str) -> list[str]:
     """Return list of module directories under src_root (e.g. ['overview', 'backend'])."""
     modules = []
@@ -74,26 +81,27 @@ def render_batch(cmd_template: list[str], src_files: list[str], img_dir: str) ->
     return ok
 
 
-def render_via_cmd(command: str, modules: list[str], docs_root: str) -> bool:
+def render_all(cmd: str, modules: dict[str, str]) -> bool:
+    """Render modules dict (name -> root_path) via native command."""
     all_ok = True
-    for mod in modules:
-        src_dir = os.path.join(docs_root, mod, 'src')
-        img_dir = os.path.join(docs_root, mod, 'img')
+    for mod, root in modules.items():
+        src_dir = os.path.join(root, mod, 'src')
+        img_dir = os.path.join(root, mod, 'img')
         files = puml_files(src_dir)
         if not files:
             continue
         os.makedirs(img_dir, exist_ok=True)
-        print(f"[{mod}] rendering {len(files)} diagram(s) with `{command}`")
-        if not render_batch([command], files, img_dir):
+        print(f"[{mod}] rendering {len(files)} diagram(s) with `{cmd}`")
+        if not render_batch([cmd], files, img_dir):
             all_ok = False
     return all_ok
 
 
-def render_via_jar(jar_path: str, modules: list[str], docs_root: str) -> bool:
+def render_via_jar_all(jar_path: str, modules: dict[str, str]) -> bool:
     all_ok = True
-    for mod in modules:
-        src_dir = os.path.join(docs_root, mod, 'src')
-        img_dir = os.path.join(docs_root, mod, 'img')
+    for mod, root in modules.items():
+        src_dir = os.path.join(root, mod, 'src')
+        img_dir = os.path.join(root, mod, 'img')
         files = puml_files(src_dir)
         if not files:
             continue
@@ -104,11 +112,11 @@ def render_via_jar(jar_path: str, modules: list[str], docs_root: str) -> bool:
     return all_ok
 
 
-def render_via_docker(modules: list[str], docs_root: str) -> bool:
+def render_via_docker_all(modules: dict[str, str]) -> bool:
     all_ok = True
-    for mod in modules:
-        src_dir = os.path.join(docs_root, mod, 'src')
-        img_dir = os.path.join(docs_root, mod, 'img')
+    for mod, root in modules.items():
+        src_dir = os.path.join(root, mod, 'src')
+        img_dir = os.path.join(root, mod, 'img')
         files = puml_files(src_dir)
         if not files:
             continue
@@ -140,17 +148,26 @@ def main():
     args = parser.parse_args()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.normpath(os.path.join(script_dir, '..', '..'))
     docs_root = os.path.normpath(os.path.join(script_dir, '..', 'docs'))
 
-    all_modules = find_modules(docs_root)
+    # Scan both usecase/docs/ and root-level modules
+    all_modules: dict[str, str] = {}   # module_name -> root_path
+    for mod in find_modules(docs_root):
+        all_modules[mod] = docs_root
+    for mod in ROOT_LEVEL_MODULES:
+        mod_path = os.path.join(project_root, mod)
+        if os.path.isdir(mod_path) and os.path.isdir(os.path.join(mod_path, 'src')):
+            all_modules[mod] = project_root
+
     if not all_modules:
-        print(f"No module directories with src/ found under {docs_root}")
+        print(f"No module directories with src/ found")
         sys.exit(0)
 
     if args.module:
         requested = [m.strip() for m in args.module.split(',')]
-        modules = [m for m in all_modules if m in requested]
-        missing = set(requested) - set(modules)
+        modules = {k: v for k, v in all_modules.items() if k in requested}
+        missing = set(requested) - set(modules.keys())
         if missing:
             print(f"Unknown modules: {', '.join(missing)}")
             sys.exit(2)
@@ -160,21 +177,21 @@ def main():
     # 1) Try native commands in order
     command = locate_cmd()
     if command:
-        if render_via_cmd(command, modules, docs_root):
+        if render_all(command, modules):
             print("All diagrams rendered successfully.")
             sys.exit(0)
 
     # 2) Try plantuml.jar
     jar = locate_jar(script_dir)
     if jar:
-        if render_via_jar(jar, modules, docs_root):
+        if render_via_jar_all(jar, modules):
             print("All diagrams rendered successfully.")
             sys.exit(0)
 
     # 3) Try Docker
     if shutil.which('docker'):
         print("Docker detected. Trying plantuml/plantuml image.")
-        if render_via_docker(modules, docs_root):
+        if render_via_docker_all(modules):
             print("All diagrams rendered successfully.")
             sys.exit(0)
 

@@ -67,7 +67,7 @@
 | 后端 | [usecase/docs/backend/README.md](usecase/docs/backend/README.md) | 基础信息、充电流程、账户支付、故障报修 |
 | 前端 | [usecase/docs/frontend/README.md](usecase/docs/frontend/README.md) | 前端用例与交互契约 |
 | 部署 | [usecase/docs/containerd/README.md](usecase/docs/containerd/README.md) | 容器化与部署架构 |
-| 数据库 | [usecase/docs/database/db.md](usecase/docs/database/db.md) | 七张核心表结构设计 |
+| 数据库 | [usecase/docs/database/db.md](usecase/docs/database/db.md) | 七张核心表、ER 图、索引、DDL |
 | 类图 | [class/README.md](class/README.md) | 系统核心类及其关系 |
 | 时序图 | [time/README.md](time/README.md) | 启动充电、结束扣费对象交互 |
 | 状态图 | [status/README.md](status/README.md) | 充电桩状态流转 |
@@ -78,7 +78,8 @@
 | 图类型 | 数量 | 文件 |
 |--------|:----:|------|
 | 用例图 | 15 | overview(6) + backend(4) + frontend(2) + containerd(2) + database(1) |
-| 类图 | 1 | 7大核心类，含枚举与关联关系 |
+| ER 图 | 1 | 7 张表实体关系 |
+| 类图 | 1 | 7 大核心类，含枚举与关联关系 |
 | 时序图 | 2 | 启动充电、结束充电与自动扣费 |
 | 状态图 | 1 | 充电桩 3 种状态流转 |
 | 活动图 | 1 | 故障报修处理流程 |
@@ -111,6 +112,6 @@ python3 usecase/scripts/render_plantuml.py --module backend,frontend
 | 时序图 | ✅ | 启动充电 + 结束扣费（含异常分支） |
 | 状态图 | ✅ | 充电桩三态流转 |
 | 活动图 | ✅ | 报修全流程 |
-| 数据库设计 | ✅ | 7张表，含字段、约束、索引 |
+| 数据库设计 | ✅ | ER 图、7 张表、外键约束、索引明细、DDL 脚本 |
 | 容器部署图 | ✅ | 部署架构 + 容器用例 |
 | 交叉引用 | ✅ | 模块间 README 路径链接 |

@@ -1,0 +1,94 @@
+@startuml
+title 充电站管理系统 ER 图
+
+entity users {
+  *id: UUID (PK)
+  --
+  name: VARCHAR(100)
+  *phone: VARCHAR(32) (UNIQUE)
+  plate_number: VARCHAR(32)
+  *password_hash: VARCHAR(255)
+  role: VARCHAR(32)
+  balance: NUMERIC(12,2)
+  created_at: TIMESTAMPTZ
+  updated_at: TIMESTAMPTZ
+}
+
+entity stations {
+  *id: UUID (PK)
+  --
+  *name: VARCHAR(200)
+  location: TEXT
+  charger_count: INTEGER
+  status: VARCHAR(32)
+  created_at: TIMESTAMPTZ
+}
+
+entity chargers {
+  *id: UUID (PK)
+  --
+  *station_id: UUID (FK)
+  *charger_code: VARCHAR(64) (UNIQUE)
+  type: VARCHAR(32)
+  status: VARCHAR(32)
+  created_at: TIMESTAMPTZ
+}
+
+entity charge_records {
+  *id: UUID (PK)
+  --
+  *user_id: UUID (FK)
+  *charger_id: UUID (FK)
+  start_time: TIMESTAMPTZ
+  end_time: TIMESTAMPTZ
+  energy_kwh: NUMERIC(10,3)
+  fee: NUMERIC(12,2)
+  status: VARCHAR(32)
+  created_at: TIMESTAMPTZ
+}
+
+entity payments {
+  *id: UUID (PK)
+  --
+  *user_id: UUID (FK)
+  charge_record_id: UUID (FK)
+  method: VARCHAR(32)
+  *amount: NUMERIC(12,2)
+  status: VARCHAR(32)
+  gateway_callback_payload: JSONB
+  created_at: TIMESTAMPTZ
+}
+
+entity repairs {
+  *id: UUID (PK)
+  --
+  *charger_id: UUID (FK)
+  reporter_id: UUID (FK)
+  description: TEXT
+  status: VARCHAR(32)
+  handled_by: UUID (FK)
+  reported_at: TIMESTAMPTZ
+  handled_at: TIMESTAMPTZ
+}
+
+entity audit_logs {
+  *id: UUID (PK)
+  --
+  actor_id: UUID
+  actor_type: VARCHAR(32)
+  *action: VARCHAR(128)
+  resource: VARCHAR(128)
+  resource_id: UUID
+  payload: JSONB
+  created_at: TIMESTAMPTZ
+}
+
+stations ||--o{ chargers
+users ||--o{ charge_records
+chargers ||--o{ charge_records
+users ||--o{ payments
+charge_records ||--o{ payments
+users ||--o{ repairs
+chargers ||--o{ repairs
+users ||--o{ audit_logs
+@enduml

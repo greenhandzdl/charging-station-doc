@@ -6,6 +6,8 @@
 
 ![数据库用例图](img/database_usecases.svg)
 
+![充电站管理系统 ER 图](img/er_diagram.svg)
+
 ### 1. users（用户表）
 
 | 字段 | 类型 | 约束 | 说明 |
@@ -122,20 +124,53 @@
 | 统计与可视化 | charge_records, payments, stations, chargers | 报表聚合，状态统计 |
 | 审计日志 | audit_logs | 关键操作记录 |
 
+## ER 图
+
+![充电站管理系统 ER 图](img/er_diagram.svg)
+
+## 外键约束
+
+| 表 | 外键 | 引用 | 说明 |
+|----|------|------|------|
+| chargers | station_id | stations(id) | 充电桩归属充电站 |
+| charge_records | user_id | users(id) | 充电记录归属用户 |
+| charge_records | charger_id | chargers(id) | 充电记录关联充电桩 |
+| payments | user_id | users(id) | 支付记录归属用户 |
+| payments | charge_record_id | charge_records(id) | 支付关联充电记录（可为空，仅扣费时有值）|
+| repairs | charger_id | chargers(id) | 报修关联充电桩 |
+| repairs | reporter_id | users(id) | 报修提交人 |
+| repairs | handled_by | users(id) | 报修处理人 |
+
+## 索引设计
+
+| 索引名称 | 表 | 列 | 类型 | 说明 |
+|----------|----|----|------|------|
+| idx_users_phone | users | phone | UNIQUE | 登录手机号唯一索引 |
+| idx_users_role | users | role | BTREE | 角色筛选 |
+| idx_chargers_charger_code | chargers | charger_code | UNIQUE | 充电桩编号唯一索引 |
+| idx_chargers_station_id | chargers | station_id | BTREE | 按充电站查询充电桩 |
+| idx_charge_records_user_start | charge_records | (user_id, start_time) | BTREE | 复合索引，用户充电历史查询 |
+| idx_charge_records_charger_time | charge_records | (charger_id, start_time) | BTREE | 充电桩使用记录查询 |
+| idx_repairs_status | repairs | status | BTREE | 未处理报修单筛选 |
+| idx_payments_user_id | payments | user_id | BTREE | 用户支付记录查询 |
+| idx_audit_logs_actor | audit_logs | (actor_id, created_at) | BTREE | 操作审计追溯 |
+
+## DDL 建表脚本
+
+完整的数据库建表脚本请参考 [database/ddl.sql](ddl.sql)，包含：
+
+- 所有表的 `CREATE TABLE` 语句
+- 主键、外键、唯一约束
+- 索引创建语句
+- 字段注释
+
 ## 实施要点
 
-- **索引：** `users.phone`、`users.role`、`chargers.charger_code`、`charge_records(user_id, start_time)`、`repairs.status` 建立索引。
 - **幂等：** 支付回调使用 `payments.id` 或业务幂等键确保幂等。
 - **事务：** 余额更新与账单写入放在同一事务中，保证一致性。
 - **时序数据：** 需要高性能时序分析时，启用 TimescaleDB 扩展，将 `charge_records` 保存在 hypertable 中。
 - **数据保留：** 充电记录与支付流水按时间分区或归档。
 - **审计完整性：** audit_logs 仅追加写入，禁止修改或删除。
-
-## 交付物
-
-- 本文件为交付级数据库说明。
-- ER 关系图在后续迭代中补充。
-- 数据库迁移脚本（DDL）使用 Flyway/Liquibase 管理，在后续提交中提供。
 
 ## 交叉索引
 
