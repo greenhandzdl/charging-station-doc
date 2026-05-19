@@ -1,4 +1,4 @@
-# 设计工件
+# 设计图
 
 本文档集中展示充电站管理系统的 UML 设计图，涵盖类图、时序图、状态图和活动图。
 
@@ -64,6 +64,6 @@
 
 ## 相关文档
 
-- [参与者与用例总览](../overview/usecases.md) — 用例定义与参与者
-- [后端 API 与权限映射](../backend/README.md) — API 定义与权限
-- [数据库设计](../database/db.md) — 表结构对应类属性
+- [参与者与用例总览](../usecase/docs/overview/usecases.md) — 用例定义与参与者
+- [后端 API 与权限映射](../usecase/docs/backend/README.md) — API 定义与权限
+- [数据库设计](../usecase/docs/database/db.md) — 表结构对应类属性
