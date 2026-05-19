@@ -43,28 +43,6 @@
 
 ![视图与便捷功能](img/view_features.svg)
 
-## 类图
-
-![充电站管理系统类图](img/class_diagram.svg)
-
-## 核心流程时序图
-
-### 启动充电
-
-![启动充电时序图](img/sequence_charging.svg)
-
-### 结束充电与自动扣费
-
-![结束充电时序图](img/sequence_stop_charge.svg)
-
-## 状态图
-
-![充电桩状态图](img/state_charger.svg)
-
-## 活动图
-
-![故障报修处理活动图](img/activity_repair.svg)
-
 ### 系统与外部交互用例
 
 ![系统与外部交互用例](img/external_usecases.svg)
@@ -78,11 +56,13 @@
 | 部署 | [containerd/](../containerd/README.md) | 容器化与部署用例、部署架构 |
 | 数据库 | [database/](../database/db.md) | 数据库表结构、后端-数据库交互用例 |
 | 视图便捷 | [view-features](view-features.md) | 充电记录快捷视图、充电桩状态快捷查询 |
+| 设计工件 | [design-artifacts](../design-artifacts/README.md) | 类图、时序图、状态图、活动图 |
 
 ## 相关文档
 
 - [统计与可视化](analytics.md) — 统计报表与导出用例
 - [视图与便捷功能](view-features.md) — 充电记录快捷视图与桩状态快捷查询
+- [设计工件图](../design-artifacts/README.md) — 类图、时序图、状态图、活动图
 - [后端 API 与权限映射](../backend/README.md) — API 定义、权限控制、安全措施
 - [前端用例](../frontend/README.md) — 前端界面与交互契约
 - [数据库设计](../database/db.md) — 数据库表结构
