@@ -1,56 +1,69 @@
-'@startuml
+@startuml
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
 title 结束充电与自动扣费时序图
+
+' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
 actor 用户 as U
 participant 前端 as FE
 participant 充电控制器 as Ctrl
+participant 充电服务 as Service
 participant 计费服务 as Bill
 participant 支付服务 as Pay
 database 数据库 as DB
 
 U -> FE: 点击"结束充电"
 FE -> Ctrl: POST /charges/stop {recordId}
-Ctrl -> DB: SELECT charge_record, charger, user FROM ...
-DB --> Ctrl: 充电记录、桩信息、用户余额
+Ctrl -> Service: 请求结束充电
 
-Ctrl -> Bill: 计算充电量与费用
-Bill --> Ctrl: energyKwh=15.0, fee=22.50
+Service -> DB: SELECT charge_record, charger FROM ...
+DB --> Service: 充电记录、桩信息
 
-Ctrl -> Pay: 校验余额 >= 22.50 元
-Pay -> DB: SELECT balance FROM users WHERE id = ?
-DB --> Pay: 余额充足
+Service -> Bill: 计算充电量与费用
+Bill --> Service: energyKwh=15.0, fee=22.50
 
-alt 余额充足
-  group 事务开始
-    Ctrl -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=15.0, fee=22.50, status='completed'
-    DB --> Ctrl: 更新成功
+Service -> Pay: 校验并扣费 {userId, amount=22.50}
 
-    Ctrl -> Pay: 执行扣费 22.50 元
-    Pay -> DB: UPDATE users SET balance = balance - 22.50 WHERE id = ? AND balance >= 22.50
+group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + 扣减余额 + 插入支付记录 + 更新桩状态
+  Pay -> DB: SELECT balance FROM users WHERE id = ? FOR UPDATE -- 使用 PreparedStatement 参数绑定
+  DB --> Pay: 余额充足
+
+  alt 余额充足
+    Pay -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=15.0, fee=22.50, status='completed' -- 使用 PreparedStatement 参数绑定
+    DB --> Pay: 更新成功
+
+    Pay -> DB: UPDATE users SET balance = balance - 22.50 WHERE id = ? AND balance >= 22.50 -- 使用 PreparedStatement 参数绑定
     DB --> Pay: 扣费成功
 
-    Pay -> DB: INSERT INTO payments (user_id, charge_record_id, amount, status='success')
+    Pay -> DB: INSERT INTO payments (user_id, charge_record_id, amount, status='success') -- 使用 PreparedStatement 参数绑定
     DB --> Pay: 记录成功
 
-    Ctrl -> DB: UPDATE chargers SET status = 'idle' WHERE id = ?
-    DB --> Ctrl: 桩已释放
+    Pay --> Service: 扣费成功
 
-    Ctrl -> DB: INSERT INTO audit_logs ... action='stop_charge'
-  end
-  Ctrl --> FE: 充电结束 {fee=22.50, energy=15.0}
-  FE --> U: 显示结算信息
-else 余额不足
-  group 事务开始
-    Ctrl -> DB: UPDATE charge_records SET status = 'arrears'
-    DB --> Ctrl: 标记欠费
+    Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? -- 使用 PreparedStatement 参数绑定
+    DB --> Service: 桩已释放
 
-    Ctrl -> DB: INSERT INTO audit_logs ... action='charge_arrears'
+    Service -> DB: INSERT INTO audit_logs ... action='stop_charge' -- 使用 PreparedStatement 参数绑定
+  else 余额不足
+    Pay --> Service: 余额不足
+
+    Service -> DB: UPDATE charge_records SET status='arrears', deduction_status='arrears' -- 使用 PreparedStatement 参数绑定
+    DB --> Service: 标记欠费
+
+    Service -> DB: UPDATE chargers SET status = 'arrears' WHERE id = ? -- 使用 PreparedStatement 参数绑定
+    DB --> Service: 桩已标记欠费
+
+    Service -> DB: INSERT INTO audit_logs ... action='charge_arrears' -- 使用 PreparedStatement 参数绑定
   end
-  Ctrl --> FE: 返回"欠费"提示（桩状态保持"使用中"）
-  FE --> U: 显示"余额不足，已标记欠费"
 end
 
-Ctrl --> FE: 充电结束 {fee=22.50, energy=15.0}
-FE --> U: 显示结算信息
+alt 余额充足
+  Service --> Ctrl: 充电结束 {fee=22.50, energy=15.0}
+  Ctrl --> FE: 显示结算信息
+  FE --> U: 显示"充电完成，已扣费 22.50 元"
+else 余额不足
+  Service --> Ctrl: 欠费提示
+  Ctrl --> FE: 返回"欠费"提示（桩状态为"欠费"）
+  FE --> U: 显示"余额不足，已标记欠费，待管理员处理"
+end
 @enduml

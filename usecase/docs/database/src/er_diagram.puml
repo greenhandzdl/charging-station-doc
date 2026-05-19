@@ -46,6 +46,7 @@ entity charge_records {
   energy_kwh: NUMERIC(10,3)
   fee: NUMERIC(12,2)
   status: VARCHAR(32)
+  deduction_status: VARCHAR(32) (扣费状态)
   created_at: TIMESTAMPTZ
 }
 

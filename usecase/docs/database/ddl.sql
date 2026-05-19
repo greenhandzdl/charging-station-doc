@@ -60,13 +60,15 @@ CREATE TABLE charge_records (
     energy_kwh NUMERIC(10,3),
     fee NUMERIC(12,2),
     status VARCHAR(32),
+    deduction_status VARCHAR(32) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_charge_records_user_start ON charge_records(user_id, start_time);
 CREATE INDEX idx_charge_records_charger_time ON charge_records(charger_id, start_time);
 COMMENT ON TABLE charge_records IS '充电记录表';
-COMMENT ON COLUMN charge_records.status IS '记录状态: processing / completed / arrears';
+COMMENT ON COLUMN charge_records.status IS '充电过程状态: processing / completed';
+COMMENT ON COLUMN charge_records.deduction_status IS '扣费状态: pending / paid / arrears';
 
 -- 5. payments（支付记录表）
 CREATE TABLE payments (

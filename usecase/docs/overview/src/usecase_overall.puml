@@ -1,4 +1,4 @@
-'@startuml
+@startuml
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
 title 总体用例总览
@@ -16,7 +16,8 @@ usecase "注册/登录" as UC
 usecase "账户充值" as RA
 usecase "启动充电" as SC
 usecase "余额校验" as BAL
-usecase "结束充电并扣费" as EC
+usecase "结束充电" as EC
+usecase "自动扣费" as AD
 usecase "查看充电记录" as VCR
 usecase "提交故障报修" as SRT
 usecase "管理充电站/充电桩" as MM
@@ -31,6 +32,7 @@ G --> UC
 U --> RA
 U --> SC
 U --> EC
+U --> AD
 U --> VCR
 U --> SRT
 U --> QV
@@ -39,6 +41,7 @@ U --> QC
 M --> RA
 M --> SC
 M --> EC
+M --> AD
 M --> VCR
 M --> SRT
 M --> HR
@@ -58,4 +61,5 @@ P --> EC
 S --> GS
 
 SC <.left. BAL : <<include>>
+EC <.right. AD : <<include>>
 @enduml

@@ -11,6 +11,7 @@ actor "维修人员" as M
 usecase "注册/登录" as LOG
 usecase "查看站点列表" as VSL
 usecase "选择充电桩" as SC
+usecase "余额校验" as BC
 usecase "启动/结束充电" as CS
 usecase "充值支付" as PAY
 usecase "查看充电记录" as VCR
@@ -35,6 +36,9 @@ M --> PAY
 M --> VCR
 M --> SRT
 M --> HR
+note right of M : 维修人员仅操作自己的充电/支付记录\n及被分配的报修单，不可越权访问其他用户数据
+CS <.left. BC : <<include>>
+note bottom of CS : 启动前校验余额 >= 10元
 M --> QV
 M --> QC
 @enduml

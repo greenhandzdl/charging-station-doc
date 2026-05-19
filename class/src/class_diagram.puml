@@ -2,200 +2,274 @@
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
 title 充电站管理系统类图
-
-package "基础信息" {
-
-  class Station {
-    - id: UUID
-    - name: String
-    - location: String
-    - chargerCount: int
-    - status: StationStatus
-  }
-
-  enum StationStatus {
-    NORMAL
-    MAINTENANCE
-  }
-
-  class Charger {
-    - id: UUID
-    - chargerCode: String
-    - type: ChargerType
-    - status: ChargerStatus
-  }
-
-  enum ChargerType {
-    FAST
-    SLOW
-  }
-
-  enum ChargerStatus {
-    IDLE
-    CHARGING
-    FAULT
-  }
-
-  Station "1" --> "0..*" Charger : 包含
-  Station --> StationStatus
-  Charger --> ChargerType
-  Charger --> ChargerStatus
+skinparam package {
+  BackgroundColor #F0F0F0
+  BorderColor #666666
 }
 
-package "用户与权限" {
+package "前端层 (Flutter / Dart Model)" as FE #ADD8E6 {
+  !define FE_COLOR #ADD8E6
 
-  class User {
+  class "UserModel" as FUser {
     - id: UUID
     - name: String
     - phone: String
     - plateNumber: String
-    - passwordHash: String
-    - role: UserRole
+    - role: String
     - balance: BigDecimal
   }
+  note right of FUser : 展示用户基础信息\n展示用户余额信息，用于余额校验交互
 
-  enum UserRole {
-    USER
-    MAINTAINER
-    ADMIN
-    SUPER_ADMIN
-  }
-
-  User --> UserRole
-}
-
-package "充电业务" {
-
-  class ChargeRecord {
+  class "StationModel" as FStation {
     - id: UUID
-    - startTime: LocalDateTime
-    - endTime: LocalDateTime
+    - name: String
+    - location: String
+    - status: String
+  }
+  note right of FStation : 展示充电站列表与状态
+
+  class "ChargerModel" as FCharger {
+    - id: UUID
+    - chargerCode: String
+    - type: String
+    - status: String
+    - stationName: String
+  }
+  note right of FCharger : 展示充电桩状态及所属充电站
+
+  class "ChargeRecordModel" as FCRecord {
+    - id: UUID
+    - startTime: String
+    - endTime: String
     - energyKwh: BigDecimal
     - fee: BigDecimal
-    - status: RecordStatus
+    - status: String
   }
+  note right of FCRecord : 充电记录快捷视图
 
-  enum RecordStatus {
-    PROCESSING
-    COMPLETED
-    ARREARS
-  }
-
-  ChargeRecord --> RecordStatus
-}
-
-package "支付" {
-
-  class Payment {
+  class "PaymentModel" as FPayment {
     - id: UUID
     - method: String
     - amount: BigDecimal
-    - status: PaymentStatus
+    - status: String
   }
+  note right of FPayment : 支付记录展示
 
-  enum PaymentStatus {
-    PENDING
-    SUCCESS
-    FAILED
-  }
-
-  Payment --> PaymentStatus
-}
-
-package "报修" {
-
-  class Repair {
+  class "RepairModel" as FRepair {
     - id: UUID
     - description: String
-    - status: RepairStatus
-    - reportedAt: LocalDateTime
-    - handledAt: LocalDateTime
+    - status: String
   }
-
-  enum RepairStatus {
-    OPEN
-    IN_PROGRESS
-    CLOSED
-  }
-
-  Repair --> RepairStatus
+  note right of FRepair : 报修单展示
 }
 
-package "审计" {
+package "后端层 (Spring Boot Java)" as BE #F0E68C {
 
-  class AuditLog {
-    - id: UUID
-    - actorType: String
-    - action: String
-    - resource: String
-    - payload: JSON
+  package "实体 (Entity)" as ENT {
+    class Station {
+      - id: UUID
+      - name: String
+      - location: String
+      - chargerCount: int
+      - status: StationStatus
+    }
+
+    class Charger {
+      - id: UUID
+      - stationId: UUID
+      - chargerCode: String
+      - type: ChargerType
+      - status: ChargerStatus
+    }
+
+    class User {
+      - id: UUID
+      - name: String
+      - phone: String
+      - plateNumber: String
+      - passwordHash: String
+      - role: UserRole
+      - balance: BigDecimal
+    }
+
+    class ChargeRecord {
+      - id: UUID
+      - userId: UUID
+      - chargerId: UUID
+      - startTime: LocalDateTime
+      - endTime: LocalDateTime
+      - energyKwh: BigDecimal
+      - fee: BigDecimal
+      - status: RecordStatus
+      - deductionStatus: DeductionStatus
+    }
+
+    class Payment {
+      - id: UUID
+      - userId: UUID
+      - chargeRecordId: UUID
+      - method: String
+      - amount: BigDecimal
+      - status: PaymentStatus
+    }
+
+    class Repair {
+      - id: UUID
+      - chargerId: UUID
+      - reporterId: UUID
+      - description: String
+      - status: RepairStatus
+      - handledBy: UUID
+      - reportedAt: LocalDateTime
+      - handledAt: LocalDateTime
+    }
+
+    class AuditLog {
+      - id: UUID
+      - actorId: UUID
+      - actorType: String
+      - action: String
+      - resource: String
+      - resourceId: UUID
+      - payload: JSON
+      - createdAt: LocalDateTime
+    }
+  }
+
+  package "枚举 (Enum)" as ENUM {
+    enum StationStatus {
+      NORMAL
+      MAINTENANCE
+    }
+
+    enum ChargerType {
+      FAST
+      SLOW
+    }
+
+    enum ChargerStatus {
+      IDLE
+      CHARGING
+      FAULT
+    }
+
+    enum UserRole {
+      USER
+      MAINTAINER
+      ADMIN
+      SUPER_ADMIN
+    }
+
+    enum RecordStatus {
+      PROCESSING
+      COMPLETED
+    }
+
+    enum DeductionStatus {
+      PENDING
+      PAID
+      ARREARS
+    }
+
+    enum PaymentStatus {
+      PENDING
+      SUCCESS
+      FAILED
+    }
+
+    enum RepairStatus {
+      OPEN
+      IN_PROGRESS
+      CLOSED
+    }
+  }
+
+  package "服务 (Service)" as SVC {
+    class ChargingService {
+      + startCharge()
+      + stopCharge()
+      + calculateFee()
+    }
+
+    class PaymentService {
+      + recharge()
+      + processCallback()
+      + autoDeduct()
+    }
+
+    class RepairService {
+      + submit()
+      + assign()
+      + resolve()
+    }
+
+    class UserService {
+      + login()
+      + register()
+      + recharge()
+    }
+  }
+
+  package "策略 (Strategy)" as STR {
+    interface PricingStrategy {
+      + calculate(energyKwh: BigDecimal): BigDecimal
+    }
+
+    class StandardPricing implements PricingStrategy {
+      + calculate(energyKwh: BigDecimal): BigDecimal
+    }
+  }
+
+  package "工厂 (Factory)" as FAC {
+    interface PaymentChannel {
+    }
+
+    class PaymentFactory {
+      + createPayment(method: String): Payment
+    }
   }
 }
 
-package "业务服务" {
+' ===== 后端实体关系 =====
+Station "1" --> "0..*" Charger : 包含
+Station --> StationStatus
+Charger --> ChargerType
+Charger --> ChargerStatus
+User --> UserRole
+ChargeRecord --> RecordStatus
+ChargeRecord --> DeductionStatus
+Payment --> PaymentStatus
+Repair --> RepairStatus
 
-  class ChargingService {
-    + startCharge()
-    + stopCharge()
-    + calculateFee()
-  }
+' ===== Service 依赖实体 =====
+ChargingService ..> ChargeRecord
+ChargingService ..> Charger
+ChargingService ..> User
+PaymentService ..> Payment
+PaymentService ..> ChargeRecord
+UserService ..> User
+RepairService ..> Repair
+RepairService ..> Charger
 
-  class PaymentService {
-    + recharge()
-    + processCallback()
-    + autoDeduct()
-  }
+' ===== 设计模式 =====
+ChargingService --> PricingStrategy
+PaymentFactory ..> PaymentChannel
+PaymentFactory ..> Payment
 
-  class RepairService {
-    + submit()
-    + assign()
-    + resolve()
-  }
-
-  class UserService {
-    + login()
-    + register()
-    + recharge()
-  }
-
-  ChargingService ..> ChargeRecord
-  ChargingService ..> Charger
-  PaymentService ..> Payment
-  UserService ..> User
-  RepairService ..> Repair
-}
-
-package "策略" {
-
-  interface PricingStrategy {
-    + calculate(energyKwh: BigDecimal): BigDecimal
-  }
-
-  class StandardPricing implements PricingStrategy {
-    + calculate(energyKwh: BigDecimal): BigDecimal
-  }
-
-  ChargingService --> PricingStrategy
-}
-
-package "工厂" {
-
-  interface PaymentChannel {
-  }
-
-  class PaymentFactory {
-    + createPayment(method: String): Payment
-  }
-
-  PaymentFactory ..> PaymentChannel
-  PaymentFactory ..> Payment
-}
-
-Charger "1" --> "0..*" ChargeRecord : 被使用
+' ===== 实体间关联 =====
 User "1" --> "0..*" ChargeRecord : 发起
+Charger "1" --> "0..*" ChargeRecord : 被使用
 User "1" --> "0..*" Payment : 支付
 User "1" --> "0..*" Repair : 报修/处理
 ChargeRecord "1" --> "0..1" Payment : 产生
 User "1" --> "0..*" AuditLog : 操作记录
+
+' ===== 前端 ←→ 后端数据映射 =====
+FUser ..> User : <<数据映射>>
+FStation ..> Station : <<数据映射>>
+FCharger ..> Charger : <<数据映射>>
+FCRecord ..> ChargeRecord : <<数据映射>>
+FPayment ..> Payment : <<数据映射>>
+FRepair ..> Repair : <<数据映射>>
 
 @enduml

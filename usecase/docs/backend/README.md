@@ -26,7 +26,7 @@
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
 | POST | `/api/v1/charges/start` | 启动充电 | 已认证用户 |
-| POST | `/api/v1/charges/stop` | 结束充电并结算 | 已认证用户/管理员/系统 |
+| POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("(#record.userId == authentication.principal.id) or hasRole('ADMIN')")` — 仅充电记录所有者和管理员可操作 | 已认证用户/管理员/系统 |
 | GET | `/api/v1/charges` | 查询充电记录（分页、过滤） | 已认证用户（仅自己的）/管理员（全部） |
 
 ### 充值支付
@@ -66,7 +66,9 @@
 
 ## 关键安全措施
 
-- **认证：** JWT 短期凭证（建议 30 分钟过期），Refresh Token 机制，登出时作废。
+- **认证：** JWT（无状态令牌），access_token 过期时间30分钟；refresh_token 存储在 Redis 中并设置 TTL，用于无感续期。
+  - Token 通过 HttpOnly、Secure、SameSite=Strict Cookie 传输，防止 XSS 和 CSRF 攻击。
+  - 每个 Token 包含唯一 jti（JWT ID），服务端维护 jti 黑名单用于令牌吊销，登出时将 access_token 和 refresh_token 加入黑名单。
 - **密码：** bcrypt/Argon2 加盐散列，密码强度校验（长度、复杂度）。
 - **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。
 - **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。

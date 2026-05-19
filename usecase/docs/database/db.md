@@ -61,7 +61,8 @@
 | end_time | TIMESTAMPTZ | | 充电结束时间 |
 | energy_kwh | NUMERIC(10,3) | | 充电量（千瓦时） |
 | fee | NUMERIC(12,2) | | 充电费用 |
-| status | VARCHAR(32) | | completed / processing / arrears |
+| status | VARCHAR(32) | | processing / completed，充电过程状态 |
+| deduction_status | VARCHAR(32) | DEFAULT 'pending' | pending / paid / arrears，扣费状态，独立于充电状态 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 
 **对应模块：** 充电流程、账户与支付、统计与可视化
@@ -117,7 +118,7 @@
 |----------|--------|----------|
 | 用户注册/登录 | users | 写入用户，校验密码 |
 | 基础信息管理 | stations, chargers, users | CRUD |
-| 充电流程 | chargers, charge_records, users | 状态变更，记录写入，余额扣减 |
+| 充电流程 | chargers, charge_records, users | 状态变更，记录写入，余额扣减（deduction_status 跟踪扣费结果）|
 | 账户充值 | users, payments | 余额更新，支付流水记录 |
 | 故障报修 | repairs, chargers | 报修单流转，桩状态变更 |
 | 权限管理 | users | 角色字段变更（管理员以上操作） |

@@ -9,6 +9,14 @@ frame "前端层" {
   component "Flutter / Web" as FE
 }
 
+frame "接入层" {
+  component "Nginx 反向代理" as NGX
+  note right of NGX
+    负责 SSL 终端、路由分发、
+    限流、静态资源服务
+  end note
+}
+
 frame "后端层" {
   component "Spring Boot" as BE
 }
@@ -20,7 +28,8 @@ frame "基础设施层" {
 }
 
 UA --> FE
-FE -right-> BE : REST API (HTTPS)
+FE -right-> NGX : HTTPS
+NGX -right-> BE : 反向代理
 BE -down-> DB : JDBC/JPA
 BE -right-> MOCK : HTTP 回调
 BE -down-> CACHE : 会话/缓存
