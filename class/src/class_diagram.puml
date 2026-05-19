@@ -10,8 +10,12 @@ package "基础信息" {
     - name: String
     - location: String
     - chargerCount: int
-    - status: String
-    + CRUD()
+    - status: StationStatus
+  }
+
+  enum StationStatus {
+    NORMAL
+    MAINTENANCE
   }
 
   class Charger {
@@ -19,7 +23,6 @@ package "基础信息" {
     - chargerCode: String
     - type: ChargerType
     - status: ChargerStatus
-    + updateStatus()
   }
 
   enum ChargerType {
@@ -34,6 +37,7 @@ package "基础信息" {
   }
 
   Station "1" --> "0..*" Charger : 包含
+  Station --> StationStatus
   Charger --> ChargerType
   Charger --> ChargerStatus
 }
@@ -48,8 +52,6 @@ package "用户与权限" {
     - passwordHash: String
     - role: UserRole
     - balance: BigDecimal
-    + login()
-    + recharge()
   }
 
   enum UserRole {
@@ -71,9 +73,6 @@ package "充电业务" {
     - energyKwh: BigDecimal
     - fee: BigDecimal
     - status: RecordStatus
-    + startCharge()
-    + stopCharge()
-    + calculateFee()
   }
 
   enum RecordStatus {
@@ -92,7 +91,6 @@ package "支付" {
     - method: String
     - amount: BigDecimal
     - status: PaymentStatus
-    + processCallback()
   }
 
   enum PaymentStatus {
@@ -112,9 +110,6 @@ package "报修" {
     - status: RepairStatus
     - reportedAt: LocalDateTime
     - handledAt: LocalDateTime
-    + submit()
-    + assign()
-    + resolve()
   }
 
   enum RepairStatus {
@@ -135,6 +130,65 @@ package "审计" {
     - resource: String
     - payload: JSON
   }
+}
+
+package "业务服务" {
+
+  class ChargingService {
+    + startCharge()
+    + stopCharge()
+    + calculateFee()
+  }
+
+  class PaymentService {
+    + recharge()
+    + processCallback()
+    + autoDeduct()
+  }
+
+  class RepairService {
+    + submit()
+    + assign()
+    + resolve()
+  }
+
+  class UserService {
+    + login()
+    + register()
+    + recharge()
+  }
+
+  ChargingService ..> ChargeRecord
+  ChargingService ..> Charger
+  PaymentService ..> Payment
+  UserService ..> User
+  RepairService ..> Repair
+}
+
+package "策略" {
+
+  interface PricingStrategy {
+    + calculate(energyKwh: BigDecimal): BigDecimal
+  }
+
+  class StandardPricing implements PricingStrategy {
+    + calculate(energyKwh: BigDecimal): BigDecimal
+  }
+
+  ChargingService --> PricingStrategy
+}
+
+package "工厂" {
+
+  interface PaymentChannel {
+  }
+
+  class PaymentFactory {
+    + createPayment(method: String): Payment
+  }
+
+  PaymentFactory ..> PaymentChannel
+  PaymentFactory ..> Payment
 }
 
 Charger "1" --> "0..*" ChargeRecord : 被使用

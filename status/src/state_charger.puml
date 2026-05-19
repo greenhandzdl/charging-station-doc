@@ -12,7 +12,6 @@ IDLE --> CHARGING : 用户启动充电
 CHARGING --> IDLE : 结束充电/自动扣费完成
 IDLE --> FAULT : 提交故障报修
 FAULT --> IDLE : 报修处理完成
-FAULT --> CHARGING : 维修后测试启动
 CHARGING --> FAULT : 充电异常中断
 
 note bottom of IDLE : 桩可用

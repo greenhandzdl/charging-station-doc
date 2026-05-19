@@ -4,28 +4,36 @@ skinparam defaultFontSize 14
 title 故障报修处理活动图
 start
 
-:用户/管理员发现故障;
-:提交报修单;
-:系统将充电桩状态设为"故障";
+partition "用户/管理员" {
+  :发现故障;
+  :提交报修单;
+}
 
-fork
-  :管理员查看未处理报修;
+partition "系统" {
+  :将充电桩状态设为"故障";
+  fork
+    :通知维修人员;
+  fork again
+  endfork
+}
+
+partition "管理员" {
+  :查看未处理报修;
   :分配维修人员;
-fork again
-  :系统通知维修人员;
-endfork
+}
 
-:维修人员接收任务;
+partition "维修人员" {
+  :接收任务;
+  while (维修中?)
+    :维修操作;
+  endwhile
+  :维修完成;
+  :更新报修单状态为"已处理";
+}
 
-while (维修中?)
-  :维修操作;
-endwhile
-
-:维修完成;
-
-:更新报修单状态为"已处理";
-
-:系统将充电桩状态恢复为"空闲";
+partition "系统" {
+  :将充电桩状态恢复为"空闲";
+}
 
 stop
 @enduml
