@@ -21,6 +21,8 @@
 | POST | `/api/v1/auth/register` | 用户注册 | 公开 |
 | POST | `/api/v1/auth/login` | 用户登录，返回短期凭证 | 公开 |
 | POST | `/api/v1/auth/refresh` | Token 刷新 | 已认证 |
+| POST | `/api/v1/auth/password-reset` | 密码重置（验证码校验） | 公开 |
+| PUT | `/api/v1/auth/password` | 修改密码（旧密码校验） | 已认证 |
 
 ### 充电流程
 | 方法 | 路径 | 说明 | 权限 |
@@ -67,12 +69,12 @@
 ## 关键安全措施
 
 - **认证：** JWT（无状态令牌），access_token 过期时间30分钟；refresh_token 存储在 Redis 中并设置 TTL，用于无感续期。
-  - Token 通过 HttpOnly、Secure、SameSite=Strict Cookie 传输，防止 XSS 和 CSRF 攻击。
+  - 针对 Swing 桌面端，Token 存储在内存中（应用退出即失效），不使用 Cookie。
   - 每个 Token 包含唯一 jti（JWT ID），服务端维护 jti 黑名单用于令牌吊销，登出时将 access_token 和 refresh_token 加入黑名单。
 - **密码：** bcrypt/Argon2 加盐散列，密码强度校验（长度、复杂度）。
 - **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。
 - **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。
-- **支付安全：** 支付回调签名校验（HMAC / RSA），回调处理幂等，防止重放攻击。
+- **支付安全：** 支付回调签名校验（HMAC / RSA），回调处理幂等，防止重放攻击。建议使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。
 - **审计日志：** 所有关键操作（权限变更、充值、扣费、充电启停、报修处理）记录日志，包含操作人、时间、资源与操作类型。
 - **防重放：** Token 设置唯一 jti，服务端维护已作废 Token 黑名单或设置极短有效期。
 - **接口防护：** 登录接口添加验证码防暴力破解；API 频率限制。

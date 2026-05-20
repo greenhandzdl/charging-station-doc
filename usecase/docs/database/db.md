@@ -18,7 +18,8 @@
 | plate_number | VARCHAR(32) | | 车牌号 |
 | password_hash | VARCHAR(255) | NOT NULL | bcrypt/Argon2 散列 |
 | role | VARCHAR(32) | NOT NULL DEFAULT 'user' | user / maintainer / admin / super_admin |
-| balance | NUMERIC(12,2) | DEFAULT 0.00 | 账户余额 |
+| balance | NUMERIC(12,2) | DEFAULT 0.00 | 账户余额。UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子扣减 |
+| version | INTEGER | DEFAULT 0 | 乐观锁版本号，用于并发控制 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | | |
 
@@ -155,6 +156,7 @@
 | idx_repairs_status | repairs | status | BTREE | 未处理报修单筛选 |
 | idx_payments_user_id | payments | user_id | BTREE | 用户支付记录查询 |
 | idx_audit_logs_actor | audit_logs | (actor_id, created_at) | BTREE | 操作审计追溯 |
+| idx_charge_records_deduction | charge_records | deduction_status | BTREE | 欠费查询，配合扣费重试与欠费通知 |
 
 ## DDL 建表脚本
 
@@ -167,8 +169,8 @@
 
 ## 实施要点
 
-- **幂等：** 支付回调使用 `payments.id` 或业务幂等键确保幂等。
-- **事务：** 余额更新与账单写入放在同一事务中，保证一致性。
+- **幂等：** 支付回调使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 `idempotency_key VARCHAR(255) UNIQUE` 约束（或复用 `gateway_tx_id`），确保重复回调不产生重复记录。充值请求使用 `(user_id, amount, source, 创建时间戳)` 拼接的 MD5 摘要作为 `idempotency_key`，INSERT 前先检查 `UNIQUE` 约束防止重复充值。
+- **事务：** 余额更新与账单写入放在同一事务中，保证一致性。充值流程中 INSERT payments 与 UPDATE users.balance 必须在同一事务中执行，使用 `connection.setAutoCommit(false)` + `commit()`/`rollback()`。启动充电时 UPDATE chargers 和 INSERT charge_records 同理。
 - **时序数据：** 需要高性能时序分析时，启用 TimescaleDB 扩展，将 `charge_records` 保存在 hypertable 中。
 - **数据保留：** 充电记录与支付流水按时间分区或归档。
 - **审计完整性：** audit_logs 仅追加写入，禁止修改或删除。

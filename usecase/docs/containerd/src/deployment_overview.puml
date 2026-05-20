@@ -6,7 +6,7 @@ skinparam linetype ortho
 actor "用户/管理员" as UA
 
 frame "前端层" {
-  component "Flutter / Web" as FE
+  component "Swing 桌面客户端 (Java)" as FE
 }
 
 frame "接入层" {
@@ -30,6 +30,7 @@ frame "基础设施层" {
 UA --> FE
 FE -right-> NGX : HTTPS
 NGX -right-> BE : 反向代理
+note on link #f00: 支付回调接口(/api/v1/payments/callback)仅限内网访问
 BE -down-> DB : JDBC/JPA
 BE -right-> MOCK : HTTP 回调
 BE -down-> CACHE : 会话/缓存

@@ -8,10 +8,17 @@ actor "后端服务" as BE
 
 usecase "写入用户记录" as UC1
 usecase "查询用户凭证" as UC2
-usecase "记录支付流水" as UC3
-usecase "更新用户余额" as UC4
-usecase "创建充电记录" as UC5
-usecase "更新桩状态" as UC6
+
+rectangle "事务边界-A\n(充值流程)" as TX1 #LightBlue {
+  usecase "记录支付流水" as UC3
+  usecase "更新用户余额" as UC4
+}
+
+rectangle "事务边界-B\n(启动充电)" as TX2 #LightGreen {
+  usecase "创建充电记录" as UC5
+  usecase "更新桩状态" as UC6
+}
+
 usecase "统计报表聚合" as UC7
 usecase "记录审计日志" as UC8
 

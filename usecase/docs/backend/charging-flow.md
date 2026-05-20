@@ -10,12 +10,30 @@
 2. 系统校验用户存在、账户余额 >= 10元且充电桩状态为"空闲"。
 3. 系统创建充电记录，记录开始时间，并将充电桩状态设为"使用中"。
 
+> **并发控制：** 充电桩状态更新必须使用原子 SQL 避免竞态条件：
+> ```sql
+> UPDATE chargers SET status = 'charging' WHERE id = ? AND status = 'idle';
+> ```
+> 检查上述语句的 `affected_rows`（JDBC `executeUpdate()` 返回值），若为 0 则表示桩已被其他请求占用，需回滚事务并返回错误。此操作与 INSERT charge_records 应在同一数据库事务中执行。
+
 ## 结束充电
 
 1. 用户、管理员或系统触发"结束充电"。
 2. 系统记录结束时间，计算充电量与费用。
 3. 系统从用户账户扣费；成功则更新充电记录状态为"完成"，并将充电桩状态设为"空闲"。
 4. 扣费失败则标记为"欠费"，记录异常日志并通知管理员。
+
+> **TOCTOU 防护：** 结束充电时的余额校验与扣费操作之间存在 Time-of-Check Time-of-Use 窗口。解决方案：使用 `SELECT ... FOR UPDATE` 锁定用户余额行，在同一事务中完成余额校验和扣减：
+> ```sql
+> -- 事务内：
+> SELECT balance FROM users WHERE id = ? FOR UPDATE;  -- 锁定行
+> -- 应用层校验 balance >= fee
+> UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?;
+> UPDATE charge_records SET status = 'completed', deduction_status = 'paid' WHERE id = ?;
+> UPDATE chargers SET status = 'idle' WHERE id = ?;
+> COMMIT;
+> ```
+> 任一 UPDATE 的 affected_rows 为 0 则整体回滚。
 
 ## 备选场景
 

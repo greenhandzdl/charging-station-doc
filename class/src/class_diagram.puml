@@ -7,10 +7,10 @@ skinparam package {
   BorderColor #666666
 }
 
-package "前端层 (Flutter / Dart Model)" as FE #ADD8E6 {
+package "Swing 前端 (Java VO/DTO)" as FE #ADD8E6 {
   !define FE_COLOR #ADD8E6
 
-  class "UserModel" as FUser {
+  class "UserVO" as FUser {
     - id: UUID
     - name: String
     - phone: String
@@ -20,7 +20,7 @@ package "前端层 (Flutter / Dart Model)" as FE #ADD8E6 {
   }
   note right of FUser : 展示用户基础信息\n展示用户余额信息，用于余额校验交互
 
-  class "StationModel" as FStation {
+  class "StationVO" as FStation {
     - id: UUID
     - name: String
     - location: String
@@ -28,7 +28,7 @@ package "前端层 (Flutter / Dart Model)" as FE #ADD8E6 {
   }
   note right of FStation : 展示充电站列表与状态
 
-  class "ChargerModel" as FCharger {
+  class "ChargerVO" as FCharger {
     - id: UUID
     - chargerCode: String
     - type: String
@@ -37,7 +37,7 @@ package "前端层 (Flutter / Dart Model)" as FE #ADD8E6 {
   }
   note right of FCharger : 展示充电桩状态及所属充电站
 
-  class "ChargeRecordModel" as FCRecord {
+  class "ChargeRecordVO" as FCRecord {
     - id: UUID
     - startTime: String
     - endTime: String
@@ -47,7 +47,7 @@ package "前端层 (Flutter / Dart Model)" as FE #ADD8E6 {
   }
   note right of FCRecord : 充电记录快捷视图
 
-  class "PaymentModel" as FPayment {
+  class "PaymentVO" as FPayment {
     - id: UUID
     - method: String
     - amount: BigDecimal
@@ -55,7 +55,7 @@ package "前端层 (Flutter / Dart Model)" as FE #ADD8E6 {
   }
   note right of FPayment : 支付记录展示
 
-  class "RepairModel" as FRepair {
+  class "RepairVO" as FRepair {
     - id: UUID
     - description: String
     - status: String
@@ -91,6 +91,7 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
       - role: UserRole
       - balance: BigDecimal
     }
+    note right of User : passwordHash 在 API 响应中被过滤，不传输至客户端
 
     class ChargeRecord {
       - id: UUID
@@ -151,6 +152,7 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
       IDLE
       CHARGING
       FAULT
+      ARREARS
     }
 
     enum UserRole {
@@ -185,28 +187,59 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
   }
 
   package "服务 (Service)" as SVC {
-    class ChargingService {
+    interface ChargingService {
       + startCharge()
       + stopCharge()
       + calculateFee()
     }
 
-    class PaymentService {
+    class ChargingServiceImpl implements ChargingService {
+      + startCharge()
+      + stopCharge()
+      + calculateFee()
+    }
+
+    interface PaymentService {
       + recharge()
       + processCallback()
       + autoDeduct()
     }
 
-    class RepairService {
+    class PaymentServiceImpl implements PaymentService {
+      + recharge()
+      + processCallback()
+      + autoDeduct()
+    }
+
+    interface RepairService {
       + submit()
       + assign()
       + resolve()
     }
 
-    class UserService {
+    class RepairServiceImpl implements RepairService {
+      + submit()
+      + assign()
+      + resolve()
+    }
+
+    interface UserService {
       + login()
       + register()
       + recharge()
+    }
+
+    class UserServiceImpl implements UserService {
+      + login()
+      + register()
+      + recharge()
+    }
+
+    class StatisticsService {
+      + generateReport(): ReportVO
+      + getUserChargingStats(): List
+      + getStationAnalysis(): List
+      + getChargerUtilization(): Map
     }
   }
 
@@ -222,10 +255,19 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
 
   package "工厂 (Factory)" as FAC {
     interface PaymentChannel {
+      + processPayment(amount: BigDecimal): boolean
     }
 
     class PaymentFactory {
-      + createPayment(method: String): Payment
+      + createPayment(method: String): PaymentChannel
+    }
+
+    class WechatPayChannel implements PaymentChannel {
+      + processPayment(amount: BigDecimal): boolean
+    }
+
+    class AlipayChannel implements PaymentChannel {
+      + processPayment(amount: BigDecimal): boolean
     }
   }
 }
@@ -250,11 +292,14 @@ PaymentService ..> ChargeRecord
 UserService ..> User
 RepairService ..> Repair
 RepairService ..> Charger
+StatisticsService ..> ChargeRecord
+StatisticsService ..> Payment
+StatisticsService ..> Station
+StatisticsService ..> Charger
 
 ' ===== 设计模式 =====
 ChargingService --> PricingStrategy
-PaymentFactory ..> PaymentChannel
-PaymentFactory ..> Payment
+PaymentFactory ..> PaymentChannel : 创建
 
 ' ===== 实体间关联 =====
 User "1" --> "0..*" ChargeRecord : 发起

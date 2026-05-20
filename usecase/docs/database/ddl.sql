@@ -12,6 +12,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(32) NOT NULL DEFAULT 'user',
     balance NUMERIC(12,2) DEFAULT 0.00,
+    version INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ
 );
@@ -20,6 +21,9 @@ CREATE UNIQUE INDEX idx_users_phone ON users(phone);
 CREATE INDEX idx_users_role ON users(role);
 COMMENT ON TABLE users IS '用户表，存储用户认证信息与账户余额';
 COMMENT ON COLUMN users.role IS '用户角色: user / maintainer / admin / super_admin';
+COMMENT ON COLUMN users.balance IS '余额，UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子操作';
+COMMENT ON COLUMN users.password_hash IS 'bcrypt/Argon2 加盐散列，禁止明文或 MD5/SHA 直接存储';
+COMMENT ON COLUMN users.version IS '乐观锁版本号，用于并发控制';
 
 -- 2. stations（充电站表）
 CREATE TABLE stations (
@@ -48,7 +52,7 @@ CREATE UNIQUE INDEX idx_chargers_charger_code ON chargers(charger_code);
 CREATE INDEX idx_chargers_station_id ON chargers(station_id);
 COMMENT ON TABLE chargers IS '充电桩表，关联充电站';
 COMMENT ON COLUMN chargers.type IS '充电类型: fast / slow';
-COMMENT ON COLUMN chargers.status IS '桩状态: idle / charging / fault';
+COMMENT ON COLUMN chargers.status IS '桩状态: idle / charging / fault / arrears';
 
 -- 4. charge_records（充电记录表）
 CREATE TABLE charge_records (
@@ -69,6 +73,7 @@ CREATE INDEX idx_charge_records_charger_time ON charge_records(charger_id, start
 COMMENT ON TABLE charge_records IS '充电记录表';
 COMMENT ON COLUMN charge_records.status IS '充电过程状态: processing / completed';
 COMMENT ON COLUMN charge_records.deduction_status IS '扣费状态: pending / paid / arrears';
+CREATE INDEX idx_charge_records_deduction ON charge_records(deduction_status);
 
 -- 5. payments（支付记录表）
 CREATE TABLE payments (

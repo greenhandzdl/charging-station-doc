@@ -1,0 +1,28 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 数据统计与可视化分析用例
+
+actor "管理员" as A
+actor "最高管理者" as SA
+actor "系统" as S
+
+usecase "用户充电统计" as UC1
+usecase "充电站运营分析" as UC2
+usecase "充电桩使用率分析" as UC3
+usecase "生成统计报表" as UC4
+usecase "导出 CSV" as UC5
+
+A --> UC1
+A --> UC2
+A --> UC3
+A --> UC4
+A --> UC5
+SA --> UC1
+SA --> UC2
+SA --> UC3
+SA --> UC4
+SA --> UC5
+S --> UC4
+S --> UC5
+@enduml

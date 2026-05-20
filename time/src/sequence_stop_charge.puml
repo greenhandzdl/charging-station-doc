@@ -16,15 +16,15 @@ U -> FE: 点击"结束充电"
 FE -> Ctrl: POST /charges/stop {recordId}
 Ctrl -> Service: 请求结束充电
 
-Service -> DB: SELECT charge_record, charger FROM ...
-DB --> Service: 充电记录、桩信息
+Service -> DB: SELECT cr.*, c.*, u.balance FROM charge_records cr JOIN chargers c ON cr.charger_id = c.id JOIN users u ON cr.user_id = u.id WHERE cr.id = ? FOR UPDATE -- 使用 PreparedStatement 参数绑定，带行锁
+DB --> Service: 充电记录、桩信息、用户余额
 
 Service -> Bill: 计算充电量与费用
 Bill --> Service: energyKwh=15.0, fee=22.50
 
 Service -> Pay: 校验并扣费 {userId, amount=22.50}
 
-group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + 扣减余额 + 插入支付记录 + 更新桩状态
+group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + 扣减余额 + 插入支付记录 + 更新桩状态 + 插入审计日志
   Pay -> DB: SELECT balance FROM users WHERE id = ? FOR UPDATE -- 使用 PreparedStatement 参数绑定
   DB --> Pay: 余额充足
 
@@ -40,20 +40,20 @@ group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + �
 
     Pay --> Service: 扣费成功
 
-    Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? -- 使用 PreparedStatement 参数绑定
+    Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging' -- 使用 PreparedStatement 参数绑定，乐观写条件
     DB --> Service: 桩已释放
 
-    Service -> DB: INSERT INTO audit_logs ... action='stop_charge' -- 使用 PreparedStatement 参数绑定
+    Service -> DB: INSERT INTO audit_logs (action, detail) VALUES ('stop_charge', '结束充电-扣费成功') -- 使用 PreparedStatement 参数绑定
   else 余额不足
     Pay --> Service: 余额不足
 
-    Service -> DB: UPDATE charge_records SET status='arrears', deduction_status='arrears' -- 使用 PreparedStatement 参数绑定
+    Service -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=15.0, fee=22.50, status='arrears', deduction_status='arrears' -- 使用 PreparedStatement 参数绑定
     DB --> Service: 标记欠费
 
-    Service -> DB: UPDATE chargers SET status = 'arrears' WHERE id = ? -- 使用 PreparedStatement 参数绑定
-    DB --> Service: 桩已标记欠费
+    Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging' -- 使用 PreparedStatement 参数绑定，欠费时释放桩物理状态（欠费由 charge_records.deduction_status 跟踪）
+    DB --> Service: 桩已释放
 
-    Service -> DB: INSERT INTO audit_logs ... action='charge_arrears' -- 使用 PreparedStatement 参数绑定
+    Service -> DB: INSERT INTO audit_logs (action, detail) VALUES ('charge_arrears', '余额不足-标记欠费') -- 使用 PreparedStatement 参数绑定
   end
 end
 
@@ -63,7 +63,7 @@ alt 余额充足
   FE --> U: 显示"充电完成，已扣费 22.50 元"
 else 余额不足
   Service --> Ctrl: 欠费提示
-  Ctrl --> FE: 返回"欠费"提示（桩状态为"欠费"）
-  FE --> U: 显示"余额不足，已标记欠费，待管理员处理"
+  Ctrl --> FE: 返回"欠费"提示（桩已释放，欠费由 charge_records 跟踪）
+  FE --> U: 显示"余额不足，已标记欠费，请联系管理员充值"
 end
 @enduml
