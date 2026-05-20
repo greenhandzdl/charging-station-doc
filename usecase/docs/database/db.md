@@ -20,6 +20,7 @@
 | role | VARCHAR(32) | NOT NULL DEFAULT 'user' | user / maintainer / admin / super_admin |
 | balance | NUMERIC(12,2) | DEFAULT 0.00 | 账户余额。UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子扣减 |
 | version | INTEGER | DEFAULT 0 | 乐观锁版本号，用于并发控制 |
+| frozen_until | TIMESTAMPTZ | NULLABLE | 欠费冻结截止时间，欠费期间禁止启动充电。NULL 表示未冻结 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | | |
 
@@ -78,6 +79,7 @@
 | method | VARCHAR(32) | | wechat / alipay / card |
 | amount | NUMERIC(12,2) | | |
 | status | VARCHAR(32) | | pending / success / failed |
+| gateway_tx_id | VARCHAR(255) | UNIQUE | 支付网关交易流水号，用作幂等键防止重复回调 |
 | gateway_callback_payload | JSONB | NULLABLE | 支付网关回调原始数据 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 
@@ -109,6 +111,8 @@
 | resource | VARCHAR(128) | | 操作资源 |
 | resource_id | UUID | NULLABLE | |
 | payload | JSONB | NULLABLE | 请求与响应摘要 |
+| client_ip | VARCHAR(45) | NULLABLE | 客户端 IP 地址，支持 IPv6 |
+| user_agent | TEXT | NULLABLE | 客户端 User-Agent |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 
 **对应模块：** 全部模块
@@ -169,11 +173,23 @@
 
 ## 实施要点
 
-- **幂等：** 支付回调使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 `idempotency_key VARCHAR(255) UNIQUE` 约束（或复用 `gateway_tx_id`），确保重复回调不产生重复记录。充值请求使用 `(user_id, amount, source, 创建时间戳)` 拼接的 MD5 摘要作为 `idempotency_key`，INSERT 前先检查 `UNIQUE` 约束防止重复充值。
+- **幂等：** 支付回调使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 `gateway_tx_id VARCHAR(255) UNIQUE` 约束（复用 `gateway_tx_id`），确保重复回调不产生重复记录。充值请求使用 `SHA-256( user_id || amount || source || 创建时间戳 )` 生成的摘要作为 `idempotency_key`，INSERT 前先检查 `UNIQUE` 约束防止重复充值。
 - **事务：** 余额更新与账单写入放在同一事务中，保证一致性。充值流程中 INSERT payments 与 UPDATE users.balance 必须在同一事务中执行，使用 `connection.setAutoCommit(false)` + `commit()`/`rollback()`。启动充电时 UPDATE chargers 和 INSERT charge_records 同理。
 - **时序数据：** 需要高性能时序分析时，启用 TimescaleDB 扩展，将 `charge_records` 保存在 hypertable 中。
 - **数据保留：** 充电记录与支付流水按时间分区或归档。
 - **审计完整性：** audit_logs 仅追加写入，禁止修改或删除。
+
+## 欠费场景处理说明
+
+扣费失败时的数据库状态变更规则：
+
+1. **充电记录：** `charge_records.status = 'completed'`（充电过程已完成），`charge_records.deduction_status = 'arrears'`（扣费欠费）。`status` 仅表达充电过程状态，欠费通过 `deduction_status` 独立跟踪。
+2. **充电桩：** `chargers.status = 'idle'`（桩恢复正常可用状态），欠费不应对桩造成无限期占用。
+3. **用户冻结：** `users.frozen_until` 设置为一个合理的截止时间（如扣费失败时刻 + 7 天）。冻结期间用户无法启动新的充电流程。
+4. **解冻：** 用户通过充值还清欠费后，系统执行：
+   - 更新 `charge_records.deduction_status = 'paid'`
+   - 重置 `users.frozen_until = NULL`
+   - 记录支付流水到 `payments` 表
 
 ## 交叉索引
 

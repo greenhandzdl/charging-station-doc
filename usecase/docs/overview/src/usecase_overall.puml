@@ -50,6 +50,7 @@ M --> QC
 
 A --> MM
 A --> PM
+A --> VCR
 A --> HR
 A --> GS
 SA --> MM
@@ -57,7 +58,6 @@ SA --> PM
 SA --> GS
 
 P --> RA
-P --> EC
 S --> GS
 
 SC <.left. BAL : <<include>>

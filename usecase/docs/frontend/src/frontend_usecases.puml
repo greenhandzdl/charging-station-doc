@@ -9,10 +9,8 @@ actor "用户" as U
 actor "维修人员" as M
 
 usecase "注册/登录" as LOG
-usecase "查看站点列表" as VSL
-usecase "选择充电桩" as SC
-usecase "余额校验" as BC
 usecase "启动/结束充电" as CS
+usecase "余额校验" as BC
 usecase "充值支付" as PAY
 usecase "查看充电记录" as VCR
 usecase "提交报修" as SRT
@@ -21,16 +19,12 @@ usecase "充电记录快捷视图" as QV
 usecase "充电桩状态快捷查询" as QC
 
 G --> LOG
-U --> VSL
-U --> SC
 U --> CS
 U --> PAY
 U --> VCR
 U --> SRT
 U --> QV
 U --> QC
-M --> VSL
-M --> SC
 M --> CS
 M --> PAY
 M --> VCR
@@ -38,7 +32,7 @@ M --> SRT
 M --> HR
 note right of M : 维修人员仅操作自己的充电/支付记录\n及被分配的报修单，不可越权访问其他用户数据
 CS <.left. BC : <<include>>
-note bottom of CS : 启动前校验余额 >= 10元
+note bottom of CS : 前置操作：选择充电桩、查看站点列表\n启动前校验余额 >= 10元
 M --> QV
 M --> QC
 @enduml

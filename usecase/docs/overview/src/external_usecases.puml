@@ -9,14 +9,11 @@ actor "系统" as S
 
 usecase "支付回调" as CB
 usecase "自动扣费结算" as AUTO
-usecase "统计报表生成" as GS
 usecase "审计日志记录" as AUDIT
 
 P --> CB
 S --> AUTO
-S --> GS
 S --> AUDIT
 
 AUTO <.left. CB : <<include>>
-GS ..> AUDIT : <<extend>>
 @enduml

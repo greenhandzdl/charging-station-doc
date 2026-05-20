@@ -13,6 +13,7 @@ CREATE TABLE users (
     role VARCHAR(32) NOT NULL DEFAULT 'user',
     balance NUMERIC(12,2) DEFAULT 0.00,
     version INTEGER DEFAULT 0,
+    frozen_until TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ
 );
@@ -24,6 +25,7 @@ COMMENT ON COLUMN users.role IS '用户角色: user / maintainer / admin / super
 COMMENT ON COLUMN users.balance IS '余额，UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子操作';
 COMMENT ON COLUMN users.password_hash IS 'bcrypt/Argon2 加盐散列，禁止明文或 MD5/SHA 直接存储';
 COMMENT ON COLUMN users.version IS '乐观锁版本号，用于并发控制';
+COMMENT ON COLUMN users.frozen_until IS '欠费冻结截止时间，NULL 表示未冻结；冻结期间禁止启动充电';
 
 -- 2. stations（充电站表）
 CREATE TABLE stations (
@@ -52,7 +54,7 @@ CREATE UNIQUE INDEX idx_chargers_charger_code ON chargers(charger_code);
 CREATE INDEX idx_chargers_station_id ON chargers(station_id);
 COMMENT ON TABLE chargers IS '充电桩表，关联充电站';
 COMMENT ON COLUMN chargers.type IS '充电类型: fast / slow';
-COMMENT ON COLUMN chargers.status IS '桩状态: idle / charging / fault / arrears';
+COMMENT ON COLUMN chargers.status IS '桩状态: idle / charging / fault';
 
 -- 4. charge_records（充电记录表）
 CREATE TABLE charge_records (
@@ -83,6 +85,7 @@ CREATE TABLE payments (
     method VARCHAR(32),
     amount NUMERIC(12,2) NOT NULL,
     status VARCHAR(32),
+    gateway_tx_id VARCHAR(255) UNIQUE,
     gateway_callback_payload JSONB,
     created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -92,6 +95,7 @@ COMMENT ON TABLE payments IS '支付记录表';
 COMMENT ON COLUMN payments.method IS '支付方式: wechat / alipay / card / system';
 COMMENT ON COLUMN payments.status IS '支付状态: pending / success / failed';
 COMMENT ON COLUMN payments.charge_record_id IS '关联充电记录，仅扣费时有值';
+COMMENT ON COLUMN payments.gateway_tx_id IS '支付网关交易流水号，UNIQUE 约束用作幂等键';
 
 -- 6. repairs（报修单表）
 CREATE TABLE repairs (
@@ -118,6 +122,8 @@ CREATE TABLE audit_logs (
     resource VARCHAR(128),
     resource_id UUID,
     payload JSONB,
+    client_ip VARCHAR(45),
+    user_agent TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -125,3 +131,5 @@ CREATE INDEX idx_audit_logs_actor ON audit_logs(actor_id, created_at);
 COMMENT ON TABLE audit_logs IS '审计日志表，仅追加写入';
 COMMENT ON COLUMN audit_logs.actor_type IS '操作人类型: user / admin / system';
 COMMENT ON COLUMN audit_logs.action IS '操作类型: start_charge / stop_charge / recharge / resolve_repair 等';
+COMMENT ON COLUMN audit_logs.client_ip IS '客户端 IP 地址，VARCHAR(45) 支持 IPv6';
+COMMENT ON COLUMN audit_logs.user_agent IS '客户端 User-Agent 原始字符串';

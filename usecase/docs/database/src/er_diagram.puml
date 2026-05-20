@@ -13,6 +13,7 @@ entity users {
   role: VARCHAR(32)
   balance: NUMERIC(12,2)
   version: INTEGER
+  frozen_until: TIMESTAMPTZ
   created_at: TIMESTAMPTZ
   updated_at: TIMESTAMPTZ
 }
@@ -59,6 +60,7 @@ entity payments {
   method: VARCHAR(32)
   *amount: NUMERIC(12,2)
   status: VARCHAR(32)
+  gateway_tx_id: VARCHAR(255) (UNIQUE 幂等键)
   gateway_callback_payload: JSONB
   created_at: TIMESTAMPTZ
 }
@@ -84,6 +86,8 @@ entity audit_logs {
   resource: VARCHAR(128)
   resource_id: UUID
   payload: JSONB
+  client_ip: VARCHAR(45)
+  user_agent: TEXT
   created_at: TIMESTAMPTZ
 }
 

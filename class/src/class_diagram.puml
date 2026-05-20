@@ -11,7 +11,7 @@ package "Swing 前端 (Java VO/DTO)" as FE #ADD8E6 {
   !define FE_COLOR #ADD8E6
 
   class "UserVO" as FUser {
-    - id: UUID
+    - id: String
     - name: String
     - phone: String
     - plateNumber: String
@@ -21,7 +21,7 @@ package "Swing 前端 (Java VO/DTO)" as FE #ADD8E6 {
   note right of FUser : 展示用户基础信息\n展示用户余额信息，用于余额校验交互
 
   class "StationVO" as FStation {
-    - id: UUID
+    - id: String
     - name: String
     - location: String
     - status: String
@@ -29,7 +29,7 @@ package "Swing 前端 (Java VO/DTO)" as FE #ADD8E6 {
   note right of FStation : 展示充电站列表与状态
 
   class "ChargerVO" as FCharger {
-    - id: UUID
+    - id: String
     - chargerCode: String
     - type: String
     - status: String
@@ -38,7 +38,7 @@ package "Swing 前端 (Java VO/DTO)" as FE #ADD8E6 {
   note right of FCharger : 展示充电桩状态及所属充电站
 
   class "ChargeRecordVO" as FCRecord {
-    - id: UUID
+    - id: String
     - startTime: String
     - endTime: String
     - energyKwh: BigDecimal
@@ -48,7 +48,7 @@ package "Swing 前端 (Java VO/DTO)" as FE #ADD8E6 {
   note right of FCRecord : 充电记录快捷视图
 
   class "PaymentVO" as FPayment {
-    - id: UUID
+    - id: String
     - method: String
     - amount: BigDecimal
     - status: String
@@ -56,7 +56,7 @@ package "Swing 前端 (Java VO/DTO)" as FE #ADD8E6 {
   note right of FPayment : 支付记录展示
 
   class "RepairVO" as FRepair {
-    - id: UUID
+    - id: String
     - description: String
     - status: String
   }
@@ -152,7 +152,6 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
       IDLE
       CHARGING
       FAULT
-      ARREARS
     }
 
     enum UserRole {
