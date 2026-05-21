@@ -109,7 +109,7 @@ CREATE TABLE repairs (
 
 CREATE INDEX idx_repairs_status ON repairs(status);
 COMMENT ON TABLE repairs IS '故障报修单表';
-COMMENT ON COLUMN repairs.status IS '报修状态: open / in_progress / closed';
+COMMENT ON COLUMN repairs.status IS '报修状态: open / in_progress / resolved / closed';
 
 -- 7. audit_logs（审计日志表）
 CREATE TABLE audit_logs (

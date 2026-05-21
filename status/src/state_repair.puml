@@ -1,0 +1,20 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 报修单状态图
+
+state "待处理" as OPEN
+state "处理中" as IN_PROGRESS
+state "已解决" as RESOLVED
+state "已关闭" as CLOSED
+
+[*] --> OPEN : 提交报修单
+OPEN --> IN_PROGRESS : 管理员分配维修人员
+IN_PROGRESS --> RESOLVED : 维修完成
+RESOLVED --> CLOSED : 管理员审核通过
+OPEN --> CLOSED : 管理员直接关闭
+RESOLVED --> IN_PROGRESS : 审核不通过，退回返工
+
+note bottom of OPEN : 报修单初始状态
+note bottom of CLOSED : 终态，不可再变更
+@enduml

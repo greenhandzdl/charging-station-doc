@@ -32,9 +32,11 @@ package "实体 (Entity)" as ENT #F0E68C {
     - passwordHash: String
     - role: UserRole
     - balance: BigDecimal
+    - frozenUntil: LocalDateTime
   }
   note right of User : passwordHash 在 API 响应中被过滤，不传输至客户端
   note right of User : 并发控制通过 WHERE balance >= ? 原子扣减实现，不使用 version 乐观锁
+  note right of User : frozenUntil 非空时表示账户被冻结至该时间
 
   class ChargeRecord {
     - id: UUID
@@ -124,6 +126,7 @@ package "枚举 (Enum)" as ENUM #F0E68C {
   enum RepairStatus {
     OPEN
     IN_PROGRESS
+    RESOLVED
     CLOSED
   }
 }
@@ -133,12 +136,14 @@ package "服务 (Service)" as SVC #F0E68C {
     + startCharge()
     + stopCharge()
     + calculateFee()
+    + forceStop()
   }
 
   class ChargingServiceImpl implements ChargingService {
     + startCharge()
     + stopCharge()
     + calculateFee()
+    + forceStop()
   }
 
   interface PaymentService {

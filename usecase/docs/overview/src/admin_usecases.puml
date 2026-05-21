@@ -14,6 +14,7 @@ usecase "管理用户" as MU
 usecase "用户权限管理" as PM
 usecase "处理报修" as HR
 usecase "查看报修记录" as VR
+usecase "强制结束充电" as FSC
 usecase "生成统计报表" as GS
 usecase "充电桩状态快捷查询" as QC
 
@@ -23,11 +24,13 @@ A --> MU
 A --> PM
 A --> HR
 A --> VR
+A --> FSC
 A --> QC
 SA --> MS
 SA --> MC
 SA --> PM
 SA --> GS
+SA --> FSC
 SA --> QC
 M --> HR
 M --> VR

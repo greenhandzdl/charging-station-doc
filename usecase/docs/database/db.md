@@ -92,7 +92,7 @@
 | charger_id | UUID | FK REFERENCES chargers(id) | |
 | reporter_id | UUID | FK REFERENCES users(id) | NULLABLE，提交人 |
 | description | TEXT | | 故障描述 |
-| status | VARCHAR(32) | | open / in_progress / closed |
+| status | VARCHAR(32) | | open / in_progress / resolved / closed |
 | handled_by | UUID | FK REFERENCES users(id) | NULLABLE，处理人 |
 | reported_at | TIMESTAMPTZ | DEFAULT now() | |
 | handled_at | TIMESTAMPTZ | NULLABLE | |

@@ -18,6 +18,7 @@ usecase "启动充电" as SC
 usecase "余额校验" as BAL
 usecase "结束充电" as EC
 usecase "自动扣费" as AD
+usecase "强制结束充电" as FSC
 usecase "查看充电记录" as VCR
 usecase "提交故障报修" as SRT
 usecase "管理充电站/充电桩" as MM
@@ -53,9 +54,11 @@ A --> PM
 A --> VCR
 A --> HR
 A --> GS
+A --> FSC
 SA --> MM
 SA --> PM
 SA --> GS
+SA --> FSC
 
 P --> RA
 S --> GS

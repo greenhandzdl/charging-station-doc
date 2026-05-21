@@ -50,7 +50,7 @@
 | Payment | 实体 | 支付流水与回调数据 |
 | Repair | 实体 | 报修单流转 |
 | AuditLog | 实体 | 关键操作审计记录 |
-| ChargingService | 服务接口 | 充电业务逻辑（启动/结束/计费） |
+| ChargingService | 服务接口 | 充电业务逻辑（启动/结束/计费/强制结束） |
 | ChargingServiceImpl | 服务实现 | ChargingService 实现类 |
 | PaymentService | 服务接口 | 支付业务逻辑（充值/回调/自动扣费） |
 | PaymentServiceImpl | 服务实现 | PaymentService 实现类 |
@@ -76,7 +76,7 @@
 | RecordStatus | 充电过程状态 | PROCESSING / COMPLETED |
 | DeductionStatus | 扣费状态 | PENDING / PAID / ARREARS |
 | PaymentStatus | 支付状态 | PENDING / SUCCESS / FAILED |
-| RepairStatus | 报修单状态 | OPEN / IN_PROGRESS / CLOSED |
+| RepairStatus | 报修单状态 | OPEN / IN_PROGRESS / RESOLVED / CLOSED |
 
 ## 核心关系
 

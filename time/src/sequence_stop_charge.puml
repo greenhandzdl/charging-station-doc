@@ -18,17 +18,15 @@ note right FE : ApiService.stopCharge()\n请求自动附加 JWT Token
 
 Ctrl -> Service: 请求结束充电
 
-Service -> DB: SELECT cr.*, c.status, u.balance\nFROM charge_records cr\nJOIN chargers c ON cr.charger_id = c.id\nJOIN users u ON cr.user_id = u.id\nWHERE cr.id = ? FOR UPDATE -- 使用 PreparedStatement 参数绑定，带行锁
-DB --> Service: 充电记录、桩状态、用户余额
-
-Service -> Bill: 计算充电量与费用
-Bill --> Service: energyKwh=15.0, fee=22.50
-
 Service -> Pay: 校验并扣费 {userId, amount=22.50}
 
 group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + 扣减余额 + 插入支付记录 + 更新桩状态 + 插入审计日志
-  Pay -> DB: SELECT balance FROM users WHERE id = ? FOR UPDATE -- 使用 PreparedStatement 参数绑定
-  DB --> Pay: 余额充足
+  Service -> DB: SELECT cr.*, c.status, u.balance\nFROM charge_records cr\nJOIN chargers c ON cr.charger_id = c.id\nJOIN users u ON cr.user_id = u.id\nWHERE cr.id = ? FOR UPDATE -- 使用 PreparedStatement 参数绑定，带行锁，确保事务内独占访问
+  note right DB : FOR UPDATE 行锁防止并发扣费\n锁释放由事务提交/回滚自动管理\nPostgreSQL MVCC 保证更新仅提交后可见
+  DB --> Service: 充电记录、桩状态、用户余额
+
+  Service -> Bill: 计算充电量与费用
+  Bill --> Service: energyKwh=15.0, fee=22.50
 
   alt 余额充足
     Pay -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=15.0, fee=22.50, status='completed' WHERE id = ? -- 使用 PreparedStatement 参数绑定
@@ -50,6 +48,7 @@ group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + �
     Pay --> Service: 余额不足
 
     Service -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=15.0, fee=22.50, status='completed', deduction_status='arrears' WHERE id = ? -- 使用 PreparedStatement 参数绑定
+    note right DB : fee 记录应收金额(22.50元)，deduction_status=arrears 标记欠费\n用户充值后通过自动扣费或后台补扣完成扣款
     DB --> Service: 标记欠费
 
     Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging' -- 使用 PreparedStatement 参数绑定，欠费时释放桩物理状态

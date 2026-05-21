@@ -17,7 +17,15 @@ note right FE : ApiService.register() 发送 JSON 请求
 
 Ctrl -> US: register(name, phone, password, plateNumber)
 
-US -> DB: SELECT id FROM users WHERE phone = ? -- 使用 PreparedStatement 参数绑定，校验手机号唯一性
+US -> US: 服务端校验: 手机号格式(11位)、密码强度(8位+字母+数字)、\n车牌号格式
+
+alt 校验不通过
+  US --> Ctrl: 参数校验失败
+  Ctrl --> FE: HTTP 400 {error: "参数格式错误"}
+  FE --> U: 提示具体格式错误
+else 校验通过
+
+  US -> DB: SELECT id FROM users WHERE phone = ? -- 使用 PreparedStatement 参数绑定，校验手机号唯一性
 DB --> US: 查询结果
 
 alt 手机号已注册
@@ -26,7 +34,7 @@ alt 手机号已注册
   FE --> U: 提示"该手机号已被注册"
 else 手机号可用
   US -> US: bcrypt 对密码进行散列处理
-  US -> DB: INSERT INTO users (id, name, phone, password_hash,\nplate_number, role, balance, version)\nVALUES (?, ?, ?, ?, ?, 'user', 0.00, 0)
+  US -> DB: INSERT INTO users (id, name, phone, password_hash,\nplate_number, role, balance)\nVALUES (?, ?, ?, ?, ?, 'user', 0.00)
   note right DB : PreparedStatement 参数绑定，UUID 由后端生成
   DB --> US: 插入成功
 
@@ -36,5 +44,6 @@ else 手机号可用
   US --> Ctrl: 注册成功 {userId, name}
   Ctrl --> FE: HTTP 201 {message: "注册成功", userId}
   FE --> U: 显示"注册成功"，跳转登录页
+  end
 end
 @enduml

@@ -1,0 +1,18 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 支付单状态图
+
+state "待支付" as PENDING
+state "支付成功" as SUCCESS
+state "支付失败" as FAILED
+
+[*] --> PENDING : 创建支付单
+PENDING --> SUCCESS : 支付回调成功 / 签名校验通过
+PENDING --> FAILED : 支付回调失败 / 签名校验失败
+
+note bottom of PENDING : 充值时支付单初始状态
+note bottom of SUCCESS : 终态，余额已更新
+note bottom of FAILED : 终态，支付未完成
+note bottom of FAILED : 失败后重试会创建新支付单（新的 PENDING）\n原 FAILED 记录不可变，作为财务审计追溯依据
+@enduml

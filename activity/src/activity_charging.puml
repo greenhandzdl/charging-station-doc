@@ -1,0 +1,87 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 充电业务全流程活动图
+
+start
+
+partition "用户" {
+  :选择充电站与充电桩;
+  :点击"启动充电";
+}
+
+partition "系统" {
+  :校验用户身份 (JWT);
+  :校验余额 >= 10元;
+  :校验充电桩状态 = 空闲;
+  :锁定充电桩 (status → charging);
+  :创建充电记录 (status: processing);
+  :记录审计日志;
+}
+
+partition "充电桩服务" {
+  :充电桩状态: 使用中;
+}
+
+partition "用户" {
+  :开始充电;
+}
+
+split
+  :正常结束充电;
+
+  partition "系统" {
+    :计算充电量与费用;
+    :校验余额;
+    if (余额充足?) then (是)
+      :事务: 更新记录 + 扣减余额\n+ 插入支付记录 + 释放桩;
+      :扣费成功;
+    else (否)
+      :事务: 更新记录 + 标记欠费\n+ 释放桩;
+      :标记欠费;
+    endif
+  }
+
+  partition "充电桩服务" {
+    :充电桩状态: 空闲;
+  }
+
+  partition "用户" {
+    :查看充电结果;
+  }
+split again
+  :管理员强制结束充电;
+
+  partition "管理员" {
+    :选择强制结束;
+    :填写终止原因;
+  }
+
+  partition "系统" {
+    :权限校验 (ADMIN/SUPER_ADMIN);
+    :事务: 结束记录 + 释放桩\n+ 审计日志 (含原因);
+  }
+
+  partition "充电桩服务" {
+    :充电桩状态: 空闲;
+  }
+
+  partition "管理员" {
+    :强制结束完成;
+  }
+split again
+  :充电异常中断;
+
+  partition "系统" {
+    :检测异常;
+    :标记充电桩为故障;
+    :事务: 异常结束记录\n+ 释放桩 + 审计日志;
+  }
+
+  partition "充电桩服务" {
+    :充电桩状态: 故障;
+  }
+end split
+
+stop
+@enduml
