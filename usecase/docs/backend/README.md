@@ -72,7 +72,7 @@
 ## 关键安全措施
 
 - **认证：** JWT（无状态令牌），access_token 过期时间 15 分钟；refresh_token 存储在 Redis 中并设置 TTL（建议 7 天），用于无感续期。
-  - 针对 Swing 桌面端，Token 存储在内存中（应用退出即失效），不使用 Cookie。
+  - 针对 Flutter 客户端，Token 存储在内存中（应用退出即失效），不持久化到本地存储。
   - 每个 Token 包含唯一 jti（JWT ID），服务端维护 jti 黑名单用于令牌吊销，登出时将 access_token 和 refresh_token 加入黑名单。
   - **refresh_token 轮换：** 每次使用 refresh_token 换取新 access_token 时，服务端同时颁发新的 refresh_token 并使旧的 refresh_token 失效（替换 Redis 中的记录），防止 refresh_token 泄露后被重放。
 - **密码：** bcrypt/Argon2 加盐散列，密码强度校验（长度、复杂度）。

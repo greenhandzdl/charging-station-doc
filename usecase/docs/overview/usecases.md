@@ -57,7 +57,7 @@
 | 数据库 | [database/](../database/db.md) | 数据库表结构、后端-数据库交互用例 |
 | 视图便捷 | [view-features](view-features.md) | 充电记录快捷视图、充电桩状态快捷查询 |
 | 类图 | [class](../../../class/README.md) | 系统核心类及其关系 |
-| 时序图 | [time](../../../time/README.md) | 启动充电、结束扣费对象交互 |
+| 时序图 | [time](../../../time/README.md) | 启动充电、结束扣费、登录、注册、报修、充值对象交互 |
 | 状态图 | [status](../../../status/README.md) | 充电桩状态流转 |
 | 活动图 | [activity](../../../activity/README.md) | 故障报修全流程 |
 

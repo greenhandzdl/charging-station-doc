@@ -13,8 +13,10 @@
 | 评分维度 | 分值 | 对应文档 |
 |----------|:----:|----------|
 | 面向对象思想应用 | 40 分 | 类图、用例关系（include/extend）、状态图 |
-| Swing + JDBC 编程 | 40 分 | 前端用例、时序图（前端→后端→数据库交互） |
+| Swing + JDBC 编程 | 40 分 | 前端用例、时序图（Flutter 前端→HTTP→后端→数据库交互） |
 | 系统完整性与规范性 | 20 分 | 六大模块全覆盖、活动图、交叉引用一致性 |
+
+> 注：评分标准原文为"Swing+JDBC 编程"（见 `doc/1.Java开发项目实训题目及评分标准.md`），本 UML 文档库反映的实际技术栈为 Flutter/Dart 前端 + Spring Boot 后端。
 
 ### 六大功能模块覆盖
 
@@ -69,7 +71,7 @@
 | 部署 | [usecase/docs/containerd/README.md](usecase/docs/containerd/README.md) | 容器化与部署架构 |
 | 数据库 | [usecase/docs/database/db.md](usecase/docs/database/db.md) | 七张核心表、ER 图、索引、DDL |
 | 类图 | [class/README.md](class/README.md) | 系统核心类及其关系 |
-| 时序图 | [time/README.md](time/README.md) | 启动充电、结束扣费对象交互 |
+| 时序图 | [time/README.md](time/README.md) | 启动充电、结束扣费、登录、注册、报修、充值对象交互 |
 | 状态图 | [status/README.md](status/README.md) | 充电桩状态流转 |
 | 活动图 | [activity/README.md](activity/README.md) | 故障报修全流程 |
 
@@ -79,8 +81,8 @@
 |--------|:----:|------|
 | 用例图 | 15 | overview(6) + backend(4) + frontend(2) + containerd(2) + database(1) |
 | ER 图 | 1 | 7 张表实体关系 |
-| 类图 | 1 | 7 大核心类，含枚举与关联关系 |
-| 时序图 | 2 | 启动充电、结束充电与自动扣费 |
+| 类图 | 3 | 总览 + 前端 Flutter 模型 + 后端 Spring Boot 实体 |
+| 时序图 | 7 | 启动充电、结束扣费、登录、注册、报修提交、报修处理、充值 |
 | 状态图 | 1 | 充电桩 3 种状态流转 |
 | 活动图 | 1 | 故障报修处理流程 |
 
@@ -108,8 +110,8 @@ python3 usecase/scripts/render_plantuml.py --module backend,frontend
 | 考核要求文档 | ✅ | doc/ 目录已转换并解析 |
 | 六大模块用例 | ✅ | 全覆盖，含模块5补充 |
 | 用例关系 | ✅ | 核心流程补充 <<include>>/<<extend>> |
-| 类图 | ✅ | 7大核心类 + 关系 |
-| 时序图 | ✅ | 启动充电 + 结束扣费（含异常分支） |
+| 类图 | ✅ | 总览 + 前端 Flutter 模型 + 后端 Spring Boot 实体 |
+| 时序图 | ✅ | 启动充电 + 结束扣费 + 登录 + 注册 + 报修提交 + 报修处理 + 充值 |
 | 状态图 | ✅ | 充电桩三态流转 |
 | 活动图 | ✅ | 报修全流程 |
 | 数据库设计 | ✅ | ER 图、7 张表、外键约束、索引明细、DDL 脚本 |

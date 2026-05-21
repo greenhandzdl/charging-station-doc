@@ -8,6 +8,10 @@ actor "管理员" as A
 actor "维修人员" as M
 actor "最高管理者" as SA
 
+note top of A : Flutter 客户端实现
+note top of M : Flutter 客户端实现
+note top of SA : Flutter 客户端实现
+
 usecase "处理报修" as HR
 usecase "管理充电站/充电桩" as MM
 usecase "用户权限管理" as PM

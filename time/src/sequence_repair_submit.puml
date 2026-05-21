@@ -1,0 +1,35 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 报修提交时序图
+
+' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
+actor 用户 as U
+participant "Flutter 客户端" as FE
+participant "报修控制器" as Ctrl
+participant "报修服务" as RS
+participant "充电桩服务" as CS
+database 数据库 as DB
+
+U -> FE: 选择故障充电桩，填写故障描述\n点击"提交报修"
+FE -> Ctrl: HTTP POST /api/v1/repairs\n{chargerId, description}
+note right FE : ApiService.submitRepair()\n请求头带 JWT Token
+
+Ctrl -> RS: submit(chargerId, description)
+
+group 事务 [atomic] 覆盖: 创建报修单 + 更新充电桩状态 + 审计日志
+  RS -> DB: INSERT INTO repairs (id, charger_id, reporter_id,\ndescription, status, reported_at)\nVALUES (?, ?, ?, ?, 'open', now())
+  DB --> RS: 报修单创建成功
+
+  RS -> CS: updateStatus(chargerId, FAULT)
+  CS -> DB: UPDATE chargers SET status = 'fault'\nWHERE id = ? AND status != 'fault' -- 使用 PreparedStatement 参数绑定，乐观写条件
+  DB --> CS: 更新成功（若 affected_rows = 0 则桩已处于故障状态）
+
+  RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'user', 'submit_repair', 'charger', ?)
+  DB --> RS: 审计日志记录成功
+end
+
+RS --> Ctrl: 报修提交成功 {repairId, status: 'open'}
+Ctrl --> FE: HTTP 201 {repairId, status: 'open', message: "报修已提交"}
+FE --> U: 显示"报修已提交，待处理"
+@enduml

@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 本项目是一个 **Java 充电站管理系统的 UML 文档项目**（非代码实现项目），为大学课程结课设计提供用例文档与 UML 图。**最根本的约束文档是 `doc/1.Java开发项目实训题目及评分标准.md`**，所有 UML 文档、用例描述、数据表设计必须严格依据其中的功能需求（六大模块）和评分标准（面向对象 40 分 + Swing/JDBC 40 分 + 完整性/规范性 20 分）。
 
+> UML 文档反映实际技术栈：前端 Flutter/Dart，后端 Spring Boot Java。评分标准中的 Swing+JDBC 为课程考核描述，项目中 UML 文档的前端部分统一使用 Flutter。
+
 ## 核心原则
 
 - **文档全部为中文**，面向评审/交付，不得出现"AI、我可以、我会、如需、建议您"等助理措辞
@@ -31,4 +33,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 5. **视图与便捷功能** — 充电记录快捷视图、桩状态快捷查询
 6. **简易交互与扩展功能** — 充值、余额校验、自动扣费
 
-评分维度：面向对象设计（40分）→ 用例建模时应体现清晰的类与关系；Swing+JDBC（40分）→ 前端用例与后端数据交互；完整性+规范性（20分）。
+评分维度：面向对象设计（40分）→ 用例建模时应体现清晰的类与关系；Swing+JDBC（40分）→ 前端（Flutter）用例与后端（Spring Boot）数据交互；完整性+规范性（20分）。

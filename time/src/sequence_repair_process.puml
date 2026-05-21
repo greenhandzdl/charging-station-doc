@@ -1,0 +1,72 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 报修处理时序图
+
+' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
+actor 管理员 as Admin
+actor 维修人员 as M
+participant "Flutter 客户端" as FE
+participant "报修控制器" as Ctrl
+participant "报修服务" as RS
+participant "充电桩服务" as CS
+database 数据库 as DB
+
+== 管理员查看未处理报修单 ==
+Admin -> FE: 进入报修管理页面
+FE -> Ctrl: HTTP GET /api/v1/repairs?status=open
+Ctrl -> RS: listPending()
+RS -> DB: SELECT r.*, c.charger_code, u.name as reporter_name\nFROM repairs r\nJOIN chargers c ON r.charger_id = c.id\nJOIN users u ON r.reporter_id = u.id\nWHERE r.status = 'open' ORDER BY r.reported_at DESC
+DB --> RS: 未处理报修单列表
+RS --> Ctrl: List<RepairDTO>
+Ctrl --> FE: HTTP 200 JSON {repairs: [...]}
+FE --> Admin: 展示待处理报修清单
+
+== 管理员分配维修人员 ==
+Admin -> FE: 选择报修单，指定维修人员\n点击"分配"
+FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/assign\n{handledBy: maintainerId}
+
+Ctrl -> RS: assign(repairId, maintainerId)
+RS -> DB: UPDATE repairs SET status = 'in_progress',\nhandled_by = ? WHERE id = ? AND status = 'open'
+DB --> RS: 分配成功
+RS --> Ctrl: 分配完成
+Ctrl --> FE: HTTP 200 {status: 'in_progress'}
+FE --> Admin: 显示"已分配待维修"
+
+== 维修人员进行维修 ==
+note right of FE : 维修人员刷新或收到通知查看任务
+
+M -> FE: 查看被分配的报修单
+FE -> Ctrl: HTTP GET /api/v1/repairs?handledBy={myId}
+Ctrl --> FE: 返回待维修列表
+
+M -> FE: 维修完成，点击"维修完成"
+FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/resolve
+Ctrl -> RS: resolve(repairId)
+RS -> DB: UPDATE repairs SET status = 'resolved'\nWHERE id = ? AND status = 'in_progress'
+DB --> RS: 维修完成标记
+RS --> Ctrl: 已标记待审核
+Ctrl --> FE: HTTP 200 {status: 'resolved'}
+FE --> M: 显示"维修完成，待管理员审核"
+
+== 管理员审核通过 ==
+Admin -> FE: 查看已完成的维修记录\n点击"审核通过"
+FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/close
+
+group 事务 [atomic] 覆盖: 关闭报修单 + 恢复充电桩 + 审计日志
+  Ctrl -> RS: close(repairId)
+  RS -> DB: UPDATE repairs SET status = 'closed',\nhandled_at = now() WHERE id = ?
+  DB --> RS: 报修关闭
+
+  RS -> CS: restoreCharger(chargerId)
+  CS -> DB: UPDATE chargers SET status = 'idle'\nWHERE id = ? AND status = 'fault' -- 使用 PreparedStatement 参数绑定
+  DB --> CS: 桩已恢复
+
+  RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'admin', 'close_repair', 'repair', ?)
+  DB --> RS: 审计日志记录成功
+end
+
+RS --> Ctrl: 报修处理完成
+Ctrl --> FE: HTTP 200 {status: 'closed', message: "报修处理完成"}
+FE --> Admin: 显示"处理完成，充电桩已恢复"
+@enduml

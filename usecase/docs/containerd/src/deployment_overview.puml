@@ -6,7 +6,7 @@ skinparam linetype ortho
 actor "用户/管理员" as UA
 
 frame "前端层" {
-  component "Swing 桌面客户端 (Java)" as FE
+  component "Flutter 桌面客户端 (Dart)" as FE
 }
 
 frame "接入层" {

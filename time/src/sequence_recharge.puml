@@ -1,0 +1,66 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 账户充值时序图
+
+' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
+actor 用户 as U
+participant "Flutter 客户端" as FE
+participant "支付控制器" as Ctrl
+participant "支付服务" as PS
+participant "Mock 支付网关" as Gateway
+database 数据库 as DB
+
+U -> FE: 选择充值金额，选择支付方式\n点击"充值"
+FE -> Ctrl: HTTP POST /api/v1/payments/recharge\n{amount: 100.00, method: "wechat"}
+note right FE : ApiService.recharge()\n请求头带 JWT Token
+
+Ctrl -> PS: createRecharge(userId, amount, method)
+
+PS -> DB: INSERT INTO payments (id, user_id, charge_record_id, method,\namount, status)\nVALUES (?, ?, NULL, ?, ?, 'pending')\n-- 使用 PreparedStatement 参数绑定
+DB --> PS: 支付记录创建成功 (status: pending)
+
+PS --> Ctrl: 支付单已创建 {paymentId}
+Ctrl --> FE: HTTP 200 {paymentId, redirectUrl}
+FE --> U: 显示"正在跳转支付..."
+
+== 模拟支付网关交互 ==
+PS -> Gateway: HTTP POST 模拟支付请求\n{paymentId, amount, method, callbackUrl}
+Gateway --> PS: 同步返回 (接受成功)
+
+note right Gateway : Mock 支付网关始终返回 success\n回调签名已模拟
+
+Gateway -> PS: HTTP POST 异步回调\n{paymentId, txId, status: 'success', signature}
+
+PS -> PS: 校验回调签名 (HMAC-SHA256)
+
+group 事务 [atomic] 覆盖: 更新支付状态 + 更新余额 + 审计日志
+  alt 签名验证通过
+    PS -> DB: UPDATE payments SET status = 'success',\ngateway_tx_id = ? WHERE id = ? AND status = 'pending'
+    DB --> PS: 支付状态更新成功
+
+    PS -> DB: UPDATE users SET balance = balance + ?\nWHERE id = ? -- 使用 PreparedStatement 参数绑定
+    DB --> PS: 余额更新成功
+
+    PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'user', 'recharge', 'payment', ?)
+    DB --> PS: 审计日志记录成功
+  else 签名验证失败
+    PS -> DB: UPDATE payments SET status = 'failed'\nWHERE id = ?
+    DB --> PS: 标记失败
+  end
+end
+
+Gateway --> PS: 回调处理完成
+
+== 前端刷新余额 ==
+note right FE : 通过 WebSocket 推送或轮询获取最新余额\n此处展示主动刷新方式
+
+U -> FE: 手动刷新余额或收到回调通知
+FE -> Ctrl: HTTP GET /api/v1/users/balance
+Ctrl -> PS: getBalance(userId)
+PS -> DB: SELECT balance FROM users WHERE id = ?
+DB --> PS: 当前余额
+PS --> Ctrl: balance: 100.00
+Ctrl --> FE: HTTP 200 {balance: 100.00}
+FE --> U: 显示"充值成功，当前余额 100.00 元"
+@enduml

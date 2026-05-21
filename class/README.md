@@ -4,7 +4,23 @@
 
 ## 图
 
-![充电站管理系统类图](img/class_diagram.svg)
+### 类图总览
+
+![充电站管理系统类图总览](img/class_diagram.svg)
+
+展示前后端分层架构及 HTTP REST API 边界。
+
+### 前端类图
+
+![前端类图 (Flutter/Dart)](img/frontend_class_diagram.svg)
+
+包含 Flutter Model 类、ApiService（HTTP 封装）、AuthProvider（认证状态管理）、ChargingProvider（充电业务状态管理）、RepairProvider（报修状态管理）。
+
+### 后端类图
+
+![后端类图 (Spring Boot Java)](img/backend_class_diagram.svg)
+
+包含实体（Entity）、枚举（Enum）、服务（Service）、策略（PricingStrategy）、工厂（PaymentFactory）及完整的关系依赖。
 
 ## 核心类
 
@@ -18,6 +34,10 @@
 | ChargeRecordModel | 前端层 | 充电记录快捷视图 |
 | PaymentModel | 前端层 | 支付记录展示 |
 | RepairModel | 前端层 | 报修单展示 |
+| ApiService | 服务层 | HTTP REST 封装，JWT 自动附加 |
+| AuthProvider | 状态管理 | 认证状态，ChangeNotifier 实现 |
+| ChargingProvider | 状态管理 | 充电业务状态 |
+| RepairProvider | 状态管理 | 报修业务状态 |
 
 ### 后端层（Spring Boot Java）
 
@@ -61,10 +81,10 @@
 - User 1:N Repair（用户报修/处理）
 - ChargeRecord 1:0..1 Payment（充电产生支付）
 - User 1:N AuditLog（用户操作记录）
-- 前端 Model 类 \<\<数据映射\>\> 后端实体类（虚线箭头）
+- 前端 Model ←→ API 后端通过 HTTP REST JSON 传输
 - Service 类 ..> 实体类（服务依赖实体）
 - ChargingService --> PricingStrategy（策略模式）
-- PaymentFactory ..> PaymentChannel / Payment（工厂模式）
+- PaymentFactory ..> PaymentChannel（工厂模式）
 
 ## 设计模式
 
@@ -73,14 +93,18 @@
 
 ## 设计要点
 
-- **前后端分离**：前端仅持有 DTO/Model，不含业务逻辑与敏感字段（如 passwordHash），通过 REST API 与后端交互
-- **实体完整字段**：后端实体包含所有持久化字段（外键、哈希值、时间戳），并引入 DeductionStatus 枚举独立追踪扣费状态
-- **Service 层**：封装业务逻辑，不直接暴露实体给 Controller
-- **枚举独立包**：所有枚举集中管理，便于跨实体复用
+- **前后端分离**：前端通过 HTTP REST API 与后端通信，通过 JSON 交换数据，JWT Token 认证。
+- **Flutter 状态管理**：AuthProvider/ChargingProvider/RepairProvider 基于 ChangeNotifier 模式，驱动 UI 重建。
+- **ApiService 单例**：统一管理 HTTP 请求、Token 附加、错误处理，所有请求返回 Future 异步模型。
+- **实体完整字段**：后端实体包含所有持久化字段（外键、哈希值、时间戳），并引入 DeductionStatus 枚举独立追踪扣费状态。
+- **Service 层**：封装业务逻辑，不直接暴露实体给 Controller。
+- **枚举独立包**：所有枚举集中管理，便于跨实体复用。
 
 ## 源文件
 
-- `src/class_diagram.puml` — PlantUML 源文件
+- `src/class_diagram.puml` — 类图总览 PlantUML 源文件
+- `src/frontend_class_diagram.puml` — 前端类图 PlantUML 源文件
+- `src/backend_class_diagram.puml` — 后端类图 PlantUML 源文件
 
 ## 相关文档
 

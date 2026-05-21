@@ -1,319 +1,88 @@
 @startuml
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
-title 充电站管理系统类图
+title 充电站管理系统类图总览
 skinparam package {
   BackgroundColor #F0F0F0
   BorderColor #666666
 }
 
-package "Swing 前端 (Java VO/DTO)" as FE #ADD8E6 {
-  !define FE_COLOR #ADD8E6
-
-  class "UserVO" as FUser {
-    - id: String
-    - name: String
-    - phone: String
-    - plateNumber: String
-    - role: String
-    - balance: BigDecimal
-  }
-  note right of FUser : 展示用户基础信息\n展示用户余额信息，用于余额校验交互
-
-  class "StationVO" as FStation {
-    - id: String
-    - name: String
-    - location: String
-    - status: String
-  }
-  note right of FStation : 展示充电站列表与状态
-
-  class "ChargerVO" as FCharger {
-    - id: String
-    - chargerCode: String
-    - type: String
-    - status: String
-    - stationName: String
-  }
-  note right of FCharger : 展示充电桩状态及所属充电站
-
-  class "ChargeRecordVO" as FCRecord {
-    - id: String
-    - startTime: String
-    - endTime: String
-    - energyKwh: BigDecimal
-    - fee: BigDecimal
-    - status: String
-  }
-  note right of FCRecord : 充电记录快捷视图
-
-  class "PaymentVO" as FPayment {
-    - id: String
-    - method: String
-    - amount: BigDecimal
-    - status: String
-  }
-  note right of FPayment : 支付记录展示
-
-  class "RepairVO" as FRepair {
-    - id: String
-    - description: String
-    - status: String
-  }
-  note right of FRepair : 报修单展示
+package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
+  class "UserModel" as FUser
+  class "StationModel" as FStation
+  class "ChargerModel" as FCharger
+  class "ChargeRecordModel" as FCRecord
+  class "PaymentModel" as FPayment
+  class "RepairModel" as FRepair
+  class "ApiService" as Api
+  class "AuthProvider" as Auth
+  class "ChargingProvider" as CP
+  class "RepairProvider" as RP
 }
+
+class "HTTP REST API\nJSON / JWT Token" as HTTP #LightGray
 
 package "后端层 (Spring Boot Java)" as BE #F0E68C {
 
   package "实体 (Entity)" as ENT {
-    class Station {
-      - id: UUID
-      - name: String
-      - location: String
-      - chargerCount: int
-      - status: StationStatus
-    }
-
-    class Charger {
-      - id: UUID
-      - stationId: UUID
-      - chargerCode: String
-      - type: ChargerType
-      - status: ChargerStatus
-    }
-
-    class User {
-      - id: UUID
-      - name: String
-      - phone: String
-      - plateNumber: String
-      - passwordHash: String
-      - role: UserRole
-      - balance: BigDecimal
-    }
-    note right of User : passwordHash 在 API 响应中被过滤，不传输至客户端
-
-    class ChargeRecord {
-      - id: UUID
-      - userId: UUID
-      - chargerId: UUID
-      - startTime: LocalDateTime
-      - endTime: LocalDateTime
-      - energyKwh: BigDecimal
-      - fee: BigDecimal
-      - status: RecordStatus
-      - deductionStatus: DeductionStatus
-    }
-
-    class Payment {
-      - id: UUID
-      - userId: UUID
-      - chargeRecordId: UUID
-      - method: String
-      - amount: BigDecimal
-      - status: PaymentStatus
-    }
-
-    class Repair {
-      - id: UUID
-      - chargerId: UUID
-      - reporterId: UUID
-      - description: String
-      - status: RepairStatus
-      - handledBy: UUID
-      - reportedAt: LocalDateTime
-      - handledAt: LocalDateTime
-    }
-
-    class AuditLog {
-      - id: UUID
-      - actorId: UUID
-      - actorType: String
-      - action: String
-      - resource: String
-      - resourceId: UUID
-      - payload: JSON
-      - createdAt: LocalDateTime
-    }
-  }
-
-  package "枚举 (Enum)" as ENUM {
-    enum StationStatus {
-      NORMAL
-      MAINTENANCE
-    }
-
-    enum ChargerType {
-      FAST
-      SLOW
-    }
-
-    enum ChargerStatus {
-      IDLE
-      CHARGING
-      FAULT
-    }
-
-    enum UserRole {
-      USER
-      MAINTAINER
-      ADMIN
-      SUPER_ADMIN
-    }
-
-    enum RecordStatus {
-      PROCESSING
-      COMPLETED
-    }
-
-    enum DeductionStatus {
-      PENDING
-      PAID
-      ARREARS
-    }
-
-    enum PaymentStatus {
-      PENDING
-      SUCCESS
-      FAILED
-    }
-
-    enum RepairStatus {
-      OPEN
-      IN_PROGRESS
-      CLOSED
-    }
+    class Station
+    class Charger
+    class User
+    class ChargeRecord
+    class Payment
+    class Repair
+    class AuditLog
   }
 
   package "服务 (Service)" as SVC {
-    interface ChargingService {
-      + startCharge()
-      + stopCharge()
-      + calculateFee()
-    }
-
-    class ChargingServiceImpl implements ChargingService {
-      + startCharge()
-      + stopCharge()
-      + calculateFee()
-    }
-
-    interface PaymentService {
-      + recharge()
-      + processCallback()
-      + autoDeduct()
-    }
-
-    class PaymentServiceImpl implements PaymentService {
-      + recharge()
-      + processCallback()
-      + autoDeduct()
-    }
-
-    interface RepairService {
-      + submit()
-      + assign()
-      + resolve()
-    }
-
-    class RepairServiceImpl implements RepairService {
-      + submit()
-      + assign()
-      + resolve()
-    }
-
-    interface UserService {
-      + login()
-      + register()
-      + recharge()
-    }
-
-    class UserServiceImpl implements UserService {
-      + login()
-      + register()
-      + recharge()
-    }
-
-    class StatisticsService {
-      + generateReport(): ReportVO
-      + getUserChargingStats(): List
-      + getStationAnalysis(): List
-      + getChargerUtilization(): Map
-    }
+    interface ChargingService
+    interface PaymentService
+    interface RepairService
+    interface UserService
+    class StatisticsService
   }
 
-  package "策略 (Strategy)" as STR {
-    interface PricingStrategy {
-      + calculate(energyKwh: BigDecimal): BigDecimal
-    }
-
-    class StandardPricing implements PricingStrategy {
-      + calculate(energyKwh: BigDecimal): BigDecimal
-    }
-  }
-
-  package "工厂 (Factory)" as FAC {
-    interface PaymentChannel {
-      + processPayment(amount: BigDecimal): boolean
-    }
-
-    class PaymentFactory {
-      + createPayment(method: String): PaymentChannel
-    }
-
-    class WechatPayChannel implements PaymentChannel {
-      + processPayment(amount: BigDecimal): boolean
-    }
-
-    class AlipayChannel implements PaymentChannel {
-      + processPayment(amount: BigDecimal): boolean
-    }
+  package "策略/工厂" as DP {
+    interface PricingStrategy
+    class PaymentFactory
   }
 }
 
-' ===== 后端实体关系 =====
-Station "1" --> "0..*" Charger : 包含
-Station --> StationStatus
-Charger --> ChargerType
-Charger --> ChargerStatus
-User --> UserRole
-ChargeRecord --> RecordStatus
-ChargeRecord --> DeductionStatus
-Payment --> PaymentStatus
-Repair --> RepairStatus
+' ===== 架构边界 =====
+FE -right-> HTTP : HTTP 请求
+HTTP -right-> BE : 反向代理/Nginx
 
-' ===== Service 依赖实体 =====
+' ===== 前端内部 =====
+Api ..> FUser : 返回
+Api ..> FStation : 返回
+Api ..> FCharger : 返回
+Api ..> FCRecord : 返回
+Api ..> FPayment : 返回
+Api ..> FRepair : 返回
+Auth ..> Api : 调用
+CP ..> Api : 调用
+RP ..> Api : 调用
+
+' ===== 后端内部 =====
+Station "1" --> "0..*" Charger
+User "1" --> "0..*" ChargeRecord
+Charger "1" --> "0..*" ChargeRecord
+ChargeRecord "1" --> "0..1" Payment
+User "1" --> "0..*" Repair
+User "1" --> "0..*" AuditLog
 ChargingService ..> ChargeRecord
-ChargingService ..> Charger
-ChargingService ..> User
 PaymentService ..> Payment
-PaymentService ..> ChargeRecord
 UserService ..> User
 RepairService ..> Repair
-RepairService ..> Charger
 StatisticsService ..> ChargeRecord
-StatisticsService ..> Payment
-StatisticsService ..> Station
-StatisticsService ..> Charger
-
-' ===== 设计模式 =====
 ChargingService --> PricingStrategy
-PaymentFactory ..> PaymentChannel : 创建
 
-' ===== 实体间关联 =====
-User "1" --> "0..*" ChargeRecord : 发起
-Charger "1" --> "0..*" ChargeRecord : 被使用
-User "1" --> "0..*" Payment : 支付
-User "1" --> "0..*" Repair : 报修/处理
-ChargeRecord "1" --> "0..1" Payment : 产生
-User "1" --> "0..*" AuditLog : 操作记录
-
-' ===== 前端 ←→ 后端数据映射 =====
-FUser ..> User : <<数据映射>>
-FStation ..> Station : <<数据映射>>
-FCharger ..> Charger : <<数据映射>>
-FCRecord ..> ChargeRecord : <<数据映射>>
-FPayment ..> Payment : <<数据映射>>
-FRepair ..> Repair : <<数据映射>>
+note top of HTTP
+  前端通过 HTTP REST API 与后端通信
+  接口前缀: /api/v1/
+  认证方式: Authorization: Bearer {access_token}
+  Token 过期自动刷新 (refresh_token)
+  请求/响应格式: JSON (Content-Type: application/json)
+end note
 
 @enduml

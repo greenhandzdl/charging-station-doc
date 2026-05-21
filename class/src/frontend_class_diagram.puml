@@ -1,0 +1,140 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 充电站管理系统前端类图 (Flutter/Dart)
+skinparam package {
+  BackgroundColor #F0F0F0
+  BorderColor #666666
+}
+
+package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
+
+  class "UserModel" as FUser {
+    - id: String
+    - name: String
+    - phone: String
+    - plateNumber: String
+    - role: String
+    - balance: double
+  }
+  note right of FUser : 用户模型，用于 UI 展示\n与表单绑定
+
+  class "StationModel" as FStation {
+    - id: String
+    - name: String
+    - location: String
+    - status: String
+  }
+  note right of FStation : 充电站列表数据
+
+  class "ChargerModel" as FCharger {
+    - id: String
+    - chargerCode: String
+    - type: String
+    - status: String
+    - stationName: String
+  }
+  note right of FCharger : 充电桩状态及所属站
+
+  class "ChargeRecordModel" as FCRecord {
+    - id: String
+    - startTime: String
+    - endTime: String
+    - energyKwh: double
+    - fee: double
+    - status: String
+  }
+  note right of FCRecord : 充电记录快捷视图
+
+  class "PaymentModel" as FPayment {
+    - id: String
+    - method: String
+    - amount: double
+    - status: String
+  }
+
+  class "RepairModel" as FRepair {
+    - id: String
+    - description: String
+    - status: String
+  }
+
+  class "LoginRequest" as LoginReq {
+    - phone: String
+    - password: String
+  }
+  note right of LoginReq : JSON 序列化请求体
+
+  class "LoginResponse" as LoginResp {
+    - accessToken: String
+    - refreshToken: String
+    - user: UserModel
+  }
+
+  class "ApiService" as Api {
+    + {static} login(phone, password): Future<LoginResponse>
+    + {static} register(name, phone, password): Future<void>
+    + {static} startCharge(userId, chargerId): Future<ChargeRecordModel>
+    + {static} stopCharge(recordId): Future<ChargeRecordModel>
+    + {static} recharge(userId, amount): Future<PaymentModel>
+    + {static} submitRepair(chargerId, description): Future<RepairModel>
+    + {static} getStations(): Future<List<StationModel>>
+    + {static} getChargers(stationId): Future<List<ChargerModel>>
+    + {static} getChargeRecords(): Future<List<ChargeRecordModel>>
+    + {static} getRepairs(): Future<List<RepairModel>>
+    + {static} getPayments(): Future<List<PaymentModel>>
+    + {static} getUserChargeStats(): Future<List<Map>>
+    + {static} getStationAnalysis(): Future<List<Map>>
+    + {static} getChargerUtilization(): Future<Map>
+  }
+  note right of Api : 基于 http 包封装 REST API 调用\n自动附加 JWT Token (Authorization: Bearer)\n统一错误处理与异常转换\n所有方法返回 Future，异步非阻塞
+
+  class "AuthProvider" as Auth {
+    - accessToken: String?
+    - refreshToken: String?
+    - currentUser: UserModel?
+    + login(phone, password): Future<void>
+    + register(name, phone, password): Future<void>
+    + logout(): void
+    + refreshAccessToken(): Future<bool>
+    + isLoggedIn: bool
+  }
+  note right of Auth : ChangeNotifier/Provider 实现\n状态管理驱动 UI 重建\nToken 过期自动刷新
+
+  class "ChargingProvider" as CP {
+    - stations: List<StationModel>
+    - chargers: List<ChargerModel>
+    - currentRecord: ChargeRecordModel?
+    + fetchStations(): Future<void>
+    + startCharge(userId, chargerId): Future<void>
+    + stopCharge(recordId): Future<void>
+  }
+  note right of CP : 充电业务状态管理\n管理站点列表、桩列表、当前充电记录
+
+  class "RepairProvider" as RP {
+    - repairs: List<RepairModel>
+    + fetchRepairs(): Future<void>
+    + submitRepair(chargerId, desc): Future<void>
+  }
+}
+
+' ===== 关联关系 =====
+Api ..> LoginReq : 序列化请求
+Api ..> LoginResp : 反序列化响应
+Api ..> FStation : 返回 List
+Api ..> FCharger : 返回 List
+Api ..> FUser : 返回
+Api ..> FCRecord : 返回 List
+Api ..> FPayment : 返回 List
+Api ..> FRepair : 返回 List
+
+Auth --> FUser : 持有当前用户
+Auth ..> Api : 调用 HTTP
+CP ..> Api : 调用 HTTP
+CP --> FStation : 持有列表
+CP --> FCharger : 持有列表
+CP --> FCRecord : 持有
+RP ..> Api : 调用 HTTP
+RP --> FRepair : 持有列表
+
+@enduml

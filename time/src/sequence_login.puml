@@ -1,0 +1,43 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 用户登录时序图
+
+' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
+actor 用户 as U
+participant "Flutter 客户端" as FE
+participant "认证控制器" as Ctrl
+participant "用户服务" as US
+participant "Redis" as Cache
+database 数据库 as DB
+
+U -> FE: 输入手机号与密码，点击登录
+FE -> Ctrl: HTTP POST /api/v1/auth/login\n{phone, password}
+note right FE : ApiService.login() 发送 JSON 请求\nContent-Type: application/json
+
+Ctrl -> US: login(phone, password)
+US -> DB: SELECT id, name, password_hash, role\nFROM users WHERE phone = ? -- 使用 PreparedStatement 参数绑定
+DB --> US: 用户记录（或空结果）
+
+alt 用户不存在
+  US --> Ctrl: 认证失败
+  Ctrl --> FE: HTTP 401 {error: "手机号或密码错误"}
+  FE --> U: 显示错误提示
+else 用户存在
+  US -> US: bcrypt 校验密码散列
+
+  alt 密码正确
+    US -> US: 生成 access_token (15min) + refresh_token (7d)
+    US -> Cache: SET refresh_token:{userId} = token\nEX 604800 (7天有效期)
+    Cache --> US: 存储成功
+    US --> Ctrl: LoginResponse {accessToken, refreshToken, userInfo}
+    Ctrl --> FE: HTTP 200 JSON {access_token, refresh_token, user}
+    FE -> FE: AuthProvider 保存 Token 到内存
+    FE --> U: 跳转主界面
+  else 密码错误
+    US --> Ctrl: 认证失败
+    Ctrl --> FE: HTTP 401 {error: "手机号或密码错误"}
+    FE --> U: 显示错误提示
+  end
+end
+@enduml

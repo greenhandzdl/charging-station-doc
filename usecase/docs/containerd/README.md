@@ -6,7 +6,7 @@
 
 | 组件 | 技术栈 | 说明 |
 |------|--------|------|
-| 前端 | Swing Desktop (Java) | 用户与管理员界面 |
+| 前端 | Flutter Desktop (Dart) | 用户与管理员界面 |
 | 接入层 | Nginx | SSL 终端、路由分发、限流、静态资源服务 |
 | 后端 | Java Spring Boot | REST API 服务，提供业务接口 |
 | 数据库 | PostgreSQL | 核心业务数据存储 |
