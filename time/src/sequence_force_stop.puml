@@ -1,0 +1,48 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 管理员强制结束充电时序图
+
+' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
+actor 管理员 as Admin
+participant "Flutter 客户端" as FE
+participant "充电控制器" as Ctrl
+participant "充电服务" as Service
+participant "支付服务" as Pay
+database 数据库 as DB
+
+Admin -> FE: 选择强制结束充电\n填写强制终止原因
+FE -> Ctrl: HTTP POST /api/v1/charges/{id}/force-stop\n{reason: "设备异常发热"}
+note right FE : ApiService.forceStop()\n请求自动附加 JWT Token\n仅管理员/最高管理者可调用
+
+Ctrl -> Service: forceStop(recordId, reason)
+
+group 权限校验
+  Service -> Service: 校验当前用户角色 (hasRole('ADMIN') or hasRole('SUPER_ADMIN'))
+end
+
+Service -> DB: SELECT cr.*, c.status\nFROM charge_records cr\nJOIN chargers c ON cr.charger_id = c.id\nWHERE cr.id = ? FOR UPDATE -- 使用 PreparedStatement 参数绑定，带行锁
+DB --> Service: 充电记录、桩状态
+
+alt 记录状态为 processing（充电中）
+  group 事务 [atomic] 覆盖: 更新充电记录 + 扣减余额 + 插入支付记录 + 释放桩 + 审计日志
+    Service -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=0, fee=0, status='completed' WHERE id = ? AND status='processing'
+    DB --> Service: 强制结束成功
+
+    Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status != 'fault'
+    DB --> Service: 桩已释放
+
+    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'admin', 'force_stop', 'charge_record', ?, ?::jsonb)
+    note right DB : payload 中记录强制终止原因\n如: {"reason": "设备异常发热"}
+    DB --> Service: 审计日志记录成功
+  end
+
+  Service --> Ctrl: 强制结束成功
+  Ctrl --> FE: HTTP 200 JSON {status: 'force_stopped', reason}
+  FE --> Admin: 显示"已强制结束充电，原因已记录"
+else 记录状态不为 processing
+  Service --> Ctrl: 该记录无需强制终止
+  Ctrl --> FE: HTTP 409 Conflict {error: "记录状态不允许强制终止"}
+  FE --> Admin: 显示"该充电记录无需强制终止"
+end
+@enduml

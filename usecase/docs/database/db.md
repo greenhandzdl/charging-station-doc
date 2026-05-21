@@ -19,7 +19,6 @@
 | password_hash | VARCHAR(255) | NOT NULL | bcrypt/Argon2 散列 |
 | role | VARCHAR(32) | NOT NULL DEFAULT 'user' | user / maintainer / admin / super_admin |
 | balance | NUMERIC(12,2) | DEFAULT 0.00 | 账户余额。UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子扣减 |
-| version | INTEGER | DEFAULT 0 | 乐观锁版本号，用于并发控制 |
 | frozen_until | TIMESTAMPTZ | NULLABLE | 欠费冻结截止时间，欠费期间禁止启动充电。NULL 表示未冻结 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | | |

@@ -50,10 +50,16 @@
 | Payment | 实体 | 支付流水与回调数据 |
 | Repair | 实体 | 报修单流转 |
 | AuditLog | 实体 | 关键操作审计记录 |
-| ChargingService | 服务 | 充电业务逻辑（启动/结束/计费） |
-| PaymentService | 服务 | 支付业务逻辑（充值/回调/自动扣费） |
-| RepairService | 服务 | 报修业务逻辑（提交/指派/处理） |
-| UserService | 服务 | 用户业务逻辑（登录/注册/充值） |
+| ChargingService | 服务接口 | 充电业务逻辑（启动/结束/计费） |
+| ChargingServiceImpl | 服务实现 | ChargingService 实现类 |
+| PaymentService | 服务接口 | 支付业务逻辑（充值/回调/自动扣费） |
+| PaymentServiceImpl | 服务实现 | PaymentService 实现类 |
+| RepairService | 服务接口 | 报修业务逻辑（提交/指派/处理） |
+| RepairServiceImpl | 服务实现 | RepairService 实现类 |
+| UserService | 服务接口 | 用户业务逻辑（登录/注册/充值） |
+| UserServiceImpl | 服务实现 | UserService 实现类 |
+| StatisticsService | 服务接口 | 统计业务（报表/使用率分析） |
+| StatisticsServiceImpl | 服务实现 | StatisticsService 实现类 |
 | PricingStrategy | 策略 | 计费策略接口 |
 | StandardPricing | 策略 | 标准计费（1.5元/度） |
 | PaymentFactory | 工厂 | 支付方式工厂 |

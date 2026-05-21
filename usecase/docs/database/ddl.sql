@@ -12,7 +12,6 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(32) NOT NULL DEFAULT 'user',
     balance NUMERIC(12,2) DEFAULT 0.00,
-    version INTEGER DEFAULT 0,
     frozen_until TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ
@@ -24,7 +23,6 @@ COMMENT ON TABLE users IS '用户表，存储用户认证信息与账户余额';
 COMMENT ON COLUMN users.role IS '用户角色: user / maintainer / admin / super_admin';
 COMMENT ON COLUMN users.balance IS '余额，UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子操作';
 COMMENT ON COLUMN users.password_hash IS 'bcrypt/Argon2 加盐散列，禁止明文或 MD5/SHA 直接存储';
-COMMENT ON COLUMN users.version IS '乐观锁版本号，用于并发控制';
 COMMENT ON COLUMN users.frozen_until IS '欠费冻结截止时间，NULL 表示未冻结；冻结期间禁止启动充电';
 
 -- 2. stations（充电站表）

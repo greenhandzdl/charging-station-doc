@@ -46,6 +46,12 @@
 
 **流程：** 用户选择金额 → 后端创建支付单 → Mock 支付网关回调 → 签名校验 → 更新余额与支付状态。
 
+### 管理员强制结束充电
+
+![强制结束充电时序图](img/sequence_force_stop.svg)
+
+**流程：** 管理员选择强制结束 → 填写终止原因 → 角色权限校验 → 事务内释放桩 → 审计日志记录终止原因。
+
 ## 源文件
 
 - `src/sequence_charging.puml` — 启动充电时序图源文件
@@ -55,6 +61,7 @@
 - `src/sequence_repair_submit.puml` — 报修提交时序图源文件
 - `src/sequence_repair_process.puml` — 报修处理时序图源文件
 - `src/sequence_recharge.puml` — 充值时序图源文件
+- `src/sequence_force_stop.puml` — 强制结束充电时序图源文件
 
 ## 相关文档
 

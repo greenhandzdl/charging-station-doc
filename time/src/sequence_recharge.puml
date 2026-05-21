@@ -15,7 +15,7 @@ U -> FE: 选择充值金额，选择支付方式\n点击"充值"
 FE -> Ctrl: HTTP POST /api/v1/payments/recharge\n{amount: 100.00, method: "wechat"}
 note right FE : ApiService.recharge()\n请求头带 JWT Token
 
-Ctrl -> PS: createRecharge(userId, amount, method)
+Ctrl -> PS: recharge(userId, amount, method)
 
 PS -> DB: INSERT INTO payments (id, user_id, charge_record_id, method,\namount, status)\nVALUES (?, ?, NULL, ?, ?, 'pending')\n-- 使用 PreparedStatement 参数绑定
 DB --> PS: 支付记录创建成功 (status: pending)

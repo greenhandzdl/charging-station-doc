@@ -76,6 +76,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} register(name, phone, password): Future<void>
     + {static} startCharge(userId, chargerId): Future<ChargeRecordModel>
     + {static} stopCharge(recordId): Future<ChargeRecordModel>
+    + {static} forceStop(recordId, reason): Future<Map>
     + {static} recharge(userId, amount): Future<PaymentModel>
     + {static} submitRepair(chargerId, description): Future<RepairModel>
     + {static} getStations(): Future<List<StationModel>>

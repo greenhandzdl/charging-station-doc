@@ -34,6 +34,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - balance: BigDecimal
   }
   note right of User : passwordHash 在 API 响应中被过滤，不传输至客户端
+  note right of User : 并发控制通过 WHERE balance >= ? 原子扣减实现，不使用 version 乐观锁
 
   class ChargeRecord {
     - id: UUID
@@ -176,7 +177,14 @@ package "服务 (Service)" as SVC #F0E68C {
     + recharge()
   }
 
-  class StatisticsService {
+  interface StatisticsService {
+    + generateReport(): ReportVO
+    + getUserChargingStats(): List
+    + getStationAnalysis(): List
+    + getChargerUtilization(): Map
+  }
+
+  class StatisticsServiceImpl implements StatisticsService {
     + generateReport(): ReportVO
     + getUserChargingStats(): List
     + getStationAnalysis(): List
@@ -232,10 +240,10 @@ PaymentService ..> ChargeRecord
 UserService ..> User
 RepairService ..> Repair
 RepairService ..> Charger
-StatisticsService ..> ChargeRecord
-StatisticsService ..> Payment
-StatisticsService ..> Station
-StatisticsService ..> Charger
+StatisticsServiceImpl ..> ChargeRecord
+StatisticsServiceImpl ..> Payment
+StatisticsServiceImpl ..> Station
+StatisticsServiceImpl ..> Charger
 
 ' ===== 设计模式 =====
 ChargingService --> PricingStrategy

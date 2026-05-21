@@ -12,7 +12,6 @@ entity users {
   *password_hash: VARCHAR(255)
   role: VARCHAR(32)
   balance: NUMERIC(12,2)
-  version: INTEGER
   frozen_until: TIMESTAMPTZ
   created_at: TIMESTAMPTZ
   updated_at: TIMESTAMPTZ

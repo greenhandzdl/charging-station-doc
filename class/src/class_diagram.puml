@@ -36,10 +36,15 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
 
   package "服务 (Service)" as SVC {
     interface ChargingService
+    class ChargingServiceImpl implements ChargingService
     interface PaymentService
+    class PaymentServiceImpl implements PaymentService
     interface RepairService
+    class RepairServiceImpl implements RepairService
     interface UserService
-    class StatisticsService
+    class UserServiceImpl implements UserService
+    interface StatisticsService
+    class StatisticsServiceImpl implements StatisticsService
   }
 
   package "策略/工厂" as DP {
