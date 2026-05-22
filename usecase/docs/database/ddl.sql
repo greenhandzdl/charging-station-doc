@@ -13,6 +13,10 @@ CREATE TABLE users (
     role VARCHAR(32) NOT NULL DEFAULT 'user',
     balance NUMERIC(12,2) DEFAULT 0.00,
     frozen_until TIMESTAMPTZ,
+    failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
+    account_locked_until TIMESTAMPTZ,
+    password_reset_token VARCHAR(255),
+    reset_token_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ
 );
@@ -24,6 +28,10 @@ COMMENT ON COLUMN users.role IS '用户角色: user / maintainer / admin / super
 COMMENT ON COLUMN users.balance IS '余额，UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子操作';
 COMMENT ON COLUMN users.password_hash IS 'bcrypt/Argon2 加盐散列，禁止明文或 MD5/SHA 直接存储';
 COMMENT ON COLUMN users.frozen_until IS '欠费冻结截止时间，NULL 表示未冻结；冻结期间禁止启动充电';
+COMMENT ON COLUMN users.failed_login_attempts IS '连续登录失败次数，>= 5 触发验证码，>= 10 锁定账户';
+COMMENT ON COLUMN users.account_locked_until IS '账户锁定截止时间，锁定期间禁止登录；NULL 表示未锁定';
+COMMENT ON COLUMN users.password_reset_token IS '密码重置令牌，与用户会话绑定';
+COMMENT ON COLUMN users.reset_token_expires_at IS '密码重置令牌过期时间，有效期 15 分钟';
 
 -- 2. stations（充电站表）
 CREATE TABLE stations (

@@ -24,14 +24,13 @@ class "HTTP REST API\nJSON / JWT Token" as HTTP #LightGray
 
 package "后端层 (Spring Boot Java)" as BE #F0E68C {
 
-  package "实体 (Entity)" as ENT {
-    class Station
-    class Charger
-    class User
-    class ChargeRecord
-    class Payment
-    class Repair
-    class AuditLog
+  package "控制器 (Controller)" as CTRL {
+    class ChargingController
+    class PaymentController
+    class UserController
+    class RepairController
+    class StationController
+    class StatisticsController
   }
 
   package "服务 (Service)" as SVC {
@@ -52,6 +51,23 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
     interface PricingStrategy
     class PaymentFactory
   }
+
+  package "数据访问 (Mapper/MyBatis)" as MAP {
+    interface UserMapper
+    interface ChargerMapper
+    interface ChargeRecordMapper
+    interface PaymentMapper
+    interface RepairMapper
+    interface AuditLogMapper
+  }
+
+  package "基础设施" as INF {
+    class "HikariCP 连接池" as Hikari
+    class "MyBatis SqlSessionFactory" as SqlSession
+    class "事务管理器" as TX
+    class "RedisTemplate" as Redis
+    class "PageHelper" as Page
+  }
 }
 
 ' ===== 架构边界 =====
@@ -69,19 +85,10 @@ Auth ..> Api : 调用
 CP ..> Api : 调用
 RP ..> Api : 调用
 
-' ===== 后端内部 =====
-Station "1" --> "0..*" Charger
-User "1" --> "0..*" ChargeRecord
-Charger "1" --> "0..*" ChargeRecord
-ChargeRecord "1" --> "0..1" Payment
-User "1" --> "0..*" Repair
-User "1" --> "0..*" AuditLog
-ChargingService ..> ChargeRecord
-PaymentService ..> Payment
-UserService ..> User
-RepairService ..> Repair
-StatisticsService ..> ChargeRecord
-ChargingService --> PricingStrategy
+' ===== 后端分层调用 =====
+CTRL --> SVC : 调用服务
+SVC --> MAP : 数据访问
+MAP --> INF : 基础设施支撑
 
 note top of HTTP
   前端通过 HTTP REST API 与后端通信

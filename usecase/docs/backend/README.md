@@ -18,11 +18,11 @@
 ### 认证与账户
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| POST | `/api/v1/auth/register` | 用户注册 | 公开 |
-| POST | `/api/v1/auth/login` | 用户登录，返回短期凭证 | 公开 |
-| POST | `/api/v1/auth/refresh` | Token 刷新 | 已认证 |
-| POST | `/api/v1/auth/password-reset` | 密码重置（验证码校验） | 公开 |
-| PUT | `/api/v1/auth/password` | 修改密码（旧密码校验） | 已认证 |
+| POST | `/api/v1/auth/register` | 用户注册（需验证码，防止机器人注册） | 公开 |
+| POST | `/api/v1/auth/login` | 用户登录，返回短期凭证。含暴力破解防护：IP 维度 5 分钟内失败 5 次触发验证码，10 次封禁 IP 30 分钟；账户维度连续失败 10 次锁定 30 分钟 | 公开 |
+| POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效） | 已认证 |
+| POST | `/api/v1/auth/password-reset` | 密码重置。需验证码 + 短信验证码双重校验，重置令牌绑定用户会话，令牌有效期 15 分钟。含 IP 级限流：同一 IP 5 分钟内最多发起 3 次重置请求 | 公开 |
+| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401） | 已认证 |
 
 ### 充电流程
 | 方法 | 路径 | 说明 | 权限 |
@@ -77,15 +77,20 @@
   - 针对 Flutter 客户端，Token 存储在内存中（应用退出即失效），不持久化到本地存储。
   - 每个 Token 包含唯一 jti（JWT ID），服务端维护 jti 黑名单用于令牌吊销，登出时将 access_token 和 refresh_token 加入黑名单。
   - **refresh_token 轮换：** 每次使用 refresh_token 换取新 access_token 时，服务端同时颁发新的 refresh_token 并使旧的 refresh_token 失效（替换 Redis 中的记录），防止 refresh_token 泄露后被重放。
-- **密码：** bcrypt/Argon2 加盐散列，密码强度校验（长度、复杂度）。
-- **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。
-- **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。
+- **密码：** bcrypt/Argon2 加盐散列，密码强度校验（至少 8 位，必须含大写字母、小写字母、数字、特殊字符中的至少三类）。
+- **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。关键接口使用 `@PreAuthorize` 注解进行细粒度授权（如结束充电检查记录所有者、强制结束仅 ADMIN 可用）。
+- **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。所有数据库操作用 PreparedStatement 参数绑定。
 - **支付安全：** 支付回调签名校验（HMAC-SHA256 / RSA），回调处理幂等，防止重放攻击。回调端点 `/api/v1/payments/callback` 必须验证请求来源：开发环境使用 IP 白名单（仅允许 Mock 支付网关地址）；生产环境建议使用 mTLS 双向认证或预共享网关 API Key。建议使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。HMAC 签名密钥通过环境变量配置，定期轮换（建议 90 天），密钥仅服务端持有，不暴露至客户端。
 - **审计日志：** 所有关键操作（权限变更、充值、扣费、充电启停、报修处理、强制结束充电）记录日志，包含操作人、时间、资源与操作类型。权限提升/降级操作必须额外记录变更前后的角色值及操作原因。
   - audit_logs.payload 字段（JSONB）存储操作详情，例如强制结束充电时记录终止原因：`{"reason": "设备异常发热"}`；权限变更时记录变更前后角色：`{"old_role": "user", "new_role": "maintainer", "reason": "维修能力考核通过"}`。
 - **防重放：** Token 设置唯一 jti，服务端维护已作废 Token 黑名单或设置极短有效期。
 - **jti 黑名单 TTL：** 与 access_token 有效期一致（15 分钟），由 Redis TTL 自动清理，避免黑名单无限增长。
-- **防暴力破解：** 同一 IP 5 分钟内登录失败 5 次触发图形验证码，失败 10 次封禁该 IP 30 分钟。封禁状态记录在 Redis 中，设置 TTL 自动解封。
+- **防暴力破解：** 双重防护机制：
+  - IP 维度：同一 IP 5 分钟内登录失败 5 次触发图形验证码，失败 10 次封禁该 IP 30 分钟。封禁状态记录在 Redis 中，设置 TTL 自动解封。
+  - 账户维度：`users.failed_login_attempts` 记录连续失败次数，达到 10 次时设置 `account_locked_until = now() + 30min` 锁定账户。
+- **密码重置安全：** 密码重置端点 `/api/v1/auth/password-reset` 需同时满足验证码校验 + 短信验证码双重验证。重置令牌（`passwordResetToken`）绑定用户会话，有效期 15 分钟。服务端对同一 IP 实施限流：5 分钟内最多 3 次重置请求，超出返回 429。
+- **验证码安全：** 注册和登录的验证码存储在 Redis，TTL 5 分钟，使用后立即删除防止重放。验证码 ID 由服务端 `/api/v1/captcha` 端点生成，随机不可预测。
+- **授权检查可视化：** 所有涉及资源归属的关键操作（结束充电、强制结束充电、报修处理）在时序图中明确标注 `@PreAuthorize` 授权检查步骤，展示 Spring Security Filter Chain 处理流程。
 
 ## 测试与质量保障
 

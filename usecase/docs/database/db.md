@@ -20,6 +20,10 @@
 | role | VARCHAR(32) | NOT NULL DEFAULT 'user' | user / maintainer / admin / super_admin |
 | balance | NUMERIC(12,2) | DEFAULT 0.00 | 账户余额。UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子扣减 |
 | frozen_until | TIMESTAMPTZ | NULLABLE | 欠费冻结截止时间，欠费期间禁止启动充电。NULL 表示未冻结 |
+| failed_login_attempts | INTEGER | NOT NULL DEFAULT 0 | 连续登录失败次数，>= 5 触发验证码，>= 10 锁定账户 |
+| account_locked_until | TIMESTAMPTZ | NULLABLE | 账户锁定截止时间，锁定期间禁止登录。NULL 表示未锁定 |
+| password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌，与用户会话绑定，用于 /api/v1/auth/password-reset 端点 |
+| reset_token_expires_at | TIMESTAMPTZ | NULLABLE | 密码重置令牌过期时间，有效期 15 分钟 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | | |
 

@@ -7,6 +7,7 @@ title 结束充电与自动扣费时序图
 actor 用户 as U
 participant "Flutter 客户端" as FE
 participant "充电控制器" as Ctrl
+participant "安全过滤器链" as Security
 participant "充电服务" as Service
 participant "计费服务" as Bill
 participant "支付服务" as Pay
@@ -16,7 +17,14 @@ U -> FE: 点击"结束充电"
 FE -> Ctrl: HTTP POST /api/v1/charges/stop\n{recordId}
 note right FE : ApiService.stopCharge()\n请求自动附加 JWT Token
 
-Ctrl -> Service: 请求结束充电
+group 授权检查 [Spring Security Filter Chain]
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)
+
+  Security -> Security: @PreAuthorize("(#record.userId == authentication.principal.id) or hasRole('ADMIN')")
+  note right Security : 验证当前用户是否为充电记录所有者\n或拥有 ADMIN 角色\n不通过则返回 403 Forbidden
+end
+
+Ctrl -> Service: 请求结束充电 (已通过授权)
 
 Service -> Pay: 校验并扣费 {userId, amount=22.50}
 

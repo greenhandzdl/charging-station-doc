@@ -33,10 +33,15 @@ package "实体 (Entity)" as ENT #F0E68C {
     - role: UserRole
     - balance: BigDecimal
     - frozenUntil: LocalDateTime
+    - failedLoginAttempts: int
+    - accountLockedUntil: LocalDateTime
+    - passwordResetToken: String
+    - resetTokenExpiresAt: LocalDateTime
   }
   note right of User : passwordHash 在 API 响应中被过滤，不传输至客户端
   note right of User : 并发控制通过 WHERE balance >= ? 原子扣减实现，不使用 version 乐观锁
   note right of User : frozenUntil 非空时表示账户被冻结至该时间
+  note right of User : failedLoginAttempts >= 5 触发验证码，>= 10 锁定账户
 
   class ChargeRecord {
     - id: UUID
@@ -136,6 +141,83 @@ package "枚举 (Enum)" as ENUM #F0E68C {
   }
 }
 
+package "控制器 (Controller)" as CTRL #B0C4DE {
+  class ChargingController {
+    @PostMapping("/charges/start")
+    + startCharge(@RequestBody req): ResponseEntity
+    @PostMapping("/charges/stop")
+    + stopCharge(@RequestBody req): ResponseEntity
+    @PostMapping("/charges/{id}/force-stop")
+    @PreAuthorize("hasRole('ADMIN')")
+    + forceStop(@PathVariable id): ResponseEntity
+  }
+
+  class PaymentController {
+    @PostMapping("/payments/recharge")
+    + recharge(@RequestBody req): ResponseEntity
+    @PostMapping("/payments/callback")
+    + handleCallback(@RequestBody callback): ResponseEntity
+    @GetMapping("/payments")
+    + queryPayments(@RequestParam params): ResponseEntity
+  }
+
+  class UserController {
+    @PostMapping("/auth/register")
+    + register(@Valid @RequestBody req): ResponseEntity
+    @PostMapping("/auth/login")
+    + login(@RequestBody req): ResponseEntity
+    @PostMapping("/auth/refresh")
+    + refreshToken(@RequestBody req): ResponseEntity
+    @PostMapping("/auth/password-reset")
+    + resetPassword(@RequestBody req): ResponseEntity
+    @PutMapping("/auth/password")
+    + changePassword(@RequestBody req): ResponseEntity
+    @GetMapping("/users/balance")
+    + getBalance(): ResponseEntity
+    @PutMapping("/users/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
+  }
+
+  class RepairController {
+    @PostMapping("/repairs")
+    + submitRepair(@RequestBody req): ResponseEntity
+    @GetMapping("/repairs")
+    + listRepairs(@RequestParam params): ResponseEntity
+    @PutMapping("/repairs/{id}/assign")
+    @PreAuthorize("hasRole('ADMIN')")
+    + assignRepair(@PathVariable id, @RequestBody req): ResponseEntity
+    @PutMapping("/repairs/{id}/resolve")
+    + resolveRepair(@PathVariable id): ResponseEntity
+    @PutMapping("/repairs/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    + closeRepair(@PathVariable id): ResponseEntity
+  }
+
+  class StationController {
+    @RequestMapping("/stations")
+    @PreAuthorize("hasRole('ADMIN')")
+    + crudOperations(): ResponseEntity
+    @RequestMapping("/chargers")
+    + chargerOperations(): ResponseEntity
+  }
+
+  class StatisticsController {
+    @GetMapping("/analytics/charges")
+    @PreAuthorize("hasRole('ADMIN')")
+    + getChargeStats(): ResponseEntity
+    @GetMapping("/analytics/revenue")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    + getRevenueStats(): ResponseEntity
+    @GetMapping("/analytics/utilization")
+    @PreAuthorize("hasRole('ADMIN')")
+    + getUtilizationStats(): ResponseEntity
+    @GetMapping("/analytics/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    + exportCsv(): ResponseEntity
+  }
+}
+
 package "服务 (Service)" as SVC #F0E68C {
   interface ChargingService {
     + startCharge()
@@ -150,6 +232,7 @@ package "服务 (Service)" as SVC #F0E68C {
     + calculateFee()
     + forceStop()
   }
+  note right of ChargingServiceImpl : @Transactional 事务控制\n@PreAuthorize 授权检查
 
   interface PaymentService {
     + recharge()
@@ -179,12 +262,16 @@ package "服务 (Service)" as SVC #F0E68C {
     + login()
     + register()
     + recharge()
+    + resetPassword()
+    + changePassword()
   }
 
   class UserServiceImpl implements UserService {
     + login()
     + register()
     + recharge()
+    + resetPassword()
+    + changePassword()
   }
 
   interface StatisticsService {
@@ -210,44 +297,137 @@ package "服务 (Service)" as SVC #F0E68C {
   }
 }
 
-package "策略 (Strategy)" as STR #F0E68C {
-  interface PricingStrategy {
-    + calculate(energyKwh: BigDecimal): BigDecimal
+package "数据访问层 (Mapper/MyBatis)" as MAP #90EE90 {
+  interface UserMapper {
+    @Select("SELECT * FROM users WHERE phone = #{phone}")
+    + findByPhone(phone: String): User
+    @Insert("INSERT INTO users ...")
+    + insert(user: User): int
+    @Update("UPDATE users SET balance = balance - #{amount} WHERE id = #{userId} AND balance >= #{amount}")
+    + deductBalance(userId: UUID, amount: BigDecimal): int
+    @Update("UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE phone = #{phone}")
+    + incrementFailedAttempts(phone: String): int
+    @Update("UPDATE users SET failed_login_attempts = 0, account_locked_until = NULL WHERE phone = #{phone}")
+    + resetFailedAttempts(phone: String): int
   }
 
-  class StandardPricing implements PricingStrategy {
-    + calculate(energyKwh: BigDecimal): BigDecimal
+  interface ChargerMapper {
+    @Select("SELECT * FROM chargers WHERE id = #{id}")
+    + findById(id: UUID): Charger
+    @Select("SELECT * FROM chargers WHERE station_id = #{stationId}")
+    + findByStationId(stationId: UUID): List
+    @Update("UPDATE chargers SET status = #{status} WHERE id = #{id} AND status = #{expectedStatus}")
+    + updateStatus(id: UUID, status: String, expectedStatus: String): int
+    @Select("SELECT * FROM chargers")
+    + findAll(): List
+  }
+
+  interface ChargeRecordMapper {
+    @Insert("INSERT INTO charge_records ...")
+    + insert(record: ChargeRecord): int
+    @Update("UPDATE charge_records SET end_time = now(), energy_kwh = #{energy}, fee = #{fee}, status = 'completed', deduction_status = #{deductionStatus} WHERE id = #{id}")
+    + completeRecord(id: UUID, energy: BigDecimal, fee: BigDecimal, deductionStatus: String): int
+    @Select("SELECT cr.*, c.status as charger_status, u.balance FROM charge_records cr JOIN chargers c ON cr.charger_id = c.id JOIN users u ON cr.user_id = u.id WHERE cr.id = #{id} FOR UPDATE")
+    + findByIdWithLock(id: UUID): Map
+    @Select("<script>SELECT * FROM charge_records WHERE user_id = #{userId} <if test='status != null'>AND status = #{status}</if> ORDER BY start_time DESC</script>")
+    + findByUserId(userId: UUID, status: String, pageable: Pageable): List
+  }
+
+  interface PaymentMapper {
+    @Insert("INSERT INTO payments ...")
+    + insert(payment: Payment): int
+    @Select("SELECT * FROM payments WHERE gateway_tx_id = #{txId}")
+    + findByGatewayTxId(txId: String): Payment
+    @Select("SELECT * FROM payments WHERE user_id = #{userId} ORDER BY created_at DESC")
+    + findByUserId(userId: UUID, pageable: Pageable): List
+  }
+
+  interface RepairMapper {
+    @Insert("INSERT INTO repairs ...")
+    + insert(repair: Repair): int
+    @Select("SELECT * FROM repairs WHERE id = #{id} FOR UPDATE")
+    + findByIdWithLock(id: UUID): Repair
+    @Update("UPDATE repairs SET status = #{status}, handled_by = #{userId}, handled_at = now() WHERE id = #{id}")
+    + updateStatus(id: UUID, status: String, userId: UUID): int
+  }
+
+  interface AuditLogMapper {
+    @Insert("INSERT INTO audit_logs ...")
+    + insert(log: AuditLog): int
   }
 }
 
-package "工厂 (Factory)" as FAC #F0E68C {
-  interface PaymentChannel {
-    + processPayment(amount: BigDecimal): boolean
+package "基础设施 (Infrastructure)" as INF #DDA0DD {
+  class HikariDataSource {
+    + getConnection(): Connection
+    + setMaximumPoolSize(size: int)
+    + setMinimumIdle(idle: int)
+    + setConnectionTimeout(timeout: long)
+  }
+  note right of HikariDataSource : HikariCP 连接池\nSpring Boot 默认\nmax-active: 20\nmin-idle: 5
+
+  class SqlSessionFactoryBean {
+    + setDataSource(dataSource: DataSource)
+    + setMapperLocations(locations: Resource[])
+    + setTypeAliasesPackage(pkg: String)
+    + getObject(): SqlSessionFactory
+  }
+  note right of SqlSessionFactoryBean : MyBatis 核心工厂\n扫描 mapper/*.xml\n注册类型别名
+
+  class PlatformTransactionManager {
+    + getTransaction(def: TransactionDefinition): TransactionStatus
+    + commit(status: TransactionStatus)
+    + rollback(status: TransactionStatus)
   }
 
-  class PaymentFactory {
-    + createPayment(method: String): PaymentChannel
+  class DataSourceTransactionManager {
+    + doBegin(transaction: Object, definition: TransactionDefinition)
+    + doCommit(status: DefaultTransactionStatus)
+    + doRollback(status: DefaultTransactionStatus)
   }
 
-  class WechatPayChannel implements PaymentChannel {
-    + processPayment(amount: BigDecimal): boolean
+  class RedisTemplate {
+    + opsForValue(): ValueOperations
+    + opsForSet(): SetOperations
+    + expire(key: String, timeout: long, unit: TimeUnit): boolean
+    + delete(key: String): boolean
   }
+  note right of RedisTemplate : 缓存 Token/验证码/封禁状态\nrefresh_token 存储\njti 黑名单\n登录失败计数
 
-  class AlipayChannel implements PaymentChannel {
-    + processPayment(amount: BigDecimal): boolean
+  class PageHelper {
+    + startPage(pageNum: int, pageSize: int)
+    + getTotal(): long
+    + getPages(): int
   }
+  note right of PageHelper : MyBatis 分页插件\n自动拼接 LIMIT/OFFSET\nThreadLocal 安全
 }
 
-' ===== 实体关系 =====
-Station "1" --> "0..*" Charger : 包含
-Station --> StationStatus
-Charger --> ChargerType
-Charger --> ChargerStatus
-User --> UserRole
-ChargeRecord --> RecordStatus
-ChargeRecord --> DeductionStatus
-Payment --> PaymentStatus
-Repair --> RepairStatus
+' ===== Controller 注入 Service =====
+ChargingController --> ChargingService : 注入
+PaymentController --> PaymentService : 注入
+UserController --> UserService : 注入
+RepairController --> RepairService : 注入
+StationController --> ChargingService : 注入
+StatisticsController --> StatisticsService : 注入
+
+' ===== Service 注入 Mapper =====
+ChargingServiceImpl --> ChargerMapper : 注入
+ChargingServiceImpl --> ChargeRecordMapper : 注入
+ChargingServiceImpl --> UserMapper : 注入
+ChargingServiceImpl --> AuditLogMapper : 注入
+PaymentServiceImpl --> PaymentMapper : 注入
+PaymentServiceImpl --> ChargeRecordMapper : 注入
+PaymentServiceImpl --> UserMapper : 注入
+PaymentServiceImpl --> AuditLogMapper : 注入
+UserServiceImpl --> UserMapper : 注入
+UserServiceImpl --> AuditLogMapper : 注入
+UserServiceImpl --> RedisTemplate : 注入
+RepairServiceImpl --> RepairMapper : 注入
+RepairServiceImpl --> ChargerMapper : 注入
+RepairServiceImpl --> AuditLogMapper : 注入
+StatisticsServiceImpl --> ChargeRecordMapper : 注入
+StatisticsServiceImpl --> PaymentMapper : 注入
+StatisticsServiceImpl --> ChargerMapper : 注入
 
 ' ===== Service 依赖实体 =====
 ChargingService ..> ChargeRecord
@@ -268,7 +448,23 @@ ChargingService --> PricingStrategy
 BillingService --> PricingStrategy : 委托计费策略
 PaymentFactory ..> PaymentChannel : 创建
 
+' ===== 基础设施关联 =====
+SqlSessionFactoryBean --> HikariDataSource : 注入数据源
+DataSourceTransactionManager --> HikariDataSource : 管理事务连接
+PlatformTransactionManager <|.. DataSourceTransactionManager : Spring JDBC 实现
+PageHelper ..> SqlSessionFactoryBean : 插件注册
+
 ' ===== 实体间关联 =====
+Station "1" --> "0..*" Charger : 包含
+Station --> StationStatus
+Charger --> ChargerType
+Charger --> ChargerStatus
+User --> UserRole
+ChargeRecord --> RecordStatus
+ChargeRecord --> DeductionStatus
+Payment --> PaymentStatus
+Repair --> RepairStatus
+
 User "1" --> "0..*" ChargeRecord : 发起
 Charger "1" --> "0..*" ChargeRecord : 被使用
 User "1" --> "0..*" Payment : 支付
