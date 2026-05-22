@@ -46,7 +46,7 @@
 | station_id | UUID | FK REFERENCES stations(id) | 所属充电站 |
 | charger_code | VARCHAR(64) | NOT NULL, UNIQUE | 充电桩编号 |
 | type | VARCHAR(32) | | fast / slow |
-| status | VARCHAR(32) | | idle / charging / fault |
+| status | VARCHAR(32) | CHECK (status IN ('idle', 'charging', 'fault')) | idle / charging / fault |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 
 **对应模块：** 基础信息管理、充电流程、故障报修、统计与可视化

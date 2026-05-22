@@ -30,6 +30,8 @@ A --> GS
 A --> QC
 A --> QV
 M --> HR
+M --> QV
+M --> QC
 SA --> MM
 SA --> PM
 SA --> MU

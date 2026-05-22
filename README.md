@@ -27,7 +27,7 @@
 | 3 | 支付与故障报修管理 | [account-payment.md](usecase/docs/backend/account-payment.md)、[repair.md](usecase/docs/backend/repair.md) | ✅ |
 | 4 | 数据统计与可视化分析 | [analytics.md](usecase/docs/overview/analytics.md) | ✅ |
 | 5 | 视图与便捷功能 | [view-features.md](usecase/docs/overview/view-features.md) | ✅ |
-| 6 | 简易交互与扩展功能 | [charging-flow.md](usecase/docs/backend/charging-flow.md) | ✅ |
+| 6 | 简易交互与扩展功能 | [charging-flow.md](usecase/docs/backend/charging-flow.md)、[account-payment.md](usecase/docs/backend/account-payment.md) | ✅ |
 
 ## 目录结构
 

@@ -55,10 +55,12 @@ A --> VCR
 A --> HR
 A --> GS
 A --> FSC
+A --> EC
 SA --> MM
 SA --> PM
 SA --> GS
 SA --> FSC
+SA --> VCR
 
 P --> RA
 S --> GS

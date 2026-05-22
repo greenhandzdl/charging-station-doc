@@ -23,11 +23,11 @@ partition "系统" {
 }
 
 partition "维修人员" {
-  :接收任务;
   while (维修中?)
+    :接收任务;
     :维修操作;
+    :维修完成 [状态: resolved];
   endwhile
-  :维修完成;
 }
 
 partition "管理员" {
@@ -41,8 +41,13 @@ partition "系统" {
     stop
   else (否)
     :退回返工;
-    note right: 返回维修人员重新维修
-    detach
+    note right: 退回原因写入 reject_reason\n状态回退到 in_progress
+    partition "系统" {
+      :更新报修单状态回退到 in_progress;
+      :记录审计日志;
+    }
+    :通知维修人员重新维修;
+    --> "接收任务" as return_to_repair
   endif
 }
 

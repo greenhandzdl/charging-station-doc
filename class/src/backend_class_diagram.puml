@@ -57,6 +57,9 @@ package "实体 (Entity)" as ENT #F0E68C {
     - method: String
     - amount: BigDecimal
     - status: PaymentStatus
+    - gatewayTxId: String
+    - gatewayCallbackPayload: JSON
+    - createdAt: LocalDateTime
   }
 
   class Repair {

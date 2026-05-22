@@ -49,24 +49,50 @@ RS --> Ctrl: 已标记待审核
 Ctrl --> FE: HTTP 200 {status: 'resolved'}
 FE --> M: 显示"维修完成，待管理员审核"
 
-== 管理员审核通过 ==
-Admin -> FE: 查看已完成的维修记录\n点击"审核通过"
-FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/close
+== 管理员审核 ==
+Admin -> FE: 查看已完成的维修记录
 
-group 事务 [atomic] 覆盖: 关闭报修单 + 恢复充电桩 + 审计日志
-  Ctrl -> RS: close(repairId)
-  RS -> DB: UPDATE repairs SET status = 'closed',\nhandled_at = now() WHERE id = ?
-  DB --> RS: 报修关闭
+alt 审核通过
+  Admin -> FE: 点击"审核通过"
+  FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/close
 
-  RS -> CS: restoreCharger(chargerId)
-  CS -> DB: UPDATE chargers SET status = 'idle'\nWHERE id = ? AND status = 'fault' -- 使用 PreparedStatement 参数绑定
-  DB --> CS: 桩已恢复
+  group 事务 [atomic] 覆盖: 关闭报修单 + 恢复充电桩 + 审计日志
+    Ctrl -> RS: close(repairId)
+    RS -> DB: UPDATE repairs SET status = 'closed',\nhandled_at = now() WHERE id = ?
+    DB --> RS: 报修关闭
 
-  RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'admin', 'close_repair', 'repair', ?)
+    RS -> CS: restoreCharger(chargerId)
+    CS -> DB: UPDATE chargers SET status = 'idle'\nWHERE id = ? AND status = 'fault' -- 使用 PreparedStatement 参数绑定
+    DB --> CS: 桩已恢复
+
+    RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'admin', 'close_repair', 'repair', ?)
+    DB --> RS: 审计日志记录成功
+  end
+
+  RS --> Ctrl: 报修处理完成
+  Ctrl --> FE: HTTP 200 {status: 'closed', message: "报修处理完成"}
+  FE --> Admin: 显示"处理完成，充电桩已恢复"
+
+else 审核不通过
+  Admin -> FE: 点击"审核不通过"\n填写退回原因
+  FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/reject\n{reason: "维修不彻底，需重新处理"}
+
+  Ctrl -> RS: reject(repairId, reason)
+  RS -> DB: UPDATE repairs SET status = 'in_progress',\nreject_reason = ? WHERE id = ? AND status = 'resolved'
+  note right DB : 状态从 resolved 回退到 in_progress，维修人员重新处理
+  DB --> RS: 退回成功
+
+  RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource,\nresource_id, payload)\nVALUES (?, 'admin', 'reject_repair', 'repair', ?, ?::jsonb)
   DB --> RS: 审计日志记录成功
-end
 
-RS --> Ctrl: 报修处理完成
-Ctrl --> FE: HTTP 200 {status: 'closed', message: "报修处理完成"}
-FE --> Admin: 显示"处理完成，充电桩已恢复"
+  RS --> Ctrl: 退回成功
+  Ctrl --> FE: HTTP 200 {status: 'in_progress', message: "已退回，维修人员重新处理"}
+  FE --> Admin: 显示"已退回，维修人员将重新处理"
+
+  note right of M : 维修人员收到退回通知后重新维修
+  M -> FE: 查看退回的报修单\n及退回原因
+  M -> FE: 重新维修完成后再次提交审核
+  FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/resolve
+  note right FE : 重复 resolve → 审核流程
+end
 @enduml

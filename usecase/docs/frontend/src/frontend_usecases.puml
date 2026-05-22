@@ -7,10 +7,12 @@ skinparam useCaseShape rectangle
 actor "未授权用户" as G
 actor "用户" as U
 actor "维修人员" as M
+actor "管理员" as A
 
 note top of G : Flutter 客户端实现
 note top of U : Flutter 客户端实现
 note top of M : Flutter 客户端实现
+note top of A : Flutter 客户端实现
 
 usecase "注册/登录" as LOG
 usecase "启动/结束充电" as CS
@@ -39,4 +41,7 @@ CS <.left. BC : <<include>>
 note bottom of CS : 前置操作：选择充电桩、查看站点列表\n启动前校验余额 >= 10元
 M --> QV
 M --> QC
+A --> HR
+A --> QV
+A --> QC
 @enduml

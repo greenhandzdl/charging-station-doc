@@ -43,11 +43,15 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     - energyKwh: double
     - fee: double
     - status: String
+    - deductionStatus: String
+    - userName: String
+    - plateNumber: String
   }
   note right of FCRecord : 充电记录快捷视图
 
   class "PaymentModel" as FPayment {
     - id: String
+    - chargeRecordId: String
     - method: String
     - amount: double
     - status: String

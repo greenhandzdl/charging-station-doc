@@ -32,5 +32,4 @@ BE --> UC7
 BE --> UC8
 
 UC4 <.down. UC3 : <<include>>
-UC5 ..> UC6 : <<extend>>
 @enduml

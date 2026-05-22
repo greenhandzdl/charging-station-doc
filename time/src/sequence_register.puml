@@ -33,6 +33,7 @@ alt 手机号已注册
   Ctrl --> FE: HTTP 409 {error: "该手机号已注册"}
   FE --> U: 提示"该手机号已被注册"
 else 手机号可用
+  note right US : 如有欠费记录的车牌号再次注册，需提示先偿还欠费\n查询 charge_records WHERE plate_number = ? AND deduction_status = 'arrears' 关联欠费记录
   US -> US: bcrypt 对密码进行散列处理
   US -> DB: INSERT INTO users (id, name, phone, password_hash,\nplate_number, role, balance)\nVALUES (?, ?, ?, ?, ?, 'user', 0.00)
   note right DB : PreparedStatement 参数绑定，UUID 由后端生成

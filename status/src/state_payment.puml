@@ -14,5 +14,5 @@ PENDING --> FAILED : 支付回调失败 / 签名校验失败
 note bottom of PENDING : 充值时支付单初始状态
 note bottom of SUCCESS : 终态，余额已更新
 note bottom of FAILED : 终态，支付未完成
-note bottom of FAILED : 失败后重试会创建新支付单（新的 PENDING）\n原 FAILED 记录不可变，作为财务审计追溯依据
+note bottom of FAILED : 失败后重试会创建新支付单（新的 PENDING）\n原 FAILED 记录不再参与业务流转，仅作为审计追溯依据，不可删除或覆盖
 @enduml
