@@ -39,7 +39,7 @@ Redis 在后端安全架构中承担以下关键角色：
 
 - **refresh_token 存储：** 用户登录时生成的 refresh_token 存入 Redis，设置 TTL（建议 7 天），access_token 过期后通过 refresh_token 换取新凭证。
 - **令牌黑名单：** 登出时将 access_token 的 jti 加入 Redis，TTL 与 access_token 有效期对齐，确保已作废的令牌无法继续使用。
-- **会话管理：** 如需强制用户下线（如权限变更），可从 Redis 中删除对应用户的 refresh_token。
+- **会话管理：** 强制用户下线时（如权限变更），从 Redis 中删除对应用户的 refresh_token。
 - **安全配置：** 生产环境 Redis 需设置密码认证，禁用危险命令（FLUSHALL、KEYS 等），绑定内网地址。
 
 ### Mock 支付网关说明
