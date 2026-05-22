@@ -78,6 +78,8 @@ package "实体 (Entity)" as ENT #F0E68C {
     - resource: String
     - resourceId: UUID
     - payload: JSON
+    - clientIp: String
+    - userAgent: String
     - createdAt: LocalDateTime
   }
 }
@@ -195,6 +197,14 @@ package "服务 (Service)" as SVC #F0E68C {
     + getStationAnalysis(): List
     + getChargerUtilization(): Map
   }
+
+  interface BillingService {
+    + calculateFee(chargerType, energyKwh): BigDecimal
+  }
+
+  class BillingServiceImpl implements BillingService {
+    + calculateFee(chargerType, energyKwh): BigDecimal
+  }
 }
 
 package "策略 (Strategy)" as STR #F0E68C {
@@ -252,6 +262,7 @@ StatisticsServiceImpl ..> Charger
 
 ' ===== 设计模式 =====
 ChargingService --> PricingStrategy
+BillingService --> PricingStrategy : 委托计费策略
 PaymentFactory ..> PaymentChannel : 创建
 
 ' ===== 实体间关联 =====

@@ -172,7 +172,7 @@
 
 ## 实施要点
 
-- **幂等：** 支付回调使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 `gateway_tx_id VARCHAR(255) UNIQUE` 约束（复用 `gateway_tx_id`），确保重复回调不产生重复记录。充值请求使用 `SHA-256( user_id || amount || source || 创建时间戳 )` 生成的摘要作为 `idempotency_key`，INSERT 前先检查 `UNIQUE` 约束防止重复充值。
+- **幂等：** 支付回调使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 `gateway_tx_id VARCHAR(255) UNIQUE` 约束（复用 `gateway_tx_id`），确保重复回调不产生重复记录。充值请求使用服务端生成的 `UUID` 或 `sequence_number` 作为幂等键，INSERT 前先检查 `UNIQUE` 约束防止重复充值；避免使用客户端提供的时间戳参与哈希，防止可预测性导致重放风险。
 - **事务：** 余额更新与账单写入放在同一事务中，保证一致性。充值流程中 INSERT payments 与 UPDATE users.balance 必须在同一事务中执行，使用 `connection.setAutoCommit(false)` + `commit()`/`rollback()`。启动充电时 UPDATE chargers 和 INSERT charge_records 同理。
 - **时序数据：** 需要高性能时序分析时，启用 TimescaleDB 扩展，将 `charge_records` 保存在 hypertable 中。
 - **数据保留：** 充电记录与支付流水按时间分区或归档。

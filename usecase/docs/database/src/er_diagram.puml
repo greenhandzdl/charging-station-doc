@@ -94,7 +94,7 @@ stations ||--o{ chargers
 users ||--o{ charge_records
 chargers ||--o{ charge_records
 users ||--o{ payments
-charge_records ||--o{ payments
+charge_records ||--o| payments
 users ||--o{ repairs
 chargers ||--o{ repairs
 users ||--o{ audit_logs

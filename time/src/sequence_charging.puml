@@ -23,6 +23,11 @@ US -> DB: SELECT id, name, balance FROM users WHERE id = ? -- 使用 PreparedSta
 DB --> US: 用户信息
 US --> Service: 用户存在，余额 >= 10元
 
+Service -> US: 检查账户冻结状态
+US -> DB: SELECT frozen_until FROM users WHERE id = ? -- 使用 PreparedStatement 参数绑定
+DB --> US: frozen_until IS NULL 或已过期
+US --> Service: 账户未冻结
+
 Service -> CS: 查询充电桩状态
 CS -> DB: SELECT id, status FROM chargers WHERE id = ? -- 使用 PreparedStatement 参数绑定
 DB --> CS: status = idle

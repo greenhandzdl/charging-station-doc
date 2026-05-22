@@ -28,7 +28,7 @@ FE --> U: 显示"正在跳转支付..."
 PS -> Gateway: HTTP POST 模拟支付请求\n{paymentId, amount, method, callbackUrl}
 Gateway --> PS: 同步返回 (接受成功)
 
-note right Gateway : Mock 支付网关始终返回 success\n回调签名已模拟
+note right Gateway : Mock 支付网关始终返回 success\n回调签名已模拟\n签名载荷 = HmacSHA256(paymentId + amount + status + secret)\n字段按名称排序后拼接再哈希，减少歧义
 
 Gateway -> PS: HTTP POST 异步回调\n{paymentId, txId, status: 'success', signature}
 
@@ -53,7 +53,7 @@ end
 Gateway --> PS: 回调处理完成
 
 == 前端刷新余额 ==
-note right FE : 通过 WebSocket 推送或轮询获取最新余额\n此处展示主动刷新方式
+note right FE : 通过 WebSocket 推送或轮询获取最新余额\nWebSocket 连接需通过 JWT 认证（?token= 或 Sec-WebSocket-Protocol 头）\n此处展示主动刷新方式
 
 U -> FE: 手动刷新余额或收到回调通知
 FE -> Ctrl: HTTP GET /api/v1/users/balance

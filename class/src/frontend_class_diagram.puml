@@ -100,7 +100,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + refreshAccessToken(): Future<bool>
     + isLoggedIn: bool
   }
-  note right of Auth : ChangeNotifier/Provider 实现\n状态管理驱动 UI 重建\nToken 过期自动刷新
+  note right of Auth : ChangeNotifier/Provider 实现\n状态管理驱动 UI 重建\nToken 过期自动刷新\nrefresh_token 轮换：每次刷新时服务端使旧 refresh_token 失效并颁发新 token
 
   class "ChargingProvider" as CP {
     - stations: List<StationModel>
@@ -117,6 +117,16 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + fetchRepairs(): Future<void>
     + submitRepair(chargerId, desc): Future<void>
   }
+
+  class "StatisticsProvider" as StatsP {
+    - chargeStats: List<Map>
+    - stationAnalysis: List<Map>
+    - chargerUtilization: Map
+    + fetchUserChargeStats(): Future<void>
+    + fetchStationAnalysis(): Future<void>
+    + fetchChargerUtilization(): Future<void>
+  }
+  note right of StatsP : 统计报表状态管理\n管理用户充电统计、运营分析、使用率
 }
 
 ' ===== 关联关系 =====
@@ -137,5 +147,6 @@ CP --> FCharger : 持有列表
 CP --> FCRecord : 持有
 RP ..> Api : 调用 HTTP
 RP --> FRepair : 持有列表
+StatsP ..> Api : 调用 HTTP
 
 @enduml

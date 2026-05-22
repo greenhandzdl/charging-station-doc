@@ -36,7 +36,7 @@ partition "管理员" {
 
 partition "系统" {
   if (审核通过?) then (是)
-    :更新报修单状态为"已处理" [状态: closed];
+    :更新报修单状态为"已关闭" [状态: closed];
     :将充电桩状态恢复为"空闲";
     stop
   else (否)
