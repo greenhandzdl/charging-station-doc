@@ -296,12 +296,16 @@ package "服务 (Service)" as SVC #F0E68C {
     + submit()
     + assign()
     + resolve()
+    + close()
+    + reject()
   }
 
   class RepairServiceImpl implements RepairService {
     + submit()
     + assign()
     + resolve()
+    + close()
+    + reject()
   }
 
   interface UserService {

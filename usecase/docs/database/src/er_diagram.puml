@@ -10,9 +10,13 @@ entity users {
   *phone: VARCHAR(32) (UNIQUE)
   plate_number: VARCHAR(32)
   *password_hash: VARCHAR(255)
-  role: VARCHAR(32)
+  role: VARCHAR(32) (user/maintainer/admin/super_admin)
   balance: NUMERIC(12,2)
-  frozen_until: TIMESTAMPTZ
+  frozen_until: TIMESTAMPTZ (欠费冻结截止时间)
+  failed_login_attempts: INTEGER (连续失败次数，>=5触发验证码)
+  account_locked_until: TIMESTAMPTZ (锁定截止时间)
+  password_reset_token: VARCHAR(255) (密码重置令牌)
+  reset_token_expires_at: TIMESTAMPTZ (令牌过期时间)
   created_at: TIMESTAMPTZ
   updated_at: TIMESTAMPTZ
 }

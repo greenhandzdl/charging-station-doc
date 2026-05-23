@@ -8,6 +8,7 @@ actor 用户 as U
 participant "Mock充电机\n(Swing 客户端)" as MC
 participant "Flutter 客户端" as FE
 participant "充电控制器" as Ctrl
+participant "安全过滤器链" as Security
 participant "充电服务" as Service
 participant "用户服务" as US
 participant "充电桩服务" as CS
@@ -29,6 +30,13 @@ end
 
 MC -> Ctrl: HTTP POST /api/v1/charges/start\n{chargerId}
 note right MC : MockChargerClient.callStartApi()\n模拟用户 JWT Token\nJSON 请求体
+
+group 授权检查 [Spring Security Filter Chain]
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)
+
+  Security -> Security: @PreAuthorize("isAuthenticated()")
+  note right Security : 验证请求携带有效 JWT Token\n不通过则返回 401 Unauthorized
+end
 
 Ctrl -> Service: 启动充电请求
 

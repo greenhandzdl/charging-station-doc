@@ -55,6 +55,11 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
     class StatisticsServiceImpl implements StatisticsService
   }
 
+  package "计费 (Billing)" as BILL {
+    interface BillingService
+    class BillingServiceImpl implements BillingService
+  }
+
   package "策略/工厂" as DP {
     interface PricingStrategy
     class PaymentFactory
@@ -96,6 +101,8 @@ RP ..> Api : 调用
 ' ===== 后端分层调用 =====
 CTRL --> SVC : 调用服务
 SVC --> MAP : 数据访问
+SVC --> BILL : 计费计算
+BILL --> DP : 委托计费策略
 MAP --> INF : 基础设施支撑
 
 note top of HTTP

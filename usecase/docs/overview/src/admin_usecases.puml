@@ -17,6 +17,8 @@ usecase "查看报修记录" as VR
 usecase "强制结束充电" as FSC
 usecase "生成统计报表" as GS
 usecase "充电桩状态快捷查询" as QC
+usecase "充电记录快捷视图" as QV
+usecase "查看充电记录" as VCR
 
 A --> MS
 A --> MC
@@ -25,13 +27,18 @@ A --> PM
 A --> HR
 A --> VR
 A --> FSC
+A --> GS
 A --> QC
+A --> QV
+A --> VCR
 SA --> MS
 SA --> MC
 SA --> PM
 SA --> GS
 SA --> FSC
 SA --> QC
+SA --> QV
+SA --> VCR
 M --> HR
 M --> VR
 @enduml

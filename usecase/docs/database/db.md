@@ -67,7 +67,7 @@
 | energy_kwh | NUMERIC(10,3) | | 充电量（千瓦时） |
 | fee | NUMERIC(12,2) | | 充电费用 |
 | status | VARCHAR(32) | | processing / completed，充电过程状态 |
-| deduction_status | VARCHAR(32) | DEFAULT 'pending' | pending / paid / arrears，扣费状态，独立于充电状态 |
+| deduction_status | VARCHAR(32) | NOT NULL DEFAULT 'pending' | pending / paid / arrears，扣费状态，独立于充电状态 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 
 **对应模块：** 充电流程、账户与支付、统计与可视化
