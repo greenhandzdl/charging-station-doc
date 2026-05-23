@@ -190,8 +190,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + startCharge(@RequestBody req): ResponseEntity
     @PostMapping("/charges/stop")
-    @PreAuthorize("(#record.userId == authentication.principal.id) or hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     + stopCharge(@RequestBody req): ResponseEntity
+    note right of ChargingController : stopCharge 在 Service 层校验记录归属权\n普通用户仅能结束自己的充电记录\n管理员可结束任意充电记录
     @PostMapping("/charges/{id}/force-stop")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     + forceStop(@PathVariable id): ResponseEntity
@@ -220,12 +221,15 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PostMapping("/auth/password-reset")
     + resetPassword(@RequestBody req): ResponseEntity
     @PutMapping("/auth/password")
+    @PreAuthorize("isAuthenticated()")
     + changePassword(@RequestBody req): ResponseEntity
     @GetMapping("/users/balance")
+    @PreAuthorize("isAuthenticated()")
     + getBalance(): ResponseEntity
     @PutMapping("/users/{id}/role")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
+    note right of UserController : changeRole 在 Service 层记录审计日志\n角色变更属敏感操作，必须记录 actor/action/target
   }
 
   class RepairController {
@@ -245,6 +249,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PutMapping("/repairs/{id}/close")
     @PreAuthorize("hasRole('ADMIN')")
     + closeRepair(@PathVariable id): ResponseEntity
+    @PutMapping("/repairs/{id}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    + rejectRepair(@PathVariable id, @RequestBody req): ResponseEntity
   }
 
   class StationController {

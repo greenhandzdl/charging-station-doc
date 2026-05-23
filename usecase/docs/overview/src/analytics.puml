@@ -12,17 +12,20 @@ actor "最高管理者" as SA
 usecase "生成统计报表" as GR
 usecase "查看使用率" as VU
 usecase "导出 CSV" as EXP
+usecase "用户充电统计" as UCS
 
 S --> GR
 A --> GR
 A --> VU
 A --> EXP
+A --> UCS
 SA --> GR
 SA --> VU
 SA --> EXP
+SA --> UCS
 
 GR <.down. VU : <<include>>
 EXP ..> GR : <<extend>>
 
-note right of GR : 收入统计报表（含财务数据）仅限最高管理者(SA)\n使用率分析、用户充值统计 管理员(A)及以上可查看
+note right of GR : 收入统计报表（含财务数据）仅限最高管理者(SA)\n使用率分析、用户充电统计 管理员(A)及以上可查看
 @enduml
