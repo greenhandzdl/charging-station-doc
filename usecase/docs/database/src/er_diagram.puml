@@ -72,6 +72,7 @@ entity repairs {
   description: TEXT
   status: VARCHAR(32)
   handled_by: UUID (FK)
+  reject_reason: TEXT
   reported_at: TIMESTAMPTZ
   handled_at: TIMESTAMPTZ
 }

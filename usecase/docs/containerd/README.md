@@ -7,6 +7,7 @@
 | 组件 | 技术栈 | 说明 |
 |------|--------|------|
 | 前端 | Flutter Desktop (Dart) | 用户与管理员界面 |
+| Mock充电机客户端 | Swing 桌面客户端 (Java) | 模拟物理充电机交互。使用 Swing 组件（JButton、JProgressBar、JLabel 等）提供插枪/拔枪/刷卡 UI，调用后端充电 API 执行充电业务，内置 ChargeSimulator 模拟电量增长。不参与充值、报修、管理等业务流程。满足评分标准 Swing+JDBC 要求 |
 | 接入层 | Nginx | SSL 终端、路由分发、限流、静态资源服务 |
 | 后端 | Java Spring Boot | REST API 服务，提供业务接口 |
 | 数据库 | PostgreSQL | 核心业务数据存储 |
@@ -41,6 +42,15 @@ Redis 在后端安全架构中承担以下关键角色：
 - **令牌黑名单：** 登出时将 access_token 的 jti 加入 Redis，TTL 与 access_token 有效期对齐，确保已作废的令牌无法继续使用。
 - **会话管理：** 强制用户下线时（如权限变更），从 Redis 中删除对应用户的 refresh_token。
 - **安全配置：** 生产环境 Redis 需设置密码认证，禁用危险命令（FLUSHALL、KEYS 等），绑定内网地址。
+
+### Mock 充电机客户端网络隔离说明
+
+Mock 充电机客户端在部署架构中需遵循以下网络隔离原则：
+
+- **API 路由限制**：Nginx 反向代理配置路由规则，仅将 `/api/v1/charges/*` 路径的请求从 Mock 客户端转发至后端，拒绝所有其他路径请求（如 `/api/v1/stations`、`/api/v1/users`、`/api/v1/analytics` 等）。
+- **认证隔离**：Mock 客户端使用专用 `mock_charger_only` 作用域的 JWT Token，该 Token 在 Spring Security Filter Chain 中被限制只能访问充电端点。
+- **数据隔离**：Mock 客户端使用独立测试用户账户，操作隔离的模拟数据，不读写真实用户充电记录。
+- **禁止绕过**：Mock 客户端所有数据访问必须通过 Controller 层（`ChargingController`），禁止直接调用 Service 或 Mapper 层。
 
 ### Mock 支付网关说明
 

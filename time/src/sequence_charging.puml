@@ -1,10 +1,11 @@
 @startuml
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
-title 启动充电时序图
+title 启动充电时序图 (含 Mock 充电机客户端)
 
 ' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
 actor 用户 as U
+participant "Mock充电机\n(Swing 客户端)" as MC
 participant "Flutter 客户端" as FE
 participant "充电控制器" as Ctrl
 participant "充电服务" as Service
@@ -13,8 +14,21 @@ participant "充电桩服务" as CS
 database 数据库 as DB
 
 U -> FE: 选择充电桩，点击"启动充电"
-FE -> Ctrl: HTTP POST /api/v1/charges/start\n{userId, chargerId}
-note right FE : ApiService.startCharge()\n请求自动附加 JWT Token (Authorization: Bearer ...)\nJSON 请求体
+FE -> MC: API 调用: 通知充电机就绪\n{chargerId, stationId}
+
+group Mock充电机交互 [Swing UI]
+  MC -> MC: 显示插枪提示界面\n等待用户模拟插枪操作
+  note right MC : ChargerUIPanel 显示\n"请插入充电枪"对话框
+
+  U -> MC: 点击"模拟插枪"按钮
+  MC -> MC: 更新 ChargerUIPanel 状态\n显示"已插枪，请刷卡启动"
+
+  MC -> MC: 模拟刷卡认证\n获取模拟 JWT Token (mock_charger_only 作用域)
+  note right MC : Mock 模式下使用专用测试账号\nToken scope = mock_charger_only\n仅允许访问 /api/v1/charges/* 端点\n使用隔离测试用户数据，不影响真实用户\n不绕过余额校验
+end
+
+MC -> Ctrl: HTTP POST /api/v1/charges/start\n{chargerId}
+note right MC : MockChargerClient.callStartApi()\n模拟用户 JWT Token\nJSON 请求体
 
 Ctrl -> Service: 启动充电请求
 
@@ -45,6 +59,14 @@ Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource) V
 DB --> Service: 审计日志记录成功
 
 Service --> Ctrl: 启动成功 {recordId, startTime}
-Ctrl --> FE: HTTP 200 JSON {recordId, startTime, status: 'processing'}
+Ctrl --> MC: HTTP 200 JSON {recordId, startTime, status: 'processing'}
+
+group Mock充电机充电中显示 [Swing UI]
+  MC -> MC: 更新 ChargerUIPanel 状态\n显示"充电中"图标
+  MC -> MC: ChargeSimulator 启动模拟\n每 tick 增加 0.1kWh
+  note right MC : 模拟电量增长\n进度条实时更新\n显示当前电量/费用/时长
+end
+
+MC --> FE: 充电状态推送 {status: 'processing'}
 FE --> U: 显示"充电中"状态
 @enduml

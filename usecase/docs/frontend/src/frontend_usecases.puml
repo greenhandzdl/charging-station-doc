@@ -8,11 +8,13 @@ actor "未授权用户" as G
 actor "用户" as U
 actor "维修人员" as M
 actor "管理员" as A
+actor "Mock充电机" as MC
 
 note top of G : Flutter 客户端实现
 note top of U : Flutter 客户端实现
 note top of M : Flutter 客户端实现
 note top of A : Flutter 客户端实现
+note top of MC : Swing 桌面客户端实现\n模拟物理充电机
 
 usecase "注册/登录" as LOG
 usecase "启动/结束充电" as CS
@@ -23,6 +25,8 @@ usecase "提交报修" as SRT
 usecase "处理报修" as HR
 usecase "充电记录快捷视图" as QV
 usecase "充电桩状态快捷查询" as QC
+usecase "模拟插枪/拔枪" as MOC
+usecase "查询充电状态" as QCS
 
 G --> LOG
 U --> CS
@@ -44,4 +48,8 @@ M --> QC
 A --> HR
 A --> QV
 A --> QC
+MC --> MOC
+MC --> CS
+MC --> QCS
+note right of MOC : 模拟物理充电机操作\n插枪后调用启动充电 API\n拔枪后调用结束充电 API\n\n权限边界：\n- JWT scope = mock_charger_only\n- 仅限 /api/v1/charges/* 端点\n- 不参与充值/报修/管理\n- 使用隔离测试用户数据
 @enduml

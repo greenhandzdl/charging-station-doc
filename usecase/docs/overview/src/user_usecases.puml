@@ -7,6 +7,9 @@ skinparam useCaseShape rectangle
 actor "未授权用户" as G
 actor "用户" as U
 actor "维修人员" as M
+actor "Mock充电机" as MC
+
+note right of MC : Swing 桌面客户端\n模拟物理充电机交互\n提供插枪/拔枪/刷卡界面
 
 usecase "注册" as REG
 usecase "登录" as LOG
@@ -20,6 +23,7 @@ usecase "提交故障报修" as SRT
 usecase "处理报修" as HR
 usecase "充电记录快捷视图" as QV
 usecase "充电桩状态快捷查询" as QC
+usecase "查询充电状态" as QC_CM
 
 G --> REG
 G --> LOG
@@ -40,6 +44,9 @@ M --> SRT
 M --> HR
 M --> QV
 M --> QC
+MC --> CS
+MC --> EC
+MC --> QC_CM
 
 CS <.left. BAL : <<include>>
 note bottom of CS : 启动前校验余额 >= 10元

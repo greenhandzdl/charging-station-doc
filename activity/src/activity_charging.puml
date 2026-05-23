@@ -5,9 +5,27 @@ title 充电业务全流程活动图
 
 start
 
+partition "Mock充电机客户端" {
+  :启动 Swing 界面;
+  :显示"请选择充电桩"面板;
+}
+
 partition "用户" {
   :选择充电站与充电桩;
   :点击"启动充电";
+}
+
+partition "Mock充电机客户端" {
+  :显示"模拟插枪"界面;
+  :用户模拟插枪;
+  :调用后端启动充电 API;
+  :显示充电进度条;
+  note right
+    Swing 面板展示:
+    插枪/拔枪按钮
+    充电进度条
+    电量/费用实时更新
+  end note
 }
 
 partition "系统" {
@@ -23,12 +41,22 @@ partition "充电桩服务" {
   :充电桩状态: 使用中;
 }
 
+partition "Mock充电机客户端" {
+  :启动电量模拟 (0.1kWh/tick);
+  :实时更新充电面板;
+}
+
 partition "用户" {
   :开始充电;
 }
 
 split
   :正常结束充电;
+  partition "Mock充电机客户端" {
+    :用户模拟拔枪;
+    :停止电量模拟;
+    :显示充电结果;
+  }
 
   partition "系统" {
     :计算充电量与费用;
@@ -55,6 +83,11 @@ split again
   partition "管理员" {
     :选择强制结束;
     :填写终止原因;
+  }
+
+  partition "Mock充电机客户端" {
+    :接收强制终止通知;
+    :显示终止原因;
   }
 
   partition "系统" {

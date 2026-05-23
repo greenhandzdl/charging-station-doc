@@ -5,6 +5,7 @@ title 管理员强制结束充电时序图
 
 ' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
 actor 管理员 as Admin
+participant "Mock充电机\n(Swing 客户端)" as MC
 participant "Flutter 客户端" as FE
 participant "充电控制器" as Ctrl
 participant "充电服务" as Service
@@ -55,6 +56,8 @@ alt 记录状态为 processing（充电中）
 
   Service --> Ctrl: 强制结束成功
   Ctrl --> FE: HTTP 200 JSON {status: 'force_stopped', reason, fee, deductionStatus}
+  FE -> MC: 推送强制结束通知\n{reason, fee, deductionStatus}
+  MC -> MC: ChargerUIPanel 显示\n"强制结束充电\n原因: 设备异常发热"
   FE --> Admin: 显示"已强制结束充电，扣费完成/标记欠费"
 else 记录状态不为 processing
   Service --> Ctrl: 该记录无需强制终止

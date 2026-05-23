@@ -8,6 +8,7 @@ actor "用户" as U
 actor "维修人员" as M
 actor "管理员" as A
 actor "最高管理者" as SA
+actor "Mock充电机" as MC
 actor "系统" as S
 
 (启动充电)
@@ -16,6 +17,7 @@ actor "系统" as S
 (自动扣费)
 (强制结束充电)
 (查看充电记录)
+(查询充电状态)
 
 U --> 启动充电
 U --> 结束充电并扣费
@@ -28,6 +30,10 @@ A --> 强制结束充电
 A --> 查看充电记录
 SA --> 强制结束充电
 SA --> 查看充电记录
+MC --> 启动充电
+MC --> 结束充电并扣费
+MC --> 查询充电状态
+note top of MC : Swing 桌面客户端\n模拟物理充电机交互
 S --> 结束充电并扣费
 
 启动充电 <.left. 余额校验 : <<include>>

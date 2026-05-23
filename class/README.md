@@ -39,6 +39,14 @@
 | ChargingProvider | 状态管理 | 充电业务状态 |
 | RepairProvider | 状态管理 | 报修业务状态 |
 
+### Mock充电机客户端（Swing）
+
+| 类 | 层 | 职责 |
+|----|----|------|
+| MockChargerClient | 客户端主类 | Swing 桌面客户端主入口，包含 JFrame 主窗口，管理 ChargerUIPanel 和 ChargeSimulator |
+| ChargerUIPanel | Swing 面板 | 提供插枪/拔枪按钮 (JButton)、充电进度条 (JProgressBar)、状态标签 (JLabel) 等 UI 组件，模拟充电机显示屏 |
+| ChargeSimulator | 模拟引擎 | 模拟电量增长（0.1kWh/秒），记录充电时长，提供启动/停止/查询接口 |
+
 ### 后端层（Spring Boot Java）
 
 | 类 | 层 | 职责 |
@@ -87,6 +95,9 @@
 - User 1:N Repair（用户报修/处理）
 - ChargeRecord 1:0..1 Payment（充电产生支付）
 - User 1:N AuditLog（用户操作记录）
+- MockChargerClient --> ChargerUIPanel（包含 Swing 面板）
+- MockChargerClient --> ChargeSimulator（模拟引擎）
+- MockChargerClient --> ChargingController（HTTP调用后端 API）
 - 前端 Model ←→ API 后端通过 HTTP REST JSON 传输
 - Service 类 ..> 实体类（服务依赖实体）
 - ChargingService --> PricingStrategy（策略模式）
