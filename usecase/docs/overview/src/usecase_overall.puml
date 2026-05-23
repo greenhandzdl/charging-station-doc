@@ -9,6 +9,7 @@ actor "用户" as U
 actor "维修人员" as M
 actor "管理员" as A
 actor "最高管理者" as SA
+actor "Mock充电机" as MC
 actor "支付网关" as P
 actor "系统" as S
 
@@ -27,6 +28,7 @@ usecase "处理报修" as HR
 usecase "生成统计报表" as GS
 usecase "充电记录快捷视图" as QV
 usecase "充电桩状态快捷查询" as QC
+usecase "查询充电状态" as QC_CM
 
 G --> UC
 
@@ -61,6 +63,11 @@ SA --> PM
 SA --> GS
 SA --> FSC
 SA --> VCR
+
+MC --> SC
+MC --> EC
+MC --> QC_CM
+note top of MC : Swing 桌面客户端\n模拟物理充电机交互
 
 P --> RA
 S --> GS

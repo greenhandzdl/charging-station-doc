@@ -5,16 +5,22 @@ title 容器部署用例
 skinparam useCaseShape rectangle
 
 actor "用户/管理员" as UA
+actor "Mock充电机" as MC
 
 usecase "访问前端应用" as UC1
 usecase "调用后端 API" as UC2
 usecase "读写数据库" as UC3
 usecase "调用支付模拟器" as UC4
 usecase "读写 Redis 缓存" as UC5
+usecase "模拟充电启停" as UC_MC
 
 UA --> UC1
+UA --> UC2
+MC --> UC_MC
+UC_MC --> UC2
 UC1 --> UC2
 UC2 --> UC3
 UC2 --> UC4
 UC2 --> UC5
+note top of MC : Swing 桌面客户端\n模拟物理充电机前后端交互\n包含 Swing UI 组件与模拟逻辑
 @enduml

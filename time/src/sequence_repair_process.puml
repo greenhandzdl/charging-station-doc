@@ -8,6 +8,7 @@ actor 管理员 as Admin
 actor 维修人员 as M
 participant "Flutter 客户端" as FE
 participant "报修控制器" as Ctrl
+participant "安全过滤器链" as Security
 participant "报修服务" as RS
 participant "充电桩服务" as CS
 database 数据库 as DB
@@ -15,6 +16,21 @@ database 数据库 as DB
 == 管理员查看未处理报修单 ==
 Admin -> FE: 进入报修管理页面
 FE -> Ctrl: HTTP GET /api/v1/repairs?status=open
+
+group 授权检查 [Spring Security Filter Chain]
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role, mockScope)
+
+  alt Token scope = mock_charger_only
+    Security --> Ctrl: HTTP 403 Forbidden {error: "Mock 客户端无权访问报修管理"}
+    Ctrl --> FE: HTTP 403 {error: "权限不足"}
+    FE --> Admin: 提示"无权访问"
+    note right Security : Mock 客户端 scope=mock_charger_only\n禁止访问 /api/v1/repairs/* 端点
+  else 正常用户 Token
+    Security -> Security: @PreAuthorize("isAuthenticated()")
+    note right Security : 验证通过后将请求传递给 Controller
+  end
+end
+
 Ctrl -> RS: listPending()
 RS -> DB: SELECT r.*, c.charger_code, u.name as reporter_name\nFROM repairs r\nJOIN chargers c ON r.charger_id = c.id\nJOIN users u ON r.reporter_id = u.id\nWHERE r.status = 'open' ORDER BY r.reported_at DESC
 DB --> RS: 未处理报修单列表
@@ -25,6 +41,11 @@ FE --> Admin: 展示待处理报修清单
 == 管理员分配维修人员 ==
 Admin -> FE: 选择报修单，指定维修人员\n点击"分配"
 FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/assign\n{handledBy: maintainerId}
+
+group 授权检查 [@PreAuthorize]
+  Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
+  note right Security : 分配维修人员仅限管理员\n不通过则返回 403 Forbidden
+end
 
 Ctrl -> RS: assign(repairId, maintainerId)
 RS -> DB: UPDATE repairs SET status = 'in_progress',\nhandled_by = ? WHERE id = ? AND status = 'open'
@@ -42,6 +63,12 @@ Ctrl --> FE: 返回待维修列表
 
 M -> FE: 维修完成，点击"维修完成"
 FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/resolve
+
+group 授权检查 [@PreAuthorize]
+  Ctrl -> Security: @PreAuthorize("hasRole('MAINTAINER') or hasRole('ADMIN')")
+  note right Security : 标记维修完成仅限维修人员或管理员\n不通过则返回 403 Forbidden
+end
+
 Ctrl -> RS: resolve(repairId)
 RS -> DB: UPDATE repairs SET status = 'resolved'\nWHERE id = ? AND status = 'in_progress'
 DB --> RS: 维修完成标记
@@ -55,6 +82,11 @@ Admin -> FE: 查看已完成的维修记录
 alt 审核通过
   Admin -> FE: 点击"审核通过"
   FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/close
+
+  group 授权检查 [@PreAuthorize]
+    Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
+    note right Security : 审核关闭报修仅限管理员\n不通过则返回 403 Forbidden
+  end
 
   group 事务 [atomic] 覆盖: 关闭报修单 + 恢复充电桩 + 审计日志
     Ctrl -> RS: close(repairId)
@@ -76,6 +108,11 @@ alt 审核通过
 else 审核不通过
   Admin -> FE: 点击"审核不通过"\n填写退回原因
   FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/reject\n{reason: "维修不彻底，需重新处理"}
+
+  group 授权检查 [@PreAuthorize]
+    Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
+    note right Security : 审核退回仅限管理员\n不通过则返回 403 Forbidden
+  end
 
   Ctrl -> RS: reject(repairId, reason)
   RS -> DB: UPDATE repairs SET status = 'in_progress',\nreject_reason = ? WHERE id = ? AND status = 'resolved'

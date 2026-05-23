@@ -67,7 +67,7 @@
 | energy_kwh | NUMERIC(10,3) | | 充电量（千瓦时） |
 | fee | NUMERIC(12,2) | | 充电费用 |
 | status | VARCHAR(32) | | processing / completed，充电过程状态 |
-| deduction_status | VARCHAR(32) | DEFAULT 'pending' | pending / paid / arrears，扣费状态，独立于充电状态 |
+| deduction_status | VARCHAR(32) | NOT NULL DEFAULT 'pending' | pending / paid / arrears，扣费状态，独立于充电状态 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 
 **对应模块：** 充电流程、账户与支付、统计与可视化
@@ -98,6 +98,7 @@
 | description | TEXT | | 故障描述 |
 | status | VARCHAR(32) | | open / in_progress / resolved / closed |
 | handled_by | UUID | FK REFERENCES users(id) | NULLABLE，处理人 |
+| reject_reason | TEXT | NULLABLE | 审核退回原因，管理员审核不通过时填写 |
 | reported_at | TIMESTAMPTZ | DEFAULT now() | |
 | handled_at | TIMESTAMPTZ | NULLABLE | |
 

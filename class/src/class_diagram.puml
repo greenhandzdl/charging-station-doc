@@ -7,6 +7,14 @@ skinparam package {
   BorderColor #666666
 }
 
+package "Mock充电机客户端 (Swing)" as MC #FFB6C1 {
+  class MockChargerClient
+  class ChargerUIPanel
+  class ChargeSimulator
+}
+
+MC -right-> HTTP : HTTP 请求
+
 package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
   class "UserModel" as FUser
   class "StationModel" as FStation
@@ -47,9 +55,15 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
     class StatisticsServiceImpl implements StatisticsService
   }
 
+  package "计费 (Billing)" as BILL {
+    interface BillingService
+    class BillingServiceImpl implements BillingService
+  }
+
   package "策略/工厂" as DP {
     interface PricingStrategy
     class PaymentFactory
+    interface PaymentChannel
   }
 
   package "数据访问 (Mapper/MyBatis)" as MAP {
@@ -88,6 +102,8 @@ RP ..> Api : 调用
 ' ===== 后端分层调用 =====
 CTRL --> SVC : 调用服务
 SVC --> MAP : 数据访问
+SVC --> BILL : 计费计算
+BILL --> DP : 委托计费策略
 MAP --> INF : 基础设施支撑
 
 note top of HTTP
@@ -96,6 +112,15 @@ note top of HTTP
   认证方式: Authorization: Bearer {access_token}
   Token 过期自动刷新 (refresh_token)
   请求/响应格式: JSON (Content-Type: application/json)
+
+  Mock充电机客户端同样通过 HTTP REST API 调用后端
+  调用端点: /api/v1/charges/start
+           /api/v1/charges/stop
+           /api/v1/charges
+  认证方式: 专用 mock 作用域 JWT Token
+  Token scope: mock_charger_only (禁止访问管理/统计端点)
+  使用隔离测试用户数据，不影响真实用户
+  所有访问必须经过 Controller 层，禁止直接调用 Mapper
 end note
 
 @enduml

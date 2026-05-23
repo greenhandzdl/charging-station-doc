@@ -111,6 +111,7 @@ CREATE TABLE repairs (
     description TEXT,
     status VARCHAR(32),
     handled_by UUID REFERENCES users(id),
+    reject_reason TEXT,
     reported_at TIMESTAMPTZ DEFAULT now(),
     handled_at TIMESTAMPTZ
 );

@@ -7,6 +7,21 @@ actor "用户/管理员" as UA
 
 frame "前端层" {
   component "Flutter 桌面客户端 (Dart)" as FE
+  component "Mock充电机客户端 (Swing)" as MC
+  note right of MC
+    Swing 桌面客户端
+    模拟物理充电机交互
+    包含：插枪/拔枪/刷卡界面
+    充电进度显示面板
+    模拟电量生成逻辑
+    调用后端充电 API
+
+    [安全约束]
+    - Token scope = mock_charger_only
+    - 仅允许 /api/v1/charges/* 端点
+    - 使用隔离测试用户数据
+    - 不参与充值/报修/管理
+  end note
 }
 
 frame "接入层" {
@@ -29,6 +44,10 @@ frame "基础设施层" {
 
 UA --> FE
 FE -right-> NGX : HTTPS
+
+MC -right-> NGX : HTTPS
+note on link #f00: Mock充电机客户端\nNginx 路由规则: location /api/v1/charges/ (前缀匹配)\n转发至后端，其他路径拒绝\n同时 JWT scope = mock_charger_only 做二次校验\n双层安全隔离：网络层 + 认证层
+
 NGX -right-> BE : 反向代理
 note on link #f00: 支付回调接口(/api/v1/payments/callback)仅限内网访问
 BE -down-> DB : JDBC/JPA

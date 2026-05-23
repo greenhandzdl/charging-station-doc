@@ -46,6 +46,8 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     - deductionStatus: String
     - userName: String
     - plateNumber: String
+    - chargerCode: String
+    - stationName: String
   }
   note right of FCRecord : 充电记录快捷视图
 

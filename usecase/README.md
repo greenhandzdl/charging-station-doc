@@ -8,8 +8,8 @@
 |------|------|------|
 | 概览 | `docs/overview/` | [参与者定义与用例总览](docs/overview/usecases.md)、[统计与可视化](docs/overview/analytics.md)、[总体用例图](docs/overview/img/usecase_overall.svg) |
 | 后端 | `docs/backend/` | [后端 API 与安全要求](docs/backend/README.md) 含基础信息管理、充电流程、账户支付、故障报修 |
-| 前端 | `docs/frontend/` | [前端用例与交互契约](docs/frontend/README.md) |
-| 部署 | `docs/containerd/` | [容器化与部署架构](docs/containerd/README.md) |
+| 前端 | `docs/frontend/` | [前端用例与交互契约](docs/frontend/README.md) 含 Mock充电机客户端（Swing）说明 |
+| 部署 | `docs/containerd/` | [容器化与部署架构](docs/containerd/README.md) 含 Mock充电机客户端组件 |
 | 数据库 | `docs/database/` | [数据库表结构](docs/database/db.md) 与 [后端-数据库交互用例](docs/database/README.md) |
 
 各子目录包含 PlantUML 源（`src/`）与渲染图（`img/`）。

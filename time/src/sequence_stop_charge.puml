@@ -1,10 +1,11 @@
 @startuml
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
-title 结束充电与自动扣费时序图
+title 结束充电与自动扣费时序图 (含 Mock 充电机客户端)
 
 ' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
 actor 用户 as U
+participant "Mock充电机\n(Swing 客户端)" as MC
 participant "Flutter 客户端" as FE
 participant "充电控制器" as Ctrl
 participant "安全过滤器链" as Security
@@ -13,7 +14,20 @@ participant "计费服务" as Bill
 participant "支付服务" as Pay
 database 数据库 as DB
 
-U -> FE: 点击"结束充电"
+U -> MC: 点击"模拟拔枪"按钮
+note right U : 用户通过 Mock 充电机\n拔枪触发结束充电
+
+group Mock充电机交互 [Swing UI]
+  MC -> MC: ChargeSimulator.stopSimulation()\n获取模拟电量数据
+  note right MC : simulatedEnergy = 15.0 kWh\nsimulatedDuration = 30 min
+
+  MC -> MC: 更新 ChargerUIPanel\n显示"拔枪中..."动画
+end
+
+MC -> FE: 通知 Flutter 充电结束\n{recordId, energy: 15.0}
+FE -> U: 显示"结束充电确认"弹窗
+U -> FE: 确认结束
+
 FE -> Ctrl: HTTP POST /api/v1/charges/stop\n{recordId}
 note right FE : ApiService.stopCharge()\n请求自动附加 JWT Token
 
@@ -51,7 +65,7 @@ group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + �
     Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging' -- 使用 PreparedStatement 参数绑定，乐观写条件
     DB --> Service: 桩已释放
 
-    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, detail) VALUES (?, 'user', 'stop_charge', '结束充电-扣费成功') -- 使用 PreparedStatement 参数绑定
+    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload) VALUES (?, 'user', 'stop_charge_deducted', 'charge_record', ?, ?::jsonb) -- 使用 PreparedStatement 参数绑定
   else 余额不足
     Pay --> Service: 余额不足
 
@@ -62,7 +76,7 @@ group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + �
     Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging' -- 使用 PreparedStatement 参数绑定，欠费时释放桩物理状态
     DB --> Service: 桩已释放
 
-    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, detail) VALUES (?, 'user', 'charge_arrears', '余额不足-标记欠费') -- 使用 PreparedStatement 参数绑定
+    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload) VALUES (?, 'user', 'charge_arrears', 'charge_record', ?, ?::jsonb) -- 使用 PreparedStatement 参数绑定
   end
 end
 
@@ -70,9 +84,13 @@ alt 余额充足
   Service --> Ctrl: 充电结束 {fee=22.50, energy=15.0}
   Ctrl --> FE: HTTP 200 JSON {fee, energy, deductionStatus: 'paid'}
   FE --> U: 显示"充电完成，已扣费 22.50 元"
+  FE -> MC: 推送扣费结果
+  MC -> MC: ChargerUIPanel 显示\n"充电完成\n费用: 22.50元\n电量: 15.0度"
 else 余额不足
   Service --> Ctrl: 欠费提示
   Ctrl --> FE: HTTP 200 JSON {fee, energy, deductionStatus: 'arrears'}
   FE --> U: 显示"余额不足，已标记欠费，请联系管理员充值"
+  FE -> MC: 推送欠费结果
+  MC -> MC: ChargerUIPanel 显示\n"欠费: 22.50元\n请充值后再使用"
 end
 @enduml

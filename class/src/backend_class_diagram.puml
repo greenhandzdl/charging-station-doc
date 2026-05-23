@@ -7,6 +7,49 @@ skinparam package {
   BorderColor #666666
 }
 
+package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
+  class MockChargerClient {
+    - frame: JFrame
+    - chargerCode: String
+    - stationId: String
+    - currentRecordId: String
+    - chargingTimer: Timer
+    - simulatedEnergy: double
+    - authToken: String
+    - tokenScope: String
+    - testUserId: String
+    - isTestMode: boolean
+  }
+  note right of MockChargerClient : Swing 桌面客户端\n模拟物理充电机交互\n包含插枪/拔枪按钮、充电进度条\n电量模拟增长(0.1kWh/秒)\n调用后端充电 API\n\n安全约束：\n- authToken scope = mock_charger_only\n- 仅允许调用 /api/v1/charges/* 端点\n- 不参与充值/报修/管理流程\n- 使用隔离测试用户，不影响真实数据
+
+  class ChargerUIPanel {
+    - plugButton: JButton
+    - unplugButton: JButton
+    - progressBar: JProgressBar
+    - statusLabel: JLabel
+    - energyLabel: JLabel
+    - qrCodeDisplay: JLabel
+  }
+  note right of ChargerUIPanel : Swing 组件面板\n模拟充电机显示屏\n显示当前状态/电量/费用
+
+  class ChargeSimulator {
+    - startTime: LocalDateTime
+    - isCharging: boolean
+    - minEnergyKwh: double
+    - maxEnergyKwh: double
+    + startSimulation(): void
+    + stopSimulation(): SimulationResult
+    + getCurrentEnergy(): double
+  }
+  note right of ChargeSimulator : 模拟电量生成\n每 tick 增加 0.1kWh\n记录充电时长\n电量范围 1.0-50.0 kWh\n模拟合理范围，防止溢出异常
+
+  MockChargerClient --> ChargerUIPanel : 包含
+  MockChargerClient --> ChargeSimulator : 模拟引擎
+  MockChargerClient --> ChargingController : HTTP 调用 REST API（仅限充电端点）
+  ChargerUIPanel ..> MockChargerClient : 事件回调
+  note on link #red : 所有访问必须经过 Controller 层\n禁止直接调用 Mapper 层\n确保 @PreAuthorize + @Transactional 生效
+}
+
 package "实体 (Entity)" as ENT #F0E68C {
   class Station {
     - id: UUID
@@ -144,21 +187,27 @@ package "枚举 (Enum)" as ENUM #F0E68C {
 package "控制器 (Controller)" as CTRL #B0C4DE {
   class ChargingController {
     @PostMapping("/charges/start")
+    @PreAuthorize("isAuthenticated()")
     + startCharge(@RequestBody req): ResponseEntity
     @PostMapping("/charges/stop")
+    @PreAuthorize("(#record.userId == authentication.principal.id) or hasRole('ADMIN')")
     + stopCharge(@RequestBody req): ResponseEntity
     @PostMapping("/charges/{id}/force-stop")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     + forceStop(@PathVariable id): ResponseEntity
   }
 
   class PaymentController {
     @PostMapping("/payments/recharge")
+    @PreAuthorize("isAuthenticated()")
     + recharge(@RequestBody req): ResponseEntity
     @PostMapping("/payments/callback")
     + handleCallback(@RequestBody callback): ResponseEntity
+    note right of PaymentController : handleCallback 由支付网关回调\nNginx 层: IP 白名单 + mTLS\nService 层: HMAC-SHA256 签名校验
     @GetMapping("/payments")
+    @PreAuthorize("isAuthenticated()")
     + queryPayments(@RequestParam params): ResponseEntity
+    note right of PaymentController : queryPayments 在 Service 层\n按当前用户 ID 过滤，非管理员\n仅能查看自己的支付记录
   }
 
   class UserController {
@@ -175,19 +224,23 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @GetMapping("/users/balance")
     + getBalance(): ResponseEntity
     @PutMapping("/users/{id}/role")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
   }
 
   class RepairController {
     @PostMapping("/repairs")
+    @PreAuthorize("isAuthenticated()")
     + submitRepair(@RequestBody req): ResponseEntity
     @GetMapping("/repairs")
+    @PreAuthorize("isAuthenticated()")
     + listRepairs(@RequestParam params): ResponseEntity
+    note right of RepairController : listRepairs 在 Service 层按角色过滤\n普通用户仅能看到自己的报修
     @PutMapping("/repairs/{id}/assign")
     @PreAuthorize("hasRole('ADMIN')")
     + assignRepair(@PathVariable id, @RequestBody req): ResponseEntity
     @PutMapping("/repairs/{id}/resolve")
+    @PreAuthorize("hasRole('MAINTAINER') or hasRole('ADMIN')")
     + resolveRepair(@PathVariable id): ResponseEntity
     @PutMapping("/repairs/{id}/close")
     @PreAuthorize("hasRole('ADMIN')")
@@ -199,6 +252,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("hasRole('ADMIN')")
     + crudOperations(): ResponseEntity
     @RequestMapping("/chargers")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     + chargerOperations(): ResponseEntity
   }
 
@@ -250,12 +304,16 @@ package "服务 (Service)" as SVC #F0E68C {
     + submit()
     + assign()
     + resolve()
+    + close()
+    + reject()
   }
 
   class RepairServiceImpl implements RepairService {
     + submit()
     + assign()
     + resolve()
+    + close()
+    + reject()
   }
 
   interface UserService {
@@ -295,6 +353,22 @@ package "服务 (Service)" as SVC #F0E68C {
   class BillingServiceImpl implements BillingService {
     + calculateFee(chargerType, energyKwh): BigDecimal
   }
+}
+
+package "策略/工厂 (Design Pattern)" as DP #E6E6FA {
+  interface PricingStrategy {
+    + calculatePrice(type: ChargerType, energyKwh: BigDecimal): BigDecimal
+  }
+
+  class PaymentFactory {
+    + {static} createChannel(method: String): PaymentChannel
+  }
+
+  interface PaymentChannel {
+    + processPayment(amount: BigDecimal): boolean
+    + verifySignature(payload: JSON): boolean
+  }
+  note right of PaymentChannel : 支付通道接口\n微信/支付宝/信用卡\n各通道独立实现
 }
 
 package "数据访问层 (Mapper/MyBatis)" as MAP #90EE90 {

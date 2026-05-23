@@ -23,4 +23,6 @@ SA --> EXP
 
 GR <.down. VU : <<include>>
 EXP ..> GR : <<extend>>
+
+note right of GR : 收入统计报表（含财务数据）仅限最高管理者(SA)\n使用率分析、用户充值统计 管理员(A)及以上可查看
 @enduml

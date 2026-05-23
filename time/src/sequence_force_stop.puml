@@ -5,8 +5,10 @@ title 管理员强制结束充电时序图
 
 ' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
 actor 管理员 as Admin
+participant "Mock充电机\n(Swing 客户端)" as MC
 participant "Flutter 客户端" as FE
 participant "充电控制器" as Ctrl
+participant "安全过滤器链" as Security
 participant "充电服务" as Service
 database 数据库 as DB
 
@@ -14,8 +16,17 @@ Admin -> FE: 选择强制结束充电\n填写强制终止原因
 FE -> Ctrl: HTTP POST /api/v1/charges/{id}/force-stop\n{reason: "设备异常发热"}
 note right FE : ApiService.forceStop()\n请求自动附加 JWT Token\n仅管理员/最高管理者可调用
 
-group 权限校验 [@PreAuthorize 统一拦截]
-  Ctrl -> Ctrl: @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+group 权限校验 [Spring Security Filter Chain]
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role, scope)
+
+  alt Token scope = mock_charger_only
+    Security --> Ctrl: HTTP 403 Forbidden {error: "Mock 客户端无权强制结束充电"}
+    Ctrl --> FE: HTTP 403 {error: "权限不足"}
+    FE --> Admin: 提示"无权执行此操作"
+    note right Security : Mock 客户端 scope=mock_charger_only\n禁止访问管理端功能
+  else 正常用户 Token
+    Security -> Security: @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+  end
 end
 
 Ctrl -> Service: forceStop(recordId, reason)
@@ -55,6 +66,8 @@ alt 记录状态为 processing（充电中）
 
   Service --> Ctrl: 强制结束成功
   Ctrl --> FE: HTTP 200 JSON {status: 'force_stopped', reason, fee, deductionStatus}
+  FE -> MC: 推送强制结束通知\n{reason, fee, deductionStatus}
+  MC -> MC: ChargerUIPanel 显示\n"强制结束充电\n原因: 设备异常发热"
   FE --> Admin: 显示"已强制结束充电，扣费完成/标记欠费"
 else 记录状态不为 processing
   Service --> Ctrl: 该记录无需强制终止
