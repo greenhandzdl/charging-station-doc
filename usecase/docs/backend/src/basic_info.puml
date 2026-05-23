@@ -19,4 +19,6 @@ SA --> 管理充电桩
 SA --> 管理用户
 
 管理充电站 <.down. 管理充电桩 : <<extend>>
+
+note right of 管理充电站 : 充电站 CRUD 需 ADMIN 角色\n充电桩 CRUD 需 ADMIN 或 SUPER_ADMIN 角色
 @enduml

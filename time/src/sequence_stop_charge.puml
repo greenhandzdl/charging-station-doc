@@ -65,7 +65,7 @@ group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + �
     Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging' -- 使用 PreparedStatement 参数绑定，乐观写条件
     DB --> Service: 桩已释放
 
-    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, detail) VALUES (?, 'user', 'stop_charge', '结束充电-扣费成功') -- 使用 PreparedStatement 参数绑定
+    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload) VALUES (?, 'user', 'stop_charge_deducted', 'charge_record', ?, ?::jsonb) -- 使用 PreparedStatement 参数绑定
   else 余额不足
     Pay --> Service: 余额不足
 
@@ -76,7 +76,7 @@ group 事务 [atomic] 覆盖: 查询余额(FOR UPDATE) + 更新充电记录 + �
     Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging' -- 使用 PreparedStatement 参数绑定，欠费时释放桩物理状态
     DB --> Service: 桩已释放
 
-    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, detail) VALUES (?, 'user', 'charge_arrears', '余额不足-标记欠费') -- 使用 PreparedStatement 参数绑定
+    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload) VALUES (?, 'user', 'charge_arrears', 'charge_record', ?, ?::jsonb) -- 使用 PreparedStatement 参数绑定
   end
 end
 

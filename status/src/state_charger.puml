@@ -14,11 +14,13 @@ CHARGING --> IDLE : 管理员强制结束充电
 CHARGING --> FAULT : 充电异常中断
 	CHARGING --> IDLE : 扣费失败（标记欠费，释放桩）
 IDLE --> FAULT : 提交故障报修
-FAULT --> IDLE : 报修处理完成
+FAULT --> IDLE : 报修审核通过（close）
 
 note bottom of IDLE : 桩可用
 note bottom of CHARGING : 正在充电
 note bottom of FAULT : 需维修处理
 
 note right of CHARGING : 欠费状态由 charge_records.deduction_status 跟踪\n充电桩仅维护 IDLE / CHARGING / FAULT 三种物理状态
+
+note right of FAULT : 报修流程: OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED\n充电桩在 CLOSED（审核通过）时恢复 IDLE\nRESOLVED（维修完成）时桩仍保持 FAULT，\n待管理员审核通过后才恢复
 @enduml

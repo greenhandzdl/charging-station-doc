@@ -63,7 +63,28 @@
 
 ---
 
-### 2026-05-21: 前端技术选型变更 — Swing 转为 Flutter
+### 2026-05-23: 架构与安全审计第二轮 — 类图权限注解、审计日志字段一致性、状态图恢复时机
+
+**冲突描述：** 架构师和安全员分别对所有 32 个 .puml 文件进行全面评估，发现 9 个架构问题和 20 个安全问题（含 2 CRITICAL + 6 MAJOR + 7 MINOR + 5 INFO），涉及跨图一致性、权限模型遗漏、字段格式不统一。
+
+**涉及文件：** 24 个文件（class/status/time/activity/usecase 五个模块）
+
+**相关模块：** 全局
+
+**用户决断：**
+- PaymentController 补充 @PreAuthorize 注解 + 回调安全说明
+- RepairController 补充 @PreAuthorize 注解（含 submit/list/resolve）
+- 统一所有时序图 audit_logs INSERT 字段为 (actor_id, actor_type, action, resource, resource_id, payload)
+- 充电桩状态图：FAULT → IDLE 明确为"报修审核通过（close）"并补充报修流程说明
+- changeRole() 权限 from hasRole('ADMIN') → hasAnyRole('ADMIN', 'SUPER_ADMIN')
+- 前端 ChargeRecordModel 补充 chargerCode + stationName 字段
+- 活动图异常中断分支补充计费扣费逻辑
+- 报修活动图移除 while 循环改为线性流程
+- 统计用例图补充权限注释（收入统计仅限 SUPER_ADMIN）
+- 部署图 Nginx 路由规则改为前缀匹配描述 + 双层安全隔离注释
+- 注册时序图欠费提示改为注册成功后的可操作说明
+- admin_usecases.puml 补充 SA → MU 连线
+- 结束充电/强制结束/充电启动/报修提交时序图统一加入 Mock Scope 校验组
 
 **冲突描述：** 评分标准 `doc/1.Java开发项目实训题目及评分标准.md` 规定 Swing+JDBC 编程占 40 分，要求使用 Java Swing 桌面客户端。但用户决定前端采用 Flutter/Dart 实现。
 

@@ -17,10 +17,15 @@ FE -> Ctrl: HTTP POST /api/v1/repairs\n{chargerId, description}
 note right FE : ApiService.submitRepair()\n请求头带 JWT Token
 
 group 授权检查 [Spring Security Filter Chain]
-  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role, scope)
 
-  Security -> Security: @PreAuthorize("isAuthenticated()")
-  note right Security : 验证请求携带有效 JWT Token\n不通过则返回 401 Unauthorized
+  alt Token scope = mock_charger_only
+    Security --> Ctrl: HTTP 403 Forbidden {error: "Mock 客户端无权访问报修功能"}
+    note right Security : Mock 客户端 scope=mock_charger_only\n禁止访问 /api/v1/repairs/* 端点
+  else 正常用户 Token
+    Security -> Security: @PreAuthorize("isAuthenticated()")
+    note right Security : 验证请求携带有效 JWT Token\n不通过则返回 401 Unauthorized
+  end
 end
 
 Ctrl -> RS: submit(chargerId, description)

@@ -46,7 +46,7 @@ UA --> FE
 FE -right-> NGX : HTTPS
 
 MC -right-> NGX : HTTPS
-note on link #f00: Mock充电机客户端\n调用API: /api/v1/charges/start\n/api/v1/charges/stop\n/api/v1/charges\n网络隔离: Nginx 仅转发 /api/v1/charges/*\n其他路径（/api/v1/analytics/, /api/v1/stations等）拒绝
+note on link #f00: Mock充电机客户端\nNginx 路由规则: location /api/v1/charges/ (前缀匹配)\n转发至后端，其他路径拒绝\n同时 JWT scope = mock_charger_only 做二次校验\n双层安全隔离：网络层 + 认证层
 
 NGX -right-> BE : 反向代理
 note on link #f00: 支付回调接口(/api/v1/payments/callback)仅限内网访问

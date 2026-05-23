@@ -32,10 +32,15 @@ MC -> Ctrl: HTTP POST /api/v1/charges/start\n{chargerId}
 note right MC : MockChargerClient.callStartApi()\n模拟用户 JWT Token\nJSON 请求体
 
 group 授权检查 [Spring Security Filter Chain]
-  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role, scope)
 
-  Security -> Security: @PreAuthorize("isAuthenticated()")
-  note right Security : 验证请求携带有效 JWT Token\n不通过则返回 401 Unauthorized
+  alt Token scope = mock_charger_only && request path NOT in /api/v1/charges/*
+    Security --> Ctrl: HTTP 403 Forbidden {error: "Mock 客户端作用域不足"}
+    note right Security : Mock scope 仅允许访问充电端点\n其他路径被拒绝
+  else 有效 Token
+    Security -> Security: @PreAuthorize("isAuthenticated()")
+    note right Security : 验证请求携带有效 JWT Token\n不通过则返回 401 Unauthorized
+  end
 end
 
 Ctrl -> Service: 启动充电请求
@@ -63,7 +68,7 @@ Service -> DB: INSERT INTO charge_records (id, user_id, charger_id, start_time, 
 note right DB : status = 'processing'\ndeduction_status = 'pending'
 DB --> Service: 创建成功
 
-Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource) VALUES (?, 'user', 'start_charge', 'charger') -- 使用 PreparedStatement 参数绑定
+Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'user', 'start_charge', 'charger', ?) -- 使用 PreparedStatement 参数绑定
 DB --> Service: 审计日志记录成功
 
 Service --> Ctrl: 启动成功 {recordId, startTime}

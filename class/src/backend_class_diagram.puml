@@ -199,11 +199,15 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
 
   class PaymentController {
     @PostMapping("/payments/recharge")
+    @PreAuthorize("isAuthenticated()")
     + recharge(@RequestBody req): ResponseEntity
     @PostMapping("/payments/callback")
     + handleCallback(@RequestBody callback): ResponseEntity
+    note right of PaymentController : handleCallback 由支付网关回调\nNginx 层: IP 白名单 + mTLS\nService 层: HMAC-SHA256 签名校验
     @GetMapping("/payments")
+    @PreAuthorize("isAuthenticated()")
     + queryPayments(@RequestParam params): ResponseEntity
+    note right of PaymentController : queryPayments 在 Service 层\n按当前用户 ID 过滤，非管理员\n仅能查看自己的支付记录
   }
 
   class UserController {
@@ -220,19 +224,23 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @GetMapping("/users/balance")
     + getBalance(): ResponseEntity
     @PutMapping("/users/{id}/role")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
   }
 
   class RepairController {
     @PostMapping("/repairs")
+    @PreAuthorize("isAuthenticated()")
     + submitRepair(@RequestBody req): ResponseEntity
     @GetMapping("/repairs")
+    @PreAuthorize("isAuthenticated()")
     + listRepairs(@RequestParam params): ResponseEntity
+    note right of RepairController : listRepairs 在 Service 层按角色过滤\n普通用户仅能看到自己的报修
     @PutMapping("/repairs/{id}/assign")
     @PreAuthorize("hasRole('ADMIN')")
     + assignRepair(@PathVariable id, @RequestBody req): ResponseEntity
     @PutMapping("/repairs/{id}/resolve")
+    @PreAuthorize("hasRole('MAINTAINER') or hasRole('ADMIN')")
     + resolveRepair(@PathVariable id): ResponseEntity
     @PutMapping("/repairs/{id}/close")
     @PreAuthorize("hasRole('ADMIN')")
