@@ -63,6 +63,7 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
   package "策略/工厂" as DP {
     interface PricingStrategy
     class PaymentFactory
+    interface PaymentChannel
   }
 
   package "数据访问 (Mapper/MyBatis)" as MAP {

@@ -347,6 +347,22 @@ package "服务 (Service)" as SVC #F0E68C {
   }
 }
 
+package "策略/工厂 (Design Pattern)" as DP #E6E6FA {
+  interface PricingStrategy {
+    + calculatePrice(type: ChargerType, energyKwh: BigDecimal): BigDecimal
+  }
+
+  class PaymentFactory {
+    + {static} createChannel(method: String): PaymentChannel
+  }
+
+  interface PaymentChannel {
+    + processPayment(amount: BigDecimal): boolean
+    + verifySignature(payload: JSON): boolean
+  }
+  note right of PaymentChannel : 支付通道接口\n微信/支付宝/信用卡\n各通道独立实现
+}
+
 package "数据访问层 (Mapper/MyBatis)" as MAP #90EE90 {
   interface UserMapper {
     @Select("SELECT * FROM users WHERE phone = #{phone}")
