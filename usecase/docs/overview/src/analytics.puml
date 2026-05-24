@@ -13,6 +13,7 @@ usecase "生成统计报表" as GR
 usecase "查看使用率" as VU
 usecase "导出 CSV" as EXP
 usecase "用户充电统计" as UCS
+usecase "故障充电桩列表" as FCL
 
 S --> GR
 A --> GR
@@ -22,6 +23,7 @@ A --> UCS
 SA --> GR
 SA --> VU
 SA --> EXP
+A --> FCL
 SA --> UCS
 
 GR <.down. VU : <<include>>

@@ -11,6 +11,8 @@ actor "Mock充电机" as MC
 usecase "支付回调" as CB
 usecase "自动扣费结算" as AUTO
 usecase "审计日志记录" as AUDIT
+
+note right of AUDIT : 同 (actor_id, action, resource_id) 在短时间内重复插入\n应由应用程序层做去重，避免重复审计条目
 usecase "模拟充电启停" as MCS
 usecase "查询充电状态" as QC_CM
 

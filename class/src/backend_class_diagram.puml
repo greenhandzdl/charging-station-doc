@@ -45,9 +45,10 @@ package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
 
   MockChargerClient --> ChargerUIPanel : 包含
   MockChargerClient --> ChargeSimulator : 模拟引擎
-  MockChargerClient --> ChargingController : HTTP 调用 REST API（仅限充电端点）
+  MockChargerClient --> Nginx : HTTPS 请求
+  Nginx --> ChargingController : 路由 /api/v1/charges/*
+  note on link #red : Nginx 层: location /api/v1/charges/ (前缀匹配)\n转发至后端，其他路径拒绝\nJWT scope = mock_charger_only 做二次校验\n双层安全隔离：网络层 + 认证层
   ChargerUIPanel ..> MockChargerClient : 事件回调
-  note on link #red : 所有访问必须经过 Controller 层\n禁止直接调用 Mapper 层\n确保 @PreAuthorize + @Transactional 生效
 }
 
 package "实体 (Entity)" as ENT #F0E68C {
@@ -81,7 +82,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - passwordResetToken: String
     - resetTokenExpiresAt: LocalDateTime
   }
-  note right of User : passwordHash 在 API 响应中被过滤，不传输至客户端
+  note right of User : passwordHash 通过 @JsonIgnore 在序列化时过滤\n或在 Service 层返回 UserDTO（不含 passwordHash 字段）\n确保密码哈希值永不传输至客户端
   note right of User : 并发控制通过 WHERE balance >= ? 原子扣减实现，不使用 version 乐观锁
   note right of User : frozenUntil 非空时表示账户被冻结至该时间
   note right of User : failedLoginAttempts >= 5 触发验证码，>= 10 锁定账户
@@ -203,8 +204,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + recharge(@RequestBody req): ResponseEntity
     @PostMapping("/payments/callback")
+    @PreAuthorize("hasIpAddress(\"内网IP段\")")
     + handleCallback(@RequestBody callback): ResponseEntity
-    note right of PaymentController : handleCallback 由支付网关回调\nNginx 层: IP 白名单 + mTLS\nService 层: HMAC-SHA256 签名校验
+    note right of PaymentController : handleCallback 由支付网关回调\nNginx 层: IP 白名单 + mTLS\nController 层: @PreAuthorize hasIpAddress 防御深度\nService 层: HMAC-SHA256 签名校验
     @GetMapping("/payments")
     @PreAuthorize("isAuthenticated()")
     + queryPayments(@RequestParam params): ResponseEntity
@@ -229,7 +231,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PutMapping("/users/{id}/role")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
-    note right of UserController : changeRole 在 Service 层记录审计日志\n角色变更属敏感操作，必须记录 actor/action/target
+    note right of UserController : changeRole 在 Service 层记录审计日志\n角色变更属敏感操作，必须记录 actor/action/target\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
   }
 
   class RepairController {

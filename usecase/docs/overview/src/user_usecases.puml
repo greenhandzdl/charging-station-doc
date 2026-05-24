@@ -19,6 +19,7 @@ usecase "余额校验" as BAL
 usecase "结束充电" as EC
 usecase "自动扣费" as AD
 usecase "查看充电记录" as VCR
+usecase "查看支付记录" as VPR
 usecase "提交故障报修" as SRT
 usecase "处理报修" as HR
 usecase "充电记录快捷视图" as QV
@@ -32,6 +33,7 @@ U --> CS
 U --> EC
 U --> AD
 U --> VCR
+U --> VPR
 U --> SRT
 U --> QV
 U --> QC
@@ -40,6 +42,7 @@ M --> CS
 M --> EC
 M --> AD
 M --> VCR
+M --> VPR
 M --> SRT
 M --> HR
 M --> QV

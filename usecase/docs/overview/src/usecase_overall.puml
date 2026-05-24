@@ -21,6 +21,7 @@ usecase "结束充电" as EC
 usecase "自动扣费" as AD
 usecase "强制结束充电" as FSC
 usecase "查看充电记录" as VCR
+usecase "查看支付记录" as VPR
 usecase "提交故障报修" as SRT
 usecase "管理充电站/充电桩" as MM
 usecase "用户权限管理" as PM
@@ -37,6 +38,7 @@ U --> SC
 U --> EC
 U --> AD
 U --> VCR
+U --> VPR
 U --> SRT
 U --> QV
 U --> QC
@@ -46,6 +48,7 @@ M --> SC
 M --> EC
 M --> AD
 M --> VCR
+M --> VPR
 M --> SRT
 M --> HR
 M --> QV
@@ -54,6 +57,7 @@ M --> QC
 A --> MM
 A --> PM
 A --> VCR
+A --> VPR
 A --> HR
 A --> GS
 A --> FSC
@@ -62,6 +66,7 @@ SA --> MM
 SA --> PM
 SA --> GS
 SA --> FSC
+SA --> VPR
 SA --> VCR
 
 MC --> SC

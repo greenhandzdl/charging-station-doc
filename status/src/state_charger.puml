@@ -20,7 +20,7 @@ note bottom of IDLE : 桩可用
 note bottom of CHARGING : 正在充电
 note bottom of FAULT : 需维修处理
 
-note right of CHARGING : 欠费状态由 charge_records.deduction_status 跟踪\n充电桩仅维护 IDLE / CHARGING / FAULT 三种物理状态
+note right of CHARGING : 欠费状态由 charge_records.deduction_status 跟踪\n充电桩仅维护 IDLE / CHARGING / FAULT 三种物理状态\n欠费时用户 frozenUntil 被设置，阻止再次启动充电\n用户充值补缴后自动解除冻结
 
 note right of FAULT : 报修流程: OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED\n充电桩在 CLOSED（审核通过）时恢复 IDLE\nRESOLVED（维修完成）时桩仍保持 FAULT，\n待管理员审核通过后才恢复
 @enduml

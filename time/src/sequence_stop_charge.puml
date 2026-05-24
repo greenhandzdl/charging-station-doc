@@ -34,8 +34,8 @@ note right FE : ApiService.stopCharge()\n请求自动附加 JWT Token
 group 授权检查 [Spring Security Filter Chain]
   Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)
 
-  Security -> Security: @PreAuthorize("(#record.userId == authentication.principal.id) or hasRole('ADMIN')")
-  note right Security : 验证当前用户是否为充电记录所有者\n或拥有 ADMIN 角色\n不通过则返回 403 Forbidden
+  Security -> Security: @PreAuthorize("isAuthenticated()")
+  note right Security : 授权通过后 Service 层校验记录归属权\n普通用户仅能结束自己的充电记录\n管理员可结束任意充电记录\n不通过则返回 403 Forbidden
 end
 
 Ctrl -> Service: 请求结束充电 (已通过授权)
