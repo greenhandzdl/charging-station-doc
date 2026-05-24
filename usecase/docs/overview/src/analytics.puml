@@ -15,15 +15,15 @@ usecase "导出 CSV" as EXP
 usecase "用户充电统计" as UCS
 usecase "故障充电桩列表" as FCL
 
-S --> GR
-A --> GR
-A --> VU
-A --> EXP
-A --> UCS
+S  --> GR
+A  --> GR
+A  --> VU
+A  --> EXP
+SA --> UCS
 SA --> GR
 SA --> VU
 SA --> EXP
-A --> FCL
+A  --> FCL
 SA --> UCS
 
 GR <.down. VU : <<include>>

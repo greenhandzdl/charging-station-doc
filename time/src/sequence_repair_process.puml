@@ -71,6 +71,8 @@ group 授权检查 [@PreAuthorize]
 end
 
 Ctrl -> RS: resolve(repairId)
+RS -> RS: 校验: 当前 MAINTAINER 为 assigned handler\n(handledBy == currentUserId)
+note right #F0E68C : MAINTAINER 只能处理自己被分配的报修\n非 assigned handler 返回 403 Forbidden\n管理员(ADMIN)可标记任意报修
 RS -> DB: UPDATE repairs SET status = 'resolved'\nWHERE id = ? AND status = 'in_progress'
 DB --> RS: 维修完成标记
 RS --> Ctrl: 已标记待审核

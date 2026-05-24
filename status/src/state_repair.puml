@@ -17,4 +17,5 @@ RESOLVED --> IN_PROGRESS : 审核不通过，退回返工
 
 note bottom of OPEN : 报修单初始状态
 note bottom of CLOSED : 终态，不可再变更
+note right of CLOSED : 子场景:\n (1) 审核通过 -> 桩恢复为 idle\n (2) 直接关闭 -> 桩状态不变
 @enduml

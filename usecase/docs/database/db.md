@@ -79,7 +79,7 @@
 | id | UUID | PK | |
 | user_id | UUID | FK REFERENCES users(id) | |
 | charge_record_id | UUID | FK REFERENCES charge_records(id) | NULLABLE，仅扣费时有值 |
-| method | VARCHAR(32) | | wechat / alipay / card |
+| method | VARCHAR(32) | | wechat / alipay / card / system / auto_deduct |
 | amount | NUMERIC(12,2) | | |
 | status | VARCHAR(32) | | pending / success / failed |
 | gateway_tx_id | VARCHAR(255) | UNIQUE | 支付网关交易流水号，用作幂等键防止重复回调 |

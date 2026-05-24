@@ -66,7 +66,7 @@ else 校验通过
   else 手机号可用
     note right US : 注册成功后可提示用户检查是否有历史欠费记录\n（需通过车牌号关联查询，注册时仅创建新账户）
     US -> US: bcrypt 对密码进行散列处理
-    US -> DB: INSERT INTO users (id, name, phone, password_hash, plate_number, role, balance, failed_login_attempts) VALUES (?, ?, ?, ?, ?, 'user', 0.00, 0)
+    US -> DB: INSERT INTO users (id, name, phone, password_hash, plate_number, role, balance, failed_login_attempts)\nVALUES (?, ?, ?, ?, ?, 'user', 0.00, 0)\n-- 显式列出 password_hash 列，确保散列值写入密码字段
     note right DB : failed_login_attempts 初始化为 0
     DB --> US: 插入成功
     US -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, client_ip) VALUES (?, 'user', 'register', 'user', ?)

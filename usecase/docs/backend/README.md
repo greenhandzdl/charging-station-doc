@@ -67,6 +67,7 @@
 | PUT | `/api/v1/repairs/{id}/assign` | 分配维修人员 | 管理员/最高管理者 |
 | PUT | `/api/v1/repairs/{id}/resolve` | 处理完成报修 | 维修人员/管理员 |
 | PUT | `/api/v1/repairs/{id}/close` | 管理员审核关闭报修单 | 管理员/最高管理者 |
+| PUT | `/api/v1/repairs/{id}/reject` | 退回报修 | 管理员/最高管理者 |
 
 ### 统计
 | 方法 | 路径 | 说明 | 权限 |

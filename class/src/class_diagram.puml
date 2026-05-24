@@ -19,13 +19,26 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
   class "UserModel" as FUser
   class "StationModel" as FStation
   class "ChargerModel" as FCharger
-  class "ChargeRecordModel" as FCRecord
+  class "ChargeRecordModel" as FCRecord {
+    - id: String
+    - startTime: String
+    - endTime: String
+    - energyKwh: double
+    - fee: double
+    - status: String
+    - deductionStatus: String
+    - userName: String
+    - plateNumber: String
+    - chargerCode: String
+    - stationName: String
+  }
   class "PaymentModel" as FPayment
   class "RepairModel" as FRepair
   class "ApiService" as Api
   class "AuthProvider" as Auth
   class "ChargingProvider" as CP
   class "RepairProvider" as RP
+  class "StatisticsProvider" as StatsP
 }
 
 class "HTTP REST API\nJSON / JWT Token" as HTTP #LightGray

@@ -23,6 +23,7 @@ usecase "查看报修记录" as VR
 usecase "查看支付记录" as VPR
 usecase "查看充电记录" as VCR
 usecase "充电记录快捷视图" as QV
+usecase "查看用户充电统计" as UCS
 
 A --> HR
 A --> VR
@@ -35,6 +36,7 @@ A --> QC
 A --> QV
 A --> VCR
 A --> VPR
+A --> UCS
 M --> HR
 M --> VR
 M --> QV
@@ -47,5 +49,6 @@ SA --> GS
 SA --> VCR
 SA --> QC
 SA --> QV
-	SA --> VPR
+SA --> VPR
+SA --> UCS
 @enduml

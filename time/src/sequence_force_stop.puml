@@ -57,12 +57,16 @@ Bill --> Service: fee = calculated amount
       note right DB : 欠费标记：deduction_status = 'arrears'\n用户下次登录时提示补缴
       DB --> Service: 记录标记欠费
 
+      Service -> DB: UPDATE users SET frozen_until = now() + INTERVAL '30 days' WHERE id = ? -- 欠费用户冻结30天
+      note right DB : frozen_until 设置后该用户无法启动新充电\n充值后系统清除 frozen_until 解冻
+      DB --> Service: 冻结设置成功
+
       Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'admin', 'force_stop_arrears', 'charge_record', ?, ?::jsonb)
       note right DB : 强制结束充电欠费审计日志\n与正常扣费 branch 的 force_stop 日志区分
       DB --> Service: 审计日志记录成功
     end
 
-    Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status != 'fault'
+    Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging'
     DB --> Service: 桩已释放
 
     Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'admin', 'force_stop', 'charge_record', ?, ?::jsonb)

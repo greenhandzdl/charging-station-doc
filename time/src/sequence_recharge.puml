@@ -42,20 +42,30 @@ Gateway -> PS: HTTP POST 异步回调\n{paymentId, txId, status: 'success', sign
 
 PS -> PS: 校验回调签名 (HMAC-SHA256)
 
-group 事务 [atomic] 覆盖: 更新支付状态 + 更新余额 + 审计日志
-  alt 签名验证通过
-    PS -> DB: UPDATE payments SET status = 'success',\ngateway_tx_id = ? WHERE id = ? AND status = 'pending'
-    DB --> PS: 支付状态更新成功
+group 幂等性检查 [防止重复回调]
+    PS -> DB: SELECT status FROM payments WHERE id = ?
+    DB --> PS: 支付状态
 
-    PS -> DB: UPDATE users SET balance = balance + ?\nWHERE id = ? -- 使用 PreparedStatement 参数绑定
-    DB --> PS: 余额更新成功
+    alt status = 'success' （已处理）
+      PS --> Gateway: 直接返回成功（幂等）
+      note right PS : 幂等键机制:\n paymentId 天然幂等,\n重复回调直接跳过
+    else status = 'pending'
+      group 事务 [atomic] 覆盖: 更新支付状态 + 更新余额 + 审计日志
+        alt 签名验证通过
+          PS -> DB: UPDATE payments SET status = 'success',\ngateway_tx_id = ? WHERE id = ? AND status = 'pending'
+          DB --> PS: 支付状态更新成功
 
-    PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'user', 'recharge', 'payment', ?)
-    DB --> PS: 审计日志记录成功
-  else 签名验证失败
-    PS -> DB: UPDATE payments SET status = 'failed'\nWHERE id = ?
-    DB --> PS: 标记失败
-  end
+          PS -> DB: UPDATE users SET balance = balance + ?\nWHERE id = ? -- 使用 PreparedStatement 参数绑定
+          DB --> PS: 余额更新成功
+
+          PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'user', 'recharge', 'payment', ?)
+          DB --> PS: 审计日志记录成功
+        else 签名验证失败
+          PS -> DB: UPDATE payments SET status = 'failed'\nWHERE id = ?
+          DB --> PS: 标记失败
+        end
+      end
+    end
 end
 
 Gateway --> PS: 回调处理完成

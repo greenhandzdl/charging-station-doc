@@ -23,6 +23,7 @@ group Mock充电机交互 [Swing UI]
 
   MC -> MC: 更新 ChargerUIPanel\n显示"拔枪中..."动画
 end
+note right of MC : 交互模式不对称说明：\n启动流程中 Mock 客户端直接调用后端 API\n结束流程中 Mock 客户端通过 Flutter 中转\n（用户确认弹窗后再由 Flutter 发送 API）\n原因：结束充电涉及扣费确认，需要用户\n二次确认，与启动流程（插枪即启动）不同
 
 MC -> FE: 通知 Flutter 充电结束\n{recordId, energy: 15.0}
 FE -> U: 显示"结束充电确认"弹窗
@@ -34,19 +35,11 @@ note right FE : ApiService.stopCharge()\n请求自动附加 JWT Token
 group 授权检查 [Spring Security Filter Chain]
   Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)
 
-  Security -> Security: @PreAuthorize("isAuthenticated()")
-  note right Security : 授权通过后 Service 层校验记录归属权\n普通用户仅能结束自己的充电记录\n管理员可结束任意充电记录\n不通过则返回 403 Forbidden
+  Security -> Security: @PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")
+  note right Security : ChargeGuard bean 在注解层校验:\n- 普通用户仅能结束自己的充电记录\n- 管理员可结束任意充电记录\n- recordId 来自请求体，由 ChargeGuard 查询归属\n不通过则返回 403 Forbidden
 end
 
 Ctrl -> Service: 请求结束充电 (已通过授权)
-
-group 记录归属校验 [Service 层]
-  Service -> DB: SELECT user_id, charger_id FROM charge_records WHERE id = ? -- 使用 PreparedStatement 参数绑定
-  DB --> Service: 充电记录归属信息
-
-  Service -> Service: 校验: 当前用户 userId == record.userId\n或当前用户角色为 ADMIN/SUPER_ADMIN
-  note right #F0E68C : 普通用户仅能结束自己的充电记录\n管理员可结束任意充电记录\n校验不通过 → 403 Forbidden
-end
 
 Service -> Pay: 校验并扣费 {userId, amount=22.50}
 
@@ -69,7 +62,7 @@ group 事务 [atomic] 覆盖: 查询记录(FOR UPDATE) + 锁定用户余额 + �
     Pay -> DB: UPDATE users SET balance = balance - 22.50 WHERE id = ? AND balance >= 22.50 -- 使用 PreparedStatement 参数绑定，原子扣减
     DB --> Pay: 扣费成功
 
-    Pay -> DB: INSERT INTO payments (id, user_id, charge_record_id, amount, status) VALUES (?, ?, ?, 22.50, 'success') -- 使用 PreparedStatement 参数绑定
+    Pay -> DB: INSERT INTO payments (id, user_id, charge_record_id, method, amount, status) VALUES (?, ?, ?, 'auto_deduct', 22.50, 'success') -- 使用 PreparedStatement 参数绑定
     DB --> Pay: 记录成功
 
     Pay --> Service: 扣费成功
@@ -84,6 +77,10 @@ group 事务 [atomic] 覆盖: 查询记录(FOR UPDATE) + 锁定用户余额 + �
     Service -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=15.0, fee=22.50, status='completed', deduction_status='arrears' WHERE id = ? -- 使用 PreparedStatement 参数绑定
     note right DB : fee 记录应收金额(22.50元)，deduction_status=arrears 标记欠费\n用户充值后通过自动扣费或后台补扣完成扣款
     DB --> Service: 标记欠费
+
+    Service -> DB: UPDATE users SET frozen_until = now() + INTERVAL '30 days' WHERE id = ? -- 使用 PreparedStatement 参数绑定，欠费用户冻结30天
+    note right DB : frozen_until 设置后该用户无法启动新充电\n充值后系统清除 frozen_until 解冻
+    DB --> Service: 冻结设置成功
 
     Service -> DB: UPDATE chargers SET status = 'idle' WHERE id = ? AND status = 'charging' -- 使用 PreparedStatement 参数绑定，欠费时释放桩物理状态
     DB --> Service: 桩已释放

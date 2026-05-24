@@ -87,6 +87,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - createdAt: LocalDateTime
     - updatedAt: LocalDateTime
   }
+  note right of User : passwordResetToken 存储的是 bcrypt 哈希值\n不存储明文令牌，防止数据库泄露时被直接用于重置密码
   note right of User : passwordHash 通过 @JsonIgnore 在序列化时过滤\n或在 Service 层返回 UserDTO（不含 passwordHash 字段）\n确保密码哈希值永不传输至客户端
   note right of User : 并发控制通过 WHERE balance >= ? 原子扣减实现，不使用 version 乐观锁
   note right of User : frozenUntil 非空时表示账户被冻结至该时间
@@ -109,7 +110,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - id: UUID
     - userId: UUID
     - chargeRecordId: UUID
-    - method: String
+    - method: String  ' wechat / alipay / card / system / auto_deduct
     - amount: BigDecimal
     - status: PaymentStatus
     - gatewayTxId: String
@@ -198,9 +199,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + startCharge(@Valid @RequestBody req): ResponseEntity
     @PostMapping("/charges/stop")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")
     + stopCharge(@Valid @RequestBody req): ResponseEntity
-    note right of ChargingController : stopCharge 在 Service 层校验记录归属权\n普通用户仅能结束自己的充电记录\n管理员可结束任意充电记录\n@PreAuthorize 仅标注 isAuthenticated()\n归属校验在 Service 层实现，非注解层\n\nstartCharge: Service 层检查用户无 processing 状态的记录\n防止同一用户同时启动多笔充电
+    note right of ChargingController : stopCharge 使用 ChargeGuard bean 进行授权\n@chargeGuard.canStop() 在注解层校验:\n- 普通用户仅能结束自己的充电记录\n- 管理员可结束任意充电记录\n- recordId 来自请求体，由 ChargeGuard 查询归属\n相比旧 isAuthenticated() + Service 层校验模式\n此模式在 Filter 链早期拒绝未授权请求\n减少数据库无意义访问\n\nstartCharge: Service 层检查用户无 processing 状态的记录\n防止同一用户同时启动多笔充电
     @PostMapping("/charges/{id}/force-stop")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     + forceStop(@PathVariable id): ResponseEntity
@@ -211,7 +212,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + recharge(@RequestBody req): ResponseEntity
     @PostMapping("/payments/callback")
-    @PreAuthorize("hasIpAddress(\"内网IP段\")")
+    @PreAuthorize("hasIpAddress('10.0.0.0/8')")  ' 需根据实际网络环境调整内网IP段
     + handleCallback(@RequestBody callback): ResponseEntity
     note right of PaymentController : handleCallback 由支付网关回调\nNginx 层: IP 白名单 + mTLS\nController 层: @PreAuthorize hasIpAddress 防御深度\nService 层: HMAC-SHA256 签名校验
     @GetMapping("/payments")
@@ -224,7 +225,8 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PostMapping("/auth/register")
     + register(@Valid @RequestBody req): ResponseEntity
     @PostMapping("/auth/login")
-    + login(@RequestBody req): ResponseEntity
+    + login(@Valid @RequestBody req): ResponseEntity
+    note right of UserController : login 加 @Valid 校验请求体字段格式:\nphone 必填且格式合法\npassword 必填且长度 >= 6\n防止空值/无效参数直达 Service 层\n减少无效数据库查询
     @PostMapping("/auth/refresh")
     + refreshToken(@RequestBody req): ResponseEntity
     @PostMapping("/auth/password-reset")
@@ -317,7 +319,7 @@ package "服务 (Service)" as SVC #F0E68C {
     + calculateFee()
     + forceStop()
   }
-  note right of ChargingServiceImpl : @Transactional 事务控制\n@PreAuthorize 授权检查
+  note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查
 
   interface PaymentService {
     + recharge()
@@ -413,7 +415,7 @@ package "策略/工厂 (Design Pattern)" as DP #E6E6FA {
   class PaymentFactory {
     + {static} createChannel(method: String): PaymentChannel
   }
-  note right of PaymentFactory : 根据 method 参数返回对应通道\n"wechat" -> WeChatPayChannel\n"alipay" -> AliPayChannel\n默认 -> WeChatPayChannel
+  note right of PaymentFactory : 根据 method 参数返回对应通道\n"wechat" -> WeChatPayChannel\n"alipay" -> AliPayChannel\n"system" -> SystemAutoDeductChannel\n默认 -> WeChatPayChannel
 
   interface PaymentChannel {
     + processPayment(amount: BigDecimal): boolean
@@ -592,7 +594,7 @@ PaymentFactory ..> PaymentChannel : 创建
 SqlSessionFactoryBean --> HikariDataSource : 注入数据源
 DataSourceTransactionManager --> HikariDataSource : 管理事务连接
 PlatformTransactionManager <|.. DataSourceTransactionManager : Spring JDBC 实现
-PageHelper ..> SqlSessionFactoryBean : 插件注册
+PageHelper ..> "MyBatis Configuration" : 插件注入
 
 ' ===== 实体间关联 =====
 Station "1" *-- "0..*" Charger : 包含

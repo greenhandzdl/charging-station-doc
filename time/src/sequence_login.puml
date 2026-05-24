@@ -39,25 +39,25 @@ group 暴力破解防护 [Rate Limiting & Account Lockout]
 end
 
 
-	Ctrl -> Cache: INCR login:fail:account:{phone}\nTTL 900 (15分钟)
-	Cache --> Ctrl: 登录失败次数(账号维度)
+Ctrl -> Cache: INCR login:fail:account:{phone}\nTTL 900 (15分钟)
+Cache --> Ctrl: 登录失败次数(账号维度)
 
-	alt 账号维度失败次数 >= 5
-	  Ctrl --> FE: HTTP 429 {error: "账号登录频繁，请15分钟后再试"}
-	  FE --> U: 显示"登录过于频繁，请稍后再试"
-	  note right Ctrl : 账号级限流防止凭证 stuffing\n与 IP 维度限流形成双层防御\n即使攻击者切换 IP，同一账号仍受限
-	else 账号维度失败次数 >= 3
-	  Ctrl --> FE: HTTP 400 {error: "需要验证码"}
-	  FE --> U: 显示验证码输入框
-	  U -> FE: 输入验证码
-	  FE -> Ctrl: HTTP POST /api/v1/auth/login\n{phone, password, captchaId, captchaCode}
-	  Ctrl -> Cache: GET captcha:{captchaId}
-	  Cache --> Ctrl: 验证码值
-	  alt 验证码错误
-	    Ctrl --> FE: HTTP 400 {error: "验证码错误"}
-	    FE --> U: 提示验证码错误，刷新验证码
-	  end
-	end
+alt 账号维度失败次数 >= 5
+  Ctrl --> FE: HTTP 429 {error: "账号登录频繁，请15分钟后再试"}
+  FE --> U: 显示"登录过于频繁，请稍后再试"
+  note right Ctrl : 账号级限流防止凭证 stuffing\n与 IP 维度限流形成双层防御\n即使攻击者切换 IP，同一账号仍受限
+else 账号维度失败次数 >= 3
+  Ctrl --> FE: HTTP 400 {error: "需要验证码"}
+  FE --> U: 显示验证码输入框
+  U -> FE: 输入验证码
+  FE -> Ctrl: HTTP POST /api/v1/auth/login\n{phone, password, captchaId, captchaCode}
+  Ctrl -> Cache: GET captcha:{captchaId}
+  Cache --> Ctrl: 验证码值
+  alt 验证码错误
+    Ctrl --> FE: HTTP 400 {error: "验证码错误"}
+    FE --> U: 提示验证码错误，刷新验证码
+  end
+end
 
 Ctrl -> US: login(phone, password)
 US -> DB: SELECT id, name, password_hash, role,\nfailed_login_attempts, account_locked_until\nFROM users WHERE phone = ?
@@ -81,6 +81,7 @@ else 用户存在
       DB --> US: 重置成功
       US -> US: 生成 access_token (15min) + refresh_token (7d)
       US -> Cache: SET refresh_token:{userId} = token EX 604800
+      note right #F0E68C : token 旋转时：DELETE 旧 refresh_token + SET 新 token\n确保同一 refresh_token 仅使用一次\n防止 token 重放攻击
       Cache --> US: 存储成功
       US --> Ctrl: LoginResponse {accessToken, refreshToken, userInfo}
       Ctrl --> FE: HTTP 200 JSON {access_token, refresh_token, user}
@@ -106,4 +107,7 @@ else 用户存在
     end
   end
 end
+
+note right of Cache : Refresh Token Rotation 机制说明\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n1. 每次使用 refresh_token 刷新令牌时，\n   服务端执行 DELETE old_refresh_token +\n   SET new_refresh_token 两步操作\n2. 旧 token 立即失效，即使被盗也无法\n   再次使用\n3. 若检测到已失效的 token 被重放，\n   判定为 token 泄露，立即撤销该\n   用户的所有 refresh_token\n4. 确保同一 refresh_token 仅使用一次
+
 @enduml
