@@ -20,6 +20,7 @@ usecase "强制结束充电" as FSC
 usecase "生成统计报表" as GS
 usecase "充电桩状态快捷查询" as QC
 usecase "查看支付记录" as VPR
+usecase "查看充电记录" as VCR
 usecase "充电记录快捷视图" as QV
 
 A --> HR
@@ -30,6 +31,7 @@ A --> FSC
 A --> GS
 A --> QC
 A --> QV
+A --> VCR
 A --> VPR
 M --> HR
 M --> QV
