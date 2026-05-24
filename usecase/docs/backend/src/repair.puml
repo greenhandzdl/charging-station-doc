@@ -1,4 +1,4 @@
-'@startuml
+@startuml
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
 title 故障报修用例

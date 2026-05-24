@@ -1,4 +1,4 @@
-'@startuml
+@startuml
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
 title 前端用例 — 管理操作
@@ -19,11 +19,13 @@ usecase "管理用户" as MU
 usecase "强制结束充电" as FSC
 usecase "生成统计报表" as GS
 usecase "充电桩状态快捷查询" as QC
+usecase "查看报修记录" as VR
 usecase "查看支付记录" as VPR
 usecase "查看充电记录" as VCR
 usecase "充电记录快捷视图" as QV
 
 A --> HR
+A --> VR
 A --> MM
 A --> PM
 A --> MU
@@ -34,6 +36,7 @@ A --> QV
 A --> VCR
 A --> VPR
 M --> HR
+M --> VR
 M --> QV
 M --> QC
 SA --> MM

@@ -195,11 +195,11 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
   class ChargingController {
     @PostMapping("/charges/start")
     @PreAuthorize("isAuthenticated()")
-    + startCharge(@RequestBody req): ResponseEntity
+    + startCharge(@Valid @RequestBody req): ResponseEntity
     @PostMapping("/charges/stop")
     @PreAuthorize("isAuthenticated()")
-    + stopCharge(@RequestBody req): ResponseEntity
-    note right of ChargingController : stopCharge 在 Service 层校验记录归属权\n普通用户仅能结束自己的充电记录\n管理员可结束任意充电记录
+    + stopCharge(@Valid @RequestBody req): ResponseEntity
+    note right of ChargingController : stopCharge 在 Service 层校验记录归属权\n普通用户仅能结束自己的充电记录\n管理员可结束任意充电记录\n@PreAuthorize 仅标注 isAuthenticated()\n归属校验在 Service 层实现，非注解层\n\nstartCharge: Service 层检查用户无 processing 状态的记录\n防止同一用户同时启动多笔充电
     @PostMapping("/charges/{id}/force-stop")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     + forceStop(@PathVariable id): ResponseEntity
@@ -244,9 +244,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + getBalance(): ResponseEntity
     @PutMapping("/users/{id}/role")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
-    note right of UserController : changeRole 在 Service 层记录审计日志\n角色变更属敏感操作，必须记录 actor/action/target\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
+    note right of UserController : changeRole 仅限 SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
   }
 
   class RepairController {
@@ -258,7 +258,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     + listRepairs(@RequestParam params): ResponseEntity
     note right of RepairController : listRepairs 在 Service 层按角色过滤\n普通用户仅能看到自己的报修
     @PutMapping("/repairs/{id}/assign")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + assignRepair(@PathVariable id, @RequestBody req): ResponseEntity
     @PutMapping("/repairs/{id}/resolve")
     @PreAuthorize("hasRole('MAINTAINER') or hasRole('ADMIN')")
@@ -360,6 +360,17 @@ package "服务 (Service)" as SVC #F0E68C {
     + changePassword()
   }
 
+  interface ChargerService {
+    + restoreCharger(chargerId: UUID): void
+    + getChargerStatus(chargerId: UUID): ChargerStatus
+  }
+
+  class ChargerServiceImpl implements ChargerService {
+    + restoreCharger(chargerId: UUID): void
+    + getChargerStatus(chargerId: UUID): ChargerStatus
+  }
+  note right of ChargerServiceImpl : 充电桩管理服务\n供 RepairService 在报修关闭时\n将充电桩从 fault 恢复为 idle
+
   interface StatisticsService {
     + generateReport(): ReportVO
     + getUserChargingStats(): List
@@ -388,15 +399,38 @@ package "策略/工厂 (Design Pattern)" as DP #E6E6FA {
     + calculatePrice(type: ChargerType, energyKwh: BigDecimal): BigDecimal
   }
 
+  class StandardPricing implements PricingStrategy {
+    + calculatePrice(type: ChargerType, energyKwh: BigDecimal): BigDecimal
+  }
+  note right of StandardPricing : 标准定价: FAST 1.5 元/kWh\nSLOW 0.8 元/kWh\n简单策略，无时段区分
+
+  class PeakPricing implements PricingStrategy {
+    + calculatePrice(type: ChargerType, energyKwh: BigDecimal): BigDecimal
+  }
+  note right of PeakPricing : 峰时定价: 高峰期(8:00-22:00)上浮 50%\n低谷期(22:00-8:00)下浮 30%\n时段计费扩展策略
+
   class PaymentFactory {
     + {static} createChannel(method: String): PaymentChannel
   }
+  note right of PaymentFactory : 根据 method 参数返回对应通道\n"wechat" -> WeChatPayChannel\n"alipay" -> AliPayChannel\n默认 -> WeChatPayChannel
 
   interface PaymentChannel {
     + processPayment(amount: BigDecimal): boolean
     + verifySignature(payload: JSON): boolean
   }
   note right of PaymentChannel : 支付通道接口\n微信/支付宝/信用卡\n各通道独立实现
+
+  class WeChatPayChannel implements PaymentChannel {
+    + processPayment(amount: BigDecimal): boolean
+    + verifySignature(payload: JSON): boolean
+  }
+  note right of WeChatPayChannel : 微信支付通道\n调用微信支付 SDK\nHMAC-SHA256 签名校验
+
+  class AliPayChannel implements PaymentChannel {
+    + processPayment(amount: BigDecimal): boolean
+    + verifySignature(payload: JSON): boolean
+  }
+  note right of AliPayChannel : 支付宝支付通道\n调用支付宝 SDK\nRSA2 签名校验
 }
 
 package "数据访问层 (Mapper/MyBatis)" as MAP #90EE90 {
@@ -527,9 +561,11 @@ UserServiceImpl --> RedisTemplate : 注入
 RepairServiceImpl --> RepairMapper : 注入
 RepairServiceImpl --> ChargerMapper : 注入
 RepairServiceImpl --> AuditLogMapper : 注入
+RepairServiceImpl --> ChargerService : 注入
 StatisticsServiceImpl --> ChargeRecordMapper : 注入
 StatisticsServiceImpl --> PaymentMapper : 注入
 StatisticsServiceImpl --> ChargerMapper : 注入
+ChargerServiceImpl --> ChargerMapper : 注入
 
 ' ===== Service 依赖实体 =====
 ChargingService ..> ChargeRecord
@@ -557,7 +593,7 @@ PlatformTransactionManager <|.. DataSourceTransactionManager : Spring JDBC 实�
 PageHelper ..> SqlSessionFactoryBean : 插件注册
 
 ' ===== 实体间关联 =====
-Station "1" --> "0..*" Charger : 包含
+Station "1" *-- "0..*" Charger : 包含
 Station --> StationStatus
 Charger --> ChargerType
 Charger --> ChargerStatus
@@ -572,6 +608,7 @@ Charger "1" --> "0..*" ChargeRecord : 被使用
 User "1" --> "0..*" Payment : 支付
 User "1" --> "0..*" Repair : 报修/处理
 ChargeRecord "1" --> "0..1" Payment : 产生
-User "1" --> "0..*" AuditLog : 操作记录
+User "0..1" --> "0..*" AuditLog : 操作记录
+  note on link #orange : AuditLog actor_id 可为 NULL（系统操作）\nactor_type=system 时无对应 User 记录
 
 @enduml

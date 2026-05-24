@@ -11,7 +11,13 @@ partition "用户" {
 
 partition "管理员" {
   :查看未处理报修;
-  :分配维修人员 [状态: in_progress];
+  if (是否需要维修?) then (是)
+    :分配维修人员 [状态: in_progress];
+  else (否, 直接关闭)
+    :关闭报修 [状态: closed];
+    note right: 充电桩状态不变\n（桩未实际故障）
+    stop
+  endif
 }
 
 partition "系统" {
