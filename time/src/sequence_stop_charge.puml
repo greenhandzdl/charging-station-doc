@@ -40,6 +40,14 @@ end
 
 Ctrl -> Service: 请求结束充电 (已通过授权)
 
+group 记录归属校验 [Service 层]
+  Service -> DB: SELECT user_id, charger_id FROM charge_records WHERE id = ? -- 使用 PreparedStatement 参数绑定
+  DB --> Service: 充电记录归属信息
+
+  Service -> Service: 校验: 当前用户 userId == record.userId\n或当前用户角色为 ADMIN/SUPER_ADMIN
+  note right #F0E68C : 普通用户仅能结束自己的充电记录\n管理员可结束任意充电记录\n校验不通过 → 403 Forbidden
+end
+
 Service -> Pay: 校验并扣费 {userId, amount=22.50}
 
 group 事务 [atomic] 覆盖: 查询记录(FOR UPDATE) + 锁定用户余额 + 更新充电记录 + 扣减余额 + 插入支付记录 + 更新桩状态 + 插入审计日志

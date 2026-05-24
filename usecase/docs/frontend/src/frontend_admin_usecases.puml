@@ -44,6 +44,7 @@ SA --> PM
 SA --> MU
 SA --> FSC
 SA --> GS
+SA --> VCR
 SA --> QC
 SA --> QV
 	SA --> VPR

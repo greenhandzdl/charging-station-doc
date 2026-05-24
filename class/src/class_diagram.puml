@@ -49,6 +49,8 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
     class PaymentServiceImpl implements PaymentService
     interface RepairService
     class RepairServiceImpl implements RepairService
+    interface ChargerService
+    class ChargerServiceImpl implements ChargerService
     interface UserService
     class UserServiceImpl implements UserService
     interface StatisticsService
@@ -103,6 +105,7 @@ RP ..> Api : 调用
 CTRL --> SVC : 调用服务
 SVC --> MAP : 数据访问
 SVC --> BILL : 计费计算
+SVC --> ChargerService : 充电桩管理
 BILL --> DP : 委托计费策略
 MAP --> INF : 基础设施支撑
 

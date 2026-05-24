@@ -126,6 +126,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - handledBy: UUID
     - reportedAt: LocalDateTime
     - handledAt: LocalDateTime
+    - rejectReason: String
   }
 
   class AuditLog {
@@ -582,6 +583,7 @@ StatisticsServiceImpl ..> Station
 StatisticsServiceImpl ..> Charger
 
 ' ===== 设计模式 =====
+ChargingServiceImpl --> BillingService : 注入
 ChargingService --> PricingStrategy
 BillingService --> PricingStrategy : 委托计费策略
 PaymentFactory ..> PaymentChannel : 创建
@@ -605,6 +607,8 @@ Repair --> RepairStatus
 
 User "1" --> "0..*" ChargeRecord : 发起
 Charger "1" --> "0..*" ChargeRecord : 被使用
+Charger "1" --> "0..*" Repair : 产生
+  note on link #orange : 用户提交报修时充电桩关联到报修单\n报修关闭/解决后充电桩恢复 idle
 User "1" --> "0..*" Payment : 支付
 User "1" --> "0..*" Repair : 报修/处理
 ChargeRecord "1" --> "0..1" Payment : 产生
