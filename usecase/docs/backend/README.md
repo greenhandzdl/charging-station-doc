@@ -75,6 +75,7 @@
 | GET | `/api/v1/analytics/charges` | 充电统计报表（非金额维度：充电次数、充电量等） | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/revenue` | 收入统计报表（金额维度：总收入、日均收入等，仅含金额敏感数据） | 最高管理者 |
 | GET | `/api/v1/analytics/utilization` | 充电桩使用率：返回空闲/使用中/故障三种状态比例 | 管理员/最高管理者 |
+| GET | `/api/v1/analytics/user-charges` | 查看用户充电统计 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/export` | 导出 CSV | 管理员/最高管理者 |
 
 ## 关键安全措施

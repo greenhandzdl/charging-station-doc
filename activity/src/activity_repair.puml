@@ -49,6 +49,7 @@ partition "系统" {
     partition "系统" {
       :更新报修单状态回退到 in_progress;
       :记录审计日志;
+      note right: 退回返工时充电桩保持故障状态不变
     }
     :通知维修人员重新维修;
     --> "接收任务" as return_to_repair

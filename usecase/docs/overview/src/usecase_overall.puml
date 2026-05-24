@@ -74,6 +74,7 @@ SA --> GS
 SA --> FSC
 SA --> VPR
 SA --> VCR
+SA --> QV
 
 MC --> SC
 MC --> EC
