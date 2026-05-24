@@ -45,4 +45,5 @@ SA --> QV
 SA --> VCR
 M --> HR
 M --> VR
+M --> VPR
 @enduml

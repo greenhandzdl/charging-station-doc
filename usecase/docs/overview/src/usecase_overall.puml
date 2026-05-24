@@ -66,6 +66,8 @@ A --> VR
 A --> GS
 A --> FSC
 A --> EC
+A --> QV
+A --> QC
 SA --> MM
 SA --> PM
 SA --> GS
