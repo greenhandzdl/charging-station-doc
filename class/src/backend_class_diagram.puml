@@ -258,7 +258,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
 
   class StationController {
     @RequestMapping("/stations")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + crudOperations(): ResponseEntity
     @RequestMapping("/chargers")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
