@@ -11,7 +11,8 @@ participant "充电控制器" as Ctrl
 participant "安全过滤器链" as Security
 participant "充电服务" as Service
 participant "用户服务" as US
-participant "充电桩服务" as CS
+participant "充电桩管理" as CS
+note right of CS : 由 ChargingServiceImpl 直接管理桩状态
 database 数据库 as DB
 
 U -> FE: 选择充电桩，点击"启动充电"

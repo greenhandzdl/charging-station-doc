@@ -45,7 +45,7 @@ package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
 
   MockChargerClient --> ChargerUIPanel : 包含
   MockChargerClient --> ChargeSimulator : 模拟引擎
-  MockChargerClient --> Nginx : HTTPS 请求
+  MockChargerClient ..> Nginx : HTTPS 请求（依赖）
   Nginx --> ChargingController : 路由 /api/v1/charges/*
   note on link #red : Nginx 层: location /api/v1/charges/ (前缀匹配)\n转发至后端，其他路径拒绝\nJWT scope = mock_charger_only 做二次校验\n双层安全隔离：网络层 + 认证层
   ChargerUIPanel ..> MockChargerClient : 事件回调
@@ -269,6 +269,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @GetMapping("/analytics/charges")
     @PreAuthorize("hasRole('ADMIN')")
     + getChargeStats(): ResponseEntity
+    @GetMapping("/analytics/user-charges")
+    @PreAuthorize("hasRole('ADMIN')")
+    + getUserChargeStats(): ResponseEntity
     @GetMapping("/analytics/revenue")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     + getRevenueStats(): ResponseEntity

@@ -28,6 +28,7 @@ group 授权检查 [Spring Security Filter Chain]
   else 正常用户 Token
     Security -> Security: @PreAuthorize("isAuthenticated()")
     note right Security : 验证通过后将请求传递给 Controller
+    note right Security : Service 层按角色过滤报修记录\n普通用户仅能看到自己的报修\n管理员可查看全部
   end
 end
 
