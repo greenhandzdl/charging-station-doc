@@ -19,11 +19,11 @@ S  --> GR
 A  --> GR
 A  --> VU
 A  --> EXP
-SA --> UCS
 SA --> GR
 SA --> VU
 SA --> EXP
 A  --> FCL
+A  --> UCS
 SA --> UCS
 
 GR <.down. VU : <<include>>

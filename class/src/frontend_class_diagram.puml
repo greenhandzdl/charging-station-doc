@@ -94,7 +94,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} getStationAnalysis(): Future<List<Map>>
     + {static} getChargerUtilization(): Future<Map>
   }
-  note right of Api : 基于 http 包封装 REST API 调用\n自动附加 JWT Token (Authorization: Bearer)\n统一错误处理与异常转换\n所有方法返回 Future，异步非阻塞
+  note right of Api : 基于 http 包封装 REST API 调用\n自动附加 JWT Token (Authorization: Bearer)\n统一错误处理与异常转换\n所有方法返回 Future，异步非阻塞\n生产环境必须启用 HTTPS，密码仅 HTTPS 加密传输
 
   class "AuthProvider" as Auth {
     - accessToken: String?

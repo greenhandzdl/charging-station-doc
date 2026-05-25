@@ -69,7 +69,8 @@ else 校验通过
     US -> DB: INSERT INTO users (id, name, phone, password_hash, plate_number, role, balance, failed_login_attempts)\nVALUES (?, ?, ?, ?, ?, 'user', 0.00, 0)\n-- 显式列出 password_hash 列，确保散列值写入密码字段
     note right DB : failed_login_attempts 初始化为 0
     DB --> US: 插入成功
-    US -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, client_ip) VALUES (?, 'user', 'register', 'user', ?)
+    US -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, client_ip) VALUES (?, 'user', 'register', 'user', ?, ?)
+    note right DB : resource_id 为新注册用户 ID\n与 INSERT users 使用的 ID 一致
     DB --> US: 日志记录成功
     US --> Ctrl: 注册成功 {userId, name}
     Ctrl --> FE: HTTP 201 {message: "注册成功", userId}

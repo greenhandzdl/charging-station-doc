@@ -10,7 +10,6 @@ participant "Flutter 客户端" as FE
 participant "充电控制器" as Ctrl
 participant "安全过滤器链" as Security
 participant "充电服务" as Service
-participant "用户服务" as US
 participant "充电桩管理" as CS
 note right of CS : 由 ChargingServiceImpl 直接管理桩状态
 database 数据库 as DB
@@ -30,7 +29,7 @@ group Mock充电机交互 [Swing UI]
 end
 
 MC -> Ctrl: HTTP POST /api/v1/charges/start\n{chargerId}
-note right MC : MockChargerClient.callStartApi()\n模拟用户 JWT Token\nJSON 请求体
+note right MC : MockChargerClient.callStartApi()\n模拟用户 JWT Token\nJSON 请求体\n请求体 DTO: {chargerId, stationId}\n由 ChargingController.startCharge(@Valid @RequestBody req) 接收
 
 group 授权检查 [Spring Security Filter Chain]
   Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role, scope)
@@ -46,15 +45,9 @@ end
 
 Ctrl -> Service: 启动充电请求
 
-Service -> US: 查询用户信息
-US -> DB: SELECT id, name, balance FROM users WHERE id = ? -- 使用 PreparedStatement 参数绑定
-DB --> US: 用户信息
-US --> Service: 用户存在，余额 >= 10元
-
-Service -> US: 检查账户冻结状态
-US -> DB: SELECT frozen_until FROM users WHERE id = ? -- 使用 PreparedStatement 参数绑定
-DB --> US: frozen_until IS NULL 或已过期
-US --> Service: 账户未冻结
+Service -> DB: SELECT id, name, balance, frozen_until FROM users WHERE id = ? -- 使用 PreparedStatement 参数绑定，由 ChargingServiceImpl 通过 UserMapper 直接查库
+note right DB : ChargingServiceImpl 注入 UserMapper\n直接查询 users 表获取余额和冻结状态\n不经过 UserService 接口（该接口仅暴露 login/register/resetPassword/changePassword）
+DB --> Service: 用户信息：余额、冻结状态
 
 Service -> CS: 查询充电桩状态
 CS -> DB: SELECT id, status FROM chargers WHERE id = ? -- 使用 PreparedStatement 参数绑定

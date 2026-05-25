@@ -110,7 +110,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - id: UUID
     - userId: UUID
     - chargeRecordId: UUID
-    - method: String  ' wechat / alipay / card / system / auto_deduct
+    - method: String  ' wechat/alipay/card（用户充值）/ auto_deduct（自动扣费）/ system（强制结束系统扣费）
     - amount: BigDecimal
     - status: PaymentStatus
     - gatewayTxId: String
@@ -156,9 +156,9 @@ package "枚举 (Enum)" as ENUM #F0E68C {
   }
 
   enum ChargerStatus {
-    IDLE
-    CHARGING
-    FAULT
+    IDLE    ' 数据库存储小写值 'idle'
+    CHARGING  ' 数据库存储小写值 'charging'
+    FAULT   ' 数据库存储小写值 'fault'
   }
 
   enum UserRole {
@@ -169,27 +169,27 @@ package "枚举 (Enum)" as ENUM #F0E68C {
   }
 
   enum RecordStatus {
-    PROCESSING
-    COMPLETED
+    PROCESSING  ' 数据库存储小写值 'processing'
+    COMPLETED   ' 数据库存储小写值 'completed'
   }
 
   enum DeductionStatus {
-    PENDING
-    PAID
-    ARREARS
+    PENDING ' 数据库存储小写值 'pending'
+    PAID    ' 数据库存储小写值 'paid'
+    ARREARS ' 数据库存储小写值 'arrears'
   }
 
   enum PaymentStatus {
-    PENDING
-    SUCCESS
-    FAILED
+    PENDING ' 数据库存储小写值 'pending'
+    SUCCESS ' 数据库存储小写值 'success'
+    FAILED  ' 数据库存储小写值 'failed'
   }
 
   enum RepairStatus {
-    OPEN
-    IN_PROGRESS
-    RESOLVED
-    CLOSED
+    OPEN         ' 数据库存储小写值 'open'
+    IN_PROGRESS  ' 数据库存储小写值 'in_progress'
+    RESOLVED     ' 数据库存储小写值 'resolved'
+    CLOSED       ' 数据库存储小写值 'closed'
   }
 }
 
@@ -285,7 +285,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
 
   class StatisticsController {
     @GetMapping("/analytics/charges")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + getChargeStats(): ResponseEntity
     @GetMapping("/analytics/user-charges")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
@@ -294,7 +294,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     + getRevenueStats(): ResponseEntity
     @GetMapping("/analytics/utilization")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + getUtilizationStats(): ResponseEntity
     @GetMapping("/analytics/fault-chargers")
     @PreAuthorize("hasRole('ADMIN')")
@@ -326,6 +326,7 @@ package "服务 (Service)" as SVC #F0E68C {
     + processCallback()
     + autoDeduct()
   }
+  note right of PaymentService : autoDeduct() 自动扣费重试机制:\n- 定时任务触发（每日凌晨）\n- 最多重试 3 次，每次间隔 24h\n- 重试 3 次仍失败标记为永久欠费\n- 用户充值后触发主动补扣
 
   class PaymentServiceImpl implements PaymentService {
     + recharge()
@@ -354,6 +355,8 @@ package "服务 (Service)" as SVC #F0E68C {
     + register()
     + resetPassword()
     + changePassword()
+    + requestPasswordReset()
+    + confirmPasswordReset()
   }
 
   class UserServiceImpl implements UserService {
@@ -361,18 +364,22 @@ package "服务 (Service)" as SVC #F0E68C {
     + register()
     + resetPassword()
     + changePassword()
+    + requestPasswordReset()
+    + confirmPasswordReset()
   }
 
   interface ChargerService {
     + restoreCharger(chargerId: UUID): void
     + getChargerStatus(chargerId: UUID): ChargerStatus
+    + updateStatus(chargerId: UUID, status: ChargerStatus): void
   }
 
   class ChargerServiceImpl implements ChargerService {
     + restoreCharger(chargerId: UUID): void
     + getChargerStatus(chargerId: UUID): ChargerStatus
+    + updateStatus(chargerId: UUID, status: ChargerStatus): void
   }
-  note right of ChargerServiceImpl : 充电桩管理服务\n供 RepairService 在报修关闭时\n将充电桩从 fault 恢复为 idle
+  note right of ChargerServiceImpl : 充电桩管理服务\n供 RepairService 在报修关闭时\n将充电桩从 fault 恢复为 idle\nupdateStatus() 供报修提交时\n将充电桩状态设为 fault
 
   interface StatisticsService {
     + generateReport(): ReportVO
