@@ -15,7 +15,8 @@ entity users {
   frozen_until: TIMESTAMPTZ (欠费冻结截止时间)
   failed_login_attempts: INTEGER (连续失败次数，>=5触发验证码)
   account_locked_until: TIMESTAMPTZ (锁定截止时间)
-  password_reset_token: VARCHAR(255) (密码重置令牌)
+  password_reset_token: VARCHAR(255) (密码重置令牌 bcrypt 哈希)
+  password_reset_token_hash: VARCHAR(64) (令牌 SHA-256 哈希，索引列用于 O(1) 查找)
   reset_token_expires_at: TIMESTAMPTZ (令牌过期时间)
   created_at: TIMESTAMPTZ
   updated_at: TIMESTAMPTZ
@@ -29,6 +30,7 @@ entity stations {
   charger_count: INTEGER
   status: VARCHAR(32)
   created_at: TIMESTAMPTZ
+  updated_at: TIMESTAMPTZ
 }
 
 entity chargers {

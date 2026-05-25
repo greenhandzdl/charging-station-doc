@@ -49,41 +49,57 @@ Service -> DB: SELECT id, name, balance, frozen_until FROM users WHERE id = ? --
 note right DB : ChargingServiceImpl 注入 UserMapper\n直接查询 users 表获取余额和冻结状态\n不经过 UserService 接口（该接口仅暴露 login/register/resetPassword/changePassword）
 DB --> Service: 用户信息：余额、冻结状态
 
-Service -> CS: 查询充电桩状态
-CS -> DB: SELECT id, status FROM chargers WHERE id = ? -- 使用 PreparedStatement 参数绑定
-DB --> CS: status = idle
-CS --> Service: 桩空闲
+Service -> Service: 校验用户账户状态
+note right Service : 检查 frozen_until 是否过期\n检查余额是否 >= 10 元\n活动图和用例图约束
 
-Service -> CS: 锁定充电桩
-CS -> DB: UPDATE chargers SET status = 'charging' WHERE id = ? AND status = 'idle' -- 使用 PreparedStatement 参数绑定，乐观写
+alt 账户冻结且未到期 (frozen_until > now)
+  Service --> Ctrl: 账户已冻结
+  Ctrl --> MC: HTTP 403 {error: "账户已冻结，请充值解冻"}
+  MC --> FE: 启动失败通知
+  FE --> U: 显示"账户已冻结，无法启动充电"
+else 余额 < 10 元
+  Service --> Ctrl: 余额不足，最低启动金额 10 元
+  note right Service : 活动图和用例图规定最低余额 10 元
+  Ctrl --> MC: HTTP 402 Payment Required {error: "余额不足，需至少 10 元"}
+  MC --> FE: 启动失败通知
+  FE --> U: 显示"余额不足，请充值后再启动"
+else 校验通过
+  Service -> CS: 查询充电桩状态
+  CS -> DB: SELECT id, status FROM chargers WHERE id = ? -- PreparedStatement 参数绑定
+  DB --> CS: status = idle
+  CS --> Service: 桩空闲
 
-alt 更新成功 (affected_rows = 1)
-  DB --> CS: 桩已锁定
+  Service -> CS: 锁定充电桩
+  CS -> DB: UPDATE chargers SET status = 'charging' WHERE id = ? AND status = 'idle' -- PreparedStatement 参数绑定，乐观写
 
-  Service -> DB: INSERT INTO charge_records (id, user_id, charger_id, start_time, status) -- 使用 PreparedStatement 参数绑定
-  note right DB : status = 'processing'\ndeduction_status = 'pending'
-  DB --> Service: 创建成功
+  alt 更新成功 (affected_rows = 1)
+    DB --> CS: 桩已锁定
 
-  Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'user', 'start_charge', 'charger', ?) -- 使用 PreparedStatement 参数绑定
-  DB --> Service: 审计日志记录成功
+    Service -> DB: INSERT INTO charge_records (id, user_id, charger_id, start_time, status) -- PreparedStatement
+    note right DB : status = 'processing'\ndeduction_status = 'pending'
+    DB --> Service: 创建成功
 
-  Service --> Ctrl: 启动成功 {recordId, startTime}
-  Ctrl --> MC: HTTP 200 JSON {recordId, startTime, status: 'processing'}
-else 充电桩已被占用 (affected_rows = 0)
-  DB --> CS: 更新失败，桩已被其他用户占用
-  CS --> Service: 并发冲突
+    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'user', 'start_charge', 'charger', ?) -- PreparedStatement
+    DB --> Service: 审计日志记录成功
 
-  Service --> Ctrl: 充电桩已被占用
-  Ctrl --> MC: HTTP 409 Conflict {error: "充电桩已被占用"}
-  note right MC : affected_rows=0 表示 WHERE id=? AND status='idle' 条件不满足\n即充电桩状态已非 idle，被其他请求抢先占用
+    Service --> Ctrl: 启动成功 {recordId, startTime}
+    Ctrl --> MC: HTTP 200 JSON {recordId, startTime, status: 'processing'}
+  else 充电桩已被占用 (affected_rows = 0)
+    DB --> CS: 更新失败，桩已被其他用户占用
+    CS --> Service: 并发冲突
+
+    Service --> Ctrl: 充电桩已被占用
+    Ctrl --> MC: HTTP 409 Conflict {error: "充电桩已被占用"}
+    note right MC : affected_rows=0 表示 WHERE id=? AND status='idle' 不满足\n即充电桩状态已非 idle，被其他请求抢先占用
+  end
+
+  group Mock充电机充电中显示 [Swing UI]
+    MC -> MC: 更新 ChargerUIPanel 状态\n显示"充电中"图标
+    MC -> MC: ChargeSimulator 启动模拟\n每 tick 增加 0.1kWh
+    note right MC : 模拟电量增长\n进度条实时更新\n显示当前电量/费用/时长
+  end
+
+  MC --> FE: 充电状态推送 {status: 'processing'}
+  FE --> U: 显示"充电中"状态
 end
-
-group Mock充电机充电中显示 [Swing UI]
-  MC -> MC: 更新 ChargerUIPanel 状态\n显示"充电中"图标
-  MC -> MC: ChargeSimulator 启动模拟\n每 tick 增加 0.1kWh
-  note right MC : 模拟电量增长\n进度条实时更新\n显示当前电量/费用/时长
-end
-
-MC --> FE: 充电状态推送 {status: 'processing'}
-FE --> U: 显示"充电中"状态
 @enduml

@@ -83,6 +83,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - failedLoginAttempts: int
     - accountLockedUntil: LocalDateTime
     - passwordResetToken: String
+    - passwordResetTokenHash: String
     - resetTokenExpiresAt: LocalDateTime
     - createdAt: LocalDateTime
     - updatedAt: LocalDateTime
@@ -195,6 +196,9 @@ package "枚举 (Enum)" as ENUM #F0E68C {
 
 package "控制器 (Controller)" as CTRL #B0C4DE {
   class ChargingController {
+    @GetMapping("/charges")
+    @PreAuthorize("isAuthenticated()")
+    + listCharges(@RequestParam params): ResponseEntity
     @PostMapping("/charges/start")
     @PreAuthorize("isAuthenticated()")
     + startCharge(@Valid @RequestBody req): ResponseEntity
@@ -322,7 +326,7 @@ package "服务 (Service)" as SVC #F0E68C {
     + calculateFee()
     + forceStop()
   }
-  note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查
+  note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查\n\nstartCharge() 中校验:\n1. 检查 frozen_until 是否过期\n2. 检查余额 >= 10 元（活动图和用例图约束）\n通过后才允许启动充电
 
   interface PaymentService {
     + recharge()
