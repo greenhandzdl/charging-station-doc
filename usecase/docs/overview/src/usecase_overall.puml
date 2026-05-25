@@ -31,6 +31,8 @@ usecase "充电记录快捷视图" as QV
 usecase "充电桩状态快捷查询" as QC
 usecase "查看报修记录" as VR
 usecase "查询充电状态" as QC_CM
+usecase "故障充电桩列表" as FCL
+usecase "查看用户充电统计" as UCS
 
 G --> UC
 
@@ -68,6 +70,8 @@ A --> FSC
 A --> EC
 A --> QV
 A --> QC
+A --> FCL
+A --> UCS
 SA --> MM
 SA --> PM
 SA --> GS
@@ -75,6 +79,9 @@ SA --> FSC
 SA --> VPR
 SA --> VCR
 SA --> QV
+SA --> QC
+SA --> FCL
+SA --> UCS
 
 MC --> SC
 MC --> EC

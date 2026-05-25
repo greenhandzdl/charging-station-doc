@@ -30,7 +30,7 @@ FE -> U: 显示"结束充电确认"弹窗
 U -> FE: 确认结束
 
 FE -> Ctrl: HTTP POST /api/v1/charges/stop\n{recordId}
-note right FE : ApiService.stopCharge()\n请求自动附加 JWT Token
+note right FE : ApiService.stopCharge()\n请求自动附加 JWT Token\n必须使用 HTTPS 加密传输，防止凭证泄露
 
 group 授权检查 [Spring Security Filter Chain]
   Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)

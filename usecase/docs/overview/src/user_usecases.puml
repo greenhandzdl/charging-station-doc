@@ -24,6 +24,7 @@ usecase "提交故障报修" as SRT
 usecase "处理报修" as HR
 usecase "充电记录快捷视图" as QV
 usecase "充电桩状态快捷查询" as QC
+usecase "查看报修记录" as VR
 usecase "查询充电状态" as QC_CM
 
 G --> REG
@@ -37,6 +38,7 @@ U --> VPR
 U --> SRT
 U --> QV
 U --> QC
+U --> VR
 M --> RCH
 M --> CS
 M --> EC

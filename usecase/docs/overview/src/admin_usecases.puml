@@ -20,6 +20,7 @@ usecase "充电桩状态快捷查询" as QC
 usecase "充电记录快捷视图" as QV
 usecase "查看支付记录" as VPR
 usecase "查看充电记录" as VCR
+usecase "查看用户充电统计" as UCS
 
 A --> MS
 A --> MC
@@ -33,6 +34,7 @@ A --> GS
 A --> QC
 A --> QV
 A --> VCR
+A --> UCS
 SA --> MS
 SA --> MC
 SA --> PM
@@ -43,6 +45,7 @@ SA --> FSC
 SA --> QC
 SA --> QV
 SA --> VCR
+SA --> UCS
 M --> HR
 M --> VR
 M --> VPR

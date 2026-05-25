@@ -212,7 +212,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + recharge(@RequestBody req): ResponseEntity
     @PostMapping("/payments/callback")
-    @PreAuthorize("hasIpAddress('10.0.0.0/8')")  ' 需根据实际网络环境调整内网IP段
+    @PreAuthorize("hasIpAddress('10.0.0.0/8') and !hasAuthority('SCOPE_mock_charger_only')")
     + handleCallback(@RequestBody callback): ResponseEntity
     note right of PaymentController : handleCallback 由支付网关回调\nNginx 层: IP 白名单 + mTLS\nController 层: @PreAuthorize hasIpAddress 防御深度\nService 层: HMAC-SHA256 签名校验
     @GetMapping("/payments")
@@ -231,6 +231,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     + refreshToken(@RequestBody req): ResponseEntity
     @PostMapping("/auth/password-reset")
     + resetPassword(@RequestBody req): ResponseEntity
+    @PostMapping("/auth/password-reset/confirm")
+    @PreAuthorize("isAnonymous()")
+    + confirmResetPassword(@RequestBody req): ResponseEntity
     @PutMapping("/auth/password")
     @PreAuthorize("isAuthenticated()")
     + changePassword(@RequestBody req): ResponseEntity
@@ -297,7 +300,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + getUtilizationStats(): ResponseEntity
     @GetMapping("/analytics/fault-chargers")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + getFaultChargers(): ResponseEntity
     @GetMapping("/analytics/export")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")

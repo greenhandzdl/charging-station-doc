@@ -44,8 +44,8 @@ Admin -> FE: 选择报修单，指定维修人员\n点击"分配"
 FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/assign\n{handledBy: maintainerId}
 
 group 授权检查 [@PreAuthorize]
-  Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
-  note right Security : 分配维修人员仅限管理员\n不通过则返回 403 Forbidden
+  Ctrl -> Security: @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+  note right Security : 分配维修人员仅限管理员或最高管理者\n不通过则返回 403 Forbidden
 end
 
 Ctrl -> RS: assign(repairId, maintainerId)

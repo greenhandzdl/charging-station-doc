@@ -15,7 +15,7 @@ database 数据库 as DB
 
 Admin -> FE: 选择强制结束充电\n填写强制终止原因
 FE -> Ctrl: HTTP POST /api/v1/charges/{id}/force-stop\n{reason: "设备异常发热"}
-note right FE : ApiService.forceStop()\n请求自动附加 JWT Token\n仅管理员/最高管理者可调用
+note right FE : ApiService.forceStop()\n请求自动附加 JWT Token\n仅管理员/最高管理者可调用\n必须使用 HTTPS 加密传输，防止凭证泄露
 
 group 权限校验 [Spring Security Filter Chain]
   Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role, scope)
@@ -65,7 +65,7 @@ Bill --> Service: fee = calculated amount
       note right DB : frozen_until 设置后该用户无法启动新充电\n充值后系统清除 frozen_until 解冻
       DB --> Service: 冻结设置成功
 
-      Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'admin', 'force_stop_arrears', 'charge_record', ?, ?::jsonb)
+      Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'admin', 'force_stop_arrears', 'charge_record', ?, ?::jsonb)\npayload: {"reason": 强制终止原因, "deductionStatus": "arrears"}
       note right DB : 强制结束充电欠费审计日志\n与正常扣费分支的 force_stop 日志区分
       DB --> Service: 审计日志记录成功
     end
