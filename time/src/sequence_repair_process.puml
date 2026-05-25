@@ -51,6 +51,9 @@ end
 Ctrl -> RS: assign(repairId, maintainerId)
 RS -> DB: UPDATE repairs SET status = 'in_progress',\nhandled_by = ? WHERE id = ? AND status = 'open'
 DB --> RS: 分配成功
+RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'admin', 'assign_repair', 'repair', ?) -- 记录分配报修审计日志
+DB --> RS: 审计日志记录成功
+DB --> RS: 审计日志记录成功
 RS --> Ctrl: 分配完成
 Ctrl --> FE: HTTP 200 {status: 'in_progress'}
 FE --> Admin: 显示"已分配待维修"

@@ -80,6 +80,8 @@ else 用户存在
       US -> DB: UPDATE users SET failed_login_attempts = 0, account_locked_until = NULL WHERE id = ?
       DB --> US: 重置成功
       US -> US: 生成 access_token (15min) + refresh_token (7d)
+	      US -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'user', 'login_success', 'user', ?) -- 记录成功登录审计日志
+	      DB --> US: 审计日志记录成功
       US -> Cache: SET refresh_token:{userId} = token EX 604800
       note right #F0E68C : token 旋转时：DELETE 旧 refresh_token + SET 新 token\n确保同一 refresh_token 仅使用一次\n防止 token 重放攻击
       Cache --> US: 存储成功

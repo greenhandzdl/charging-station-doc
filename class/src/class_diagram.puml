@@ -57,7 +57,7 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
   package "服务 (Service)" as SVC {
     interface ChargingService
     class ChargingServiceImpl implements ChargingService
-    note right of ChargingServiceImpl : + forceStop()
+    note right of ChargingController : forceStop() 由 ChargingController 的 @PreAuthorize 注解实施授权控制\n仅 ADMIN / SUPER_ADMIN 可调用
     interface PaymentService
     class PaymentServiceImpl implements PaymentService
     interface RepairService

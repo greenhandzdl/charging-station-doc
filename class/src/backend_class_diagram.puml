@@ -28,7 +28,6 @@ package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
     - progressBar: JProgressBar
     - statusLabel: JLabel
     - energyLabel: JLabel
-    - qrCodeDisplay: JLabel
   }
   note right of ChargerUIPanel : Swing 组件面板\n模拟充电机显示屏\n显示当前状态/电量/费用
 
@@ -69,6 +68,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - type: ChargerType
     - status: ChargerStatus
     - createdAt: LocalDateTime
+    - updatedAt: LocalDateTime
   }
 
   class User {
