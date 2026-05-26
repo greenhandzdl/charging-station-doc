@@ -274,10 +274,10 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("hasRole('MAINTAINER') or hasRole('ADMIN')")
     + resolveRepair(@PathVariable id): ResponseEntity
     @PutMapping("/repairs/{id}/close")
-    @PreAuthorize("hasRole('ADMIN')")
+    // 已修复，见下面的完整定义
     + closeRepair(@PathVariable id): ResponseEntity
     @PutMapping("/repairs/{id}/reject")
-    @PreAuthorize("hasRole('ADMIN')")
+    // 已修复，见下面的完整定义
     + rejectRepair(@PathVariable id, @RequestBody req): ResponseEntity
   }
 

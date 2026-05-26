@@ -29,7 +29,7 @@ group Mock充电机交互 [Swing UI]
 end
 
 MC -> Ctrl: HTTP POST /api/v1/charges/start\n{chargerId}
-note right MC : MockChargerClient.callStartApi()\n模拟用户 JWT Token\nJSON 请求体\n请求体 DTO: {chargerId, stationId}\n由 ChargingController.startCharge(@Valid @RequestBody req) 接收
+note right MC : MockChargerClient.callStartApi()\n模拟用户 JWT Token\nJSON 请求体\n请求体 DTO: {chargerId, stationId}\n由 ChargingController.startCharge(@Valid @RequestBody req) 接收\n必须使用 HTTPS 加密传输，防止凭证泄露
 
 group 授权检查 [Spring Security Filter Chain]
   Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role, scope)

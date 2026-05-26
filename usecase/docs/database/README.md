@@ -50,6 +50,16 @@
 | 4 | 创建充电记录 | `INSERT INTO charge_records (id, user_id, charger_id, start_time, status) VALUES (?, ?, ?, now(), 'processing')` |
 | 5 | 记录审计日志 | `INSERT INTO audit_logs ... action='start_charge'` |
 
+## 用例：用户认证
+
+| 步骤 | 操作 | SQL / 说明 |
+|------|------|------------|
+| 1 | 注册成功 | `INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, client_ip) VALUES (?, 'user', 'register', 'user', ?, ?)` |
+| 2 | 登录成功 | `INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'user', 'login_success', 'user', ?)` |
+| 3 | 登录失败 | `INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload) VALUES (?, 'user', 'login_failed', 'user', ?, ?::jsonb)` |
+| 4 | 密码重置请求 | `INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload, client_ip) VALUES (?, 'user', 'password_reset_request', 'user', ?, ?::jsonb, ?)` |
+| 5 | 密码重置确认 | `INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload, client_ip) VALUES (?, 'user', 'password_reset_confirm', 'user', ?, ?::jsonb, ?)` |
+
 ## 用例：结束充电并扣费
 
 | 步骤 | 操作 | SQL / 说明 |
@@ -61,15 +71,28 @@
 | 5 | 扣费失败处理 | 若余额不足则 `UPDATE charge_records SET deduction_status = 'arrears' WHERE id = ?`，充电桩状态恢复为 'idle'（释放桩避免被无限期占用） |
 | 6 | 记录审计日志 | `INSERT INTO audit_logs ... action='stop_charge_deducted' / 'charge_arrears'` |
 
+## 用例：强制结束充电
+
+| 步骤 | 操作 | SQL / 说明 |
+|------|------|------------|
+| 1 | 查询充电记录 | `SELECT cr.*, u.balance FROM charge_records cr JOIN users u ON cr.user_id = u.id WHERE cr.id = ?` |
+| 2 | 强制结束充电 | `UPDATE charge_records SET end_time = now(), energy_kwh = ?, fee = ?, status = 'completed' WHERE id = ?` |
+| 3 | 扣减用户余额 | `UPDATE users SET balance = balance - ?, updated_at = now() WHERE id = ? AND balance >= ?`（事务） |
+| 4 | 记录强制结束支付 | `INSERT INTO payments (id, user_id, charge_record_id, method, amount, status) VALUES (?, ?, ?, 'system', ?, 'success')` |
+| 5 | 更新充电桩状态 | `UPDATE chargers SET status = 'idle' WHERE id = ?` |
+| 6 | 扣费失败处理 | 若余额不足则 `UPDATE charge_records SET deduction_status = 'arrears' WHERE id = ?`，充电桩状态恢复为 'idle' |
+| 7 | 记录审计日志 | `INSERT INTO audit_logs ... action='force_stop'（含 payload: {"reason": "..."}）/ 'force_stop_arrears'` |
+
 ## 用例：故障报修与处理
 
 | 步骤 | 操作 | SQL / 说明 |
 |------|------|------------|
-| 1 | 提交报修 | `INSERT INTO repairs (id, charger_id, reporter_id, description, status) VALUES (?, ?, ?, ?, 'open')` |
+| 1 | 提交报修 | `INSERT INTO repairs (id, charger_id, reporter_id, description, status) VALUES (?, ?, ?, ?, 'open')` + `INSERT INTO audit_logs ... action='submit_repair'` |
 | 2 | 更新充电桩状态 | `UPDATE chargers SET status = 'fault' WHERE id = ?` |
-| 3 | 管理员分配处理人 | `UPDATE repairs SET handled_by = ?, status = 'in_progress' WHERE id = ?` |
-| 4 | 维修完成 | `UPDATE repairs SET status = 'closed', handled_at = now() WHERE id = ?` + `UPDATE chargers SET status = 'idle' WHERE id = ?` |
-| 5 | 记录审计日志 | `INSERT INTO audit_logs ... action='submit_repair' / 'resolve_repair'` |
+| 3 | 分配报修 | `UPDATE repairs SET handled_by = ?, status = 'in_progress' WHERE id = ?` + `INSERT INTO audit_logs ... action='assign_repair'` |
+| 4 | 维修完成 | `UPDATE repairs SET status = 'resolved' WHERE id = ? AND status = 'in_progress'` + `INSERT INTO audit_logs ... action='resolve_repair'` |
+| 5 | 审核关闭 | `UPDATE repairs SET status = 'closed', handled_at = now() WHERE id = ?` + `UPDATE chargers SET status = 'idle' WHERE id = ?`（同一事务）+ `INSERT INTO audit_logs ... action='close_repair'` |
+| 6 | 审核退回 | `UPDATE repairs SET reject_reason = ?, status = 'in_progress' WHERE id = ? AND status = 'resolved'` + `INSERT INTO audit_logs ... action='reject_repair'` |
 
 ## 用例：统计报表
 

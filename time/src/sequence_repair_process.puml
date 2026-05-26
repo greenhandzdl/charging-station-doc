@@ -77,6 +77,10 @@ RS -> RS: 校验: 当前 MAINTAINER 为 assigned handler\n(handledBy == currentU
 note right #F0E68C : MAINTAINER 只能处理自己被分配的报修\n非 assigned handler 返回 403 Forbidden\n管理员(ADMIN)可标记任意报修
 RS -> DB: UPDATE repairs SET status = 'resolved'\nWHERE id = ? AND status = 'in_progress'
 DB --> RS: 维修完成标记
+
+RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'maintainer', 'resolve_repair', 'repair', ?) -- PreparedStatement 参数绑定
+DB --> RS: 审计日志记录成功
+
 RS --> Ctrl: 已标记待审核
 Ctrl --> FE: HTTP 200 {status: 'resolved'}
 FE --> M: 显示"维修完成，待管理员审核"

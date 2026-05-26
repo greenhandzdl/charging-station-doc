@@ -24,6 +24,7 @@ CREATE TABLE users (
 
 CREATE UNIQUE INDEX idx_users_phone ON users(phone);
 CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_password_reset_token_hash ON users(password_reset_token_hash);
 COMMENT ON TABLE users IS '用户表，存储用户认证信息与账户余额';
 COMMENT ON COLUMN users.role IS '用户角色: user / maintainer / admin / super_admin';
 COMMENT ON COLUMN users.balance IS '余额，UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子操作';
@@ -40,8 +41,9 @@ CREATE TABLE stations (
     name VARCHAR(200) NOT NULL,
     location TEXT,
     charger_count INTEGER DEFAULT 0,
-    status VARCHAR(32),
-    created_at TIMESTAMPTZ DEFAULT now()
+    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ
 );
 
 COMMENT ON TABLE stations IS '充电站表';
@@ -53,8 +55,9 @@ CREATE TABLE chargers (
     station_id UUID NOT NULL REFERENCES stations(id),
     charger_code VARCHAR(64) NOT NULL,
     type VARCHAR(32),
-    status VARCHAR(32),
-    created_at TIMESTAMPTZ DEFAULT now()
+    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ
 );
 
 CREATE UNIQUE INDEX idx_chargers_charger_code ON chargers(charger_code);
@@ -72,7 +75,7 @@ CREATE TABLE charge_records (
     end_time TIMESTAMPTZ,
     energy_kwh NUMERIC(10,3),
     fee NUMERIC(12,2),
-    status VARCHAR(32),
+    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
     deduction_status VARCHAR(32) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -91,7 +94,7 @@ CREATE TABLE payments (
     charge_record_id UUID REFERENCES charge_records(id),
     method VARCHAR(32),
     amount NUMERIC(12,2) NOT NULL,
-    status VARCHAR(32),
+    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
     gateway_tx_id VARCHAR(255) UNIQUE,
     gateway_callback_payload JSONB,
     created_at TIMESTAMPTZ DEFAULT now()
@@ -110,7 +113,7 @@ CREATE TABLE repairs (
     charger_id UUID NOT NULL REFERENCES chargers(id),
     reporter_id UUID REFERENCES users(id),
     description TEXT,
-    status VARCHAR(32),
+    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
     handled_by UUID REFERENCES users(id),
     reject_reason TEXT,
     reported_at TIMESTAMPTZ DEFAULT now(),
