@@ -89,8 +89,8 @@ alt 审核通过
   FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/close
 
   group 授权检查 [@PreAuthorize]
-    Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
-    note right Security : 审核关闭报修仅限管理员\n不通过则返回 403 Forbidden
+    Ctrl -> Security: @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    note right Security : 审核关闭报修仅限管理员或最高管理者\n不通过则返回 403 Forbidden
   end
 
   group 事务 [atomic] 覆盖: 关闭报修单 + 恢复充电桩 + 审计日志
@@ -115,7 +115,7 @@ else 审核不通过
   FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/reject\n{reason: "维修不彻底，需重新处理"}
 
   group 授权检查 [@PreAuthorize]
-    Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
+    Ctrl -> Security: @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     note right Security : 审核退回仅限管理员\n不通过则返回 403 Forbidden
   end
 

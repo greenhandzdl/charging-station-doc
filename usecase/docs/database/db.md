@@ -23,6 +23,7 @@
 | failed_login_attempts | INTEGER | NOT NULL DEFAULT 0 | 连续登录失败次数，>= 5 触发验证码，>= 10 锁定账户 |
 | account_locked_until | TIMESTAMPTZ | NULLABLE | 账户锁定截止时间，锁定期间禁止登录。NULL 表示未锁定 |
 | password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌，与用户会话绑定，用于 /api/v1/auth/password-reset 端点 |
+| password_reset_token_hash | VARCHAR(64) | NULLABLE, INDEX | 令牌 SHA-256 哈希，索引列用于 O(1) 查找 |
 | reset_token_expires_at | TIMESTAMPTZ | NULLABLE | 密码重置令牌过期时间，有效期 15 分钟 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | | |
@@ -189,7 +190,7 @@
 
 1. **充电记录：** `charge_records.status = 'completed'`（充电过程已完成），`charge_records.deduction_status = 'arrears'`（扣费欠费）。`status` 仅表达充电过程状态，欠费通过 `deduction_status` 独立跟踪。
 2. **充电桩：** `chargers.status = 'idle'`（桩恢复正常可用状态），欠费不应对桩造成无限期占用。
-3. **用户冻结：** `users.frozen_until` 设置为一个合理的截止时间（如扣费失败时刻 + 7 天）。冻结期间用户无法启动新的充电流程。
+3. **用户冻结：** `users.frozen_until` 设置为一个合理的截止时间（如扣费失败时刻 + 30 天）。冻结期间用户无法启动新的充电流程。
 4. **解冻：** 用户通过充值还清欠费后，系统执行：
    - 更新 `charge_records.deduction_status = 'paid'`
    - 重置 `users.frozen_until = NULL`

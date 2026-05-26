@@ -23,6 +23,7 @@ SA --> GR
 SA --> VU
 SA --> EXP
 A  --> FCL
+SA --> FCL
 A  --> UCS
 SA --> UCS
 

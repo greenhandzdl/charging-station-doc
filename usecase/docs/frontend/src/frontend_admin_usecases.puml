@@ -24,6 +24,7 @@ usecase "查看支付记录" as VPR
 usecase "查看充电记录" as VCR
 usecase "充电记录快捷视图" as QV
 usecase "查看用户充电统计" as UCS
+usecase "故障充电桩列表" as FCL
 usecase "退回报修" as RR
 
 A --> HR
@@ -39,6 +40,8 @@ A --> VCR
 A --> VPR
 A --> UCS
 A --> RR
+A --> FCL
+SA --> FCL
 M --> HR
 M --> VR
 M --> QV

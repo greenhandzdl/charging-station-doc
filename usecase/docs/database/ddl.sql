@@ -16,6 +16,7 @@ CREATE TABLE users (
     failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
     account_locked_until TIMESTAMPTZ,
     password_reset_token VARCHAR(255),
+    password_reset_token_hash VARCHAR(64),
     reset_token_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ

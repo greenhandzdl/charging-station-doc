@@ -29,7 +29,7 @@
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
 | POST | `/api/v1/charges/start` | 启动充电 | 已认证用户 |
-| POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("(#record.userId == authentication.principal.id) or hasRole('ADMIN')")` — 仅充电记录所有者和管理员可操作 | 已认证用户/管理员/系统 |
+| POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在 Filter 链早期校验：普通用户仅能结束自己的充电记录，管理员可结束任意记录 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录（分页、过滤） | 已认证用户（仅自己的）/管理员（全部） |
 
@@ -50,6 +50,7 @@
 |------|------|------|------|
 | CRUD | `/api/v1/stations` | 充电站管理 | 管理员/最高管理者 |
 | CRUD | `/api/v1/chargers` | 充电桩管理。写操作需 `@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` | 管理员/最高管理者 |
+| GET | `/api/v1/analytics/fault-chargers` | 故障充电桩列表：返回当前 status='fault' 的充电桩 | 管理员/最高管理者 |
 
 ### 用户管理
 | 方法 | 路径 | 说明 | 权限 |

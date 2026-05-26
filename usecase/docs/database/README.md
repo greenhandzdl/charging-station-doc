@@ -59,7 +59,7 @@
 | 3 | 记录扣费支付 | `INSERT INTO payments (id, user_id, charge_record_id, method, amount, status) VALUES (?, ?, ?, 'system', ?, 'success')` |
 | 4 | 更新充电桩状态 | `UPDATE chargers SET status = 'idle' WHERE id = ?` |
 | 5 | 扣费失败处理 | 若余额不足则 `UPDATE charge_records SET deduction_status = 'arrears' WHERE id = ?`，充电桩状态恢复为 'idle'（释放桩避免被无限期占用） |
-| 6 | 记录审计日志 | `INSERT INTO audit_logs ... action='stop_charge' / 'charge_arrears'` |
+| 6 | 记录审计日志 | `INSERT INTO audit_logs ... action='stop_charge_deducted' / 'charge_arrears'` |
 
 ## 用例：故障报修与处理
 
