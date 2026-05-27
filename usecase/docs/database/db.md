@@ -70,6 +70,7 @@
 | status | VARCHAR(32) | | processing / completed，充电过程状态 |
 | deduction_status | VARCHAR(32) | NOT NULL DEFAULT 'pending' | pending / paid / arrears，扣费状态，独立于充电状态 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
+| updated_at | TIMESTAMPTZ | DEFAULT now() | 最后变更时间 |
 
 **对应模块：** 充电流程、账户与支付、统计与可视化
 
@@ -86,6 +87,7 @@
 | gateway_tx_id | VARCHAR(255) | UNIQUE | 支付网关交易流水号，用作幂等键防止重复回调 |
 | gateway_callback_payload | JSONB | NULLABLE | 支付网关回调原始数据 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
+| updated_at | TIMESTAMPTZ | DEFAULT now() | 最后变更时间 |
 
 **对应模块：** 账户与支付
 
@@ -102,6 +104,7 @@
 | reject_reason | TEXT | NULLABLE | 审核退回原因，管理员审核不通过时填写 |
 | reported_at | TIMESTAMPTZ | DEFAULT now() | |
 | handled_at | TIMESTAMPTZ | NULLABLE | |
+| updated_at | TIMESTAMPTZ | DEFAULT now() | 最后变更时间 |
 
 **对应模块：** 故障报修
 
@@ -111,7 +114,7 @@
 |------|------|------|------|
 | id | UUID | PK | |
 | actor_id | UUID | NULLABLE | 操作人 ID |
-| actor_type | VARCHAR(32) | | user / admin / system |
+| actor_type | VARCHAR(32) | | user / admin / maintainer / system |
 | action | VARCHAR(128) | | 操作类型 |
 | resource | VARCHAR(128) | | 操作资源 |
 | resource_id | UUID | NULLABLE | |

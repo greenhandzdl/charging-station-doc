@@ -29,7 +29,7 @@ group 注册频率限制 [双层限流]
     Ctrl -> Cache: INCR register:phone:{phone}\nTTL 86400 (24小时)
     Cache --> Ctrl: 该手机号注册次数
     alt 同一手机号注册次数 >= 1
-      Ctrl --> FE: HTTP 429 {error: "该手机号今日已注册"}
+      Ctrl --> FE: HTTP 429 {error: "注册过于频繁，请稍后再试"}
       FE --> U: 提示"该手机号已注册过"
     end
   end

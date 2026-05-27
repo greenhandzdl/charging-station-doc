@@ -53,7 +53,7 @@ Bill --> Service: fee = calculated amount
       Service -> DB: INSERT INTO payments (id, user_id, charge_record_id,\nmethod, amount, status)\nVALUES (?, ?, ?, 'system', ?, 'success')
       DB --> Service: 支付记录创建成功
 
-      Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'admin', 'force_stop', 'charge_record', ?, ?::jsonb)
+      Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload, client_ip)\nVALUES (?, 'admin', 'force_stop', 'charge_record', ?, ?::jsonb, ?)
       note right DB : 强制结束充电审计日志\npayload 中记录强制终止原因\n如: {\"reason\": \"设备异常发热\"}\n仅在余额充足分支记录（避免与 force_stop_arrears 重复）
       DB --> Service: 审计日志记录成功
     else 余额不足
@@ -65,7 +65,7 @@ Bill --> Service: fee = calculated amount
       note right DB : frozen_until 设置后该用户无法启动新充电\n充值后系统清除 frozen_until 解冻
       DB --> Service: 冻结设置成功
 
-      Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'admin', 'force_stop_arrears', 'charge_record', ?, ?::jsonb)\npayload: {"reason": 强制终止原因, "deductionStatus": "arrears"}
+      Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload, client_ip)\nVALUES (?, 'admin', 'force_stop_arrears', 'charge_record', ?, ?::jsonb, ?)\npayload: {"reason": 强制终止原因, "deductionStatus": "arrears"}
       note right DB : 强制结束充电欠费审计日志\n与正常扣费分支的 force_stop 日志区分
       DB --> Service: 审计日志记录成功
     end

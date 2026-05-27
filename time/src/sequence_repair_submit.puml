@@ -35,7 +35,7 @@ group 事务 [atomic] 覆盖: 创建报修单 + 更新充电桩状态 + 审计�
   DB --> RS: 报修单创建成功
 
   RS -> CS: updateStatus(chargerId, FAULT)
-  CS -> DB: UPDATE chargers SET status = 'fault'\nWHERE id = ? AND status != 'fault' -- 使用 PreparedStatement 参数绑定，乐观写条件
+  CS -> DB: UPDATE chargers SET status = 'fault'\nWHERE id = ? AND status IN ('idle', 'fault') -- 使用 PreparedStatement 参数绑定，排除 charging 状态的充电桩
   DB --> CS: 更新成功（若 affected_rows = 0 则桩已处于故障状态）
 
   RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'user', 'submit_repair', 'charger', ?)

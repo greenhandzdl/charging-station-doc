@@ -41,7 +41,7 @@ CREATE TABLE stations (
     name VARCHAR(200) NOT NULL,
     location TEXT,
     charger_count INTEGER DEFAULT 0,
-    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
+    status VARCHAR(32) CHECK (status IN ('normal', 'maintenance')),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ
 );
@@ -75,9 +75,10 @@ CREATE TABLE charge_records (
     end_time TIMESTAMPTZ,
     energy_kwh NUMERIC(10,3),
     fee NUMERIC(12,2),
-    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
+    status VARCHAR(32) CHECK (status IN ('processing', 'completed')),
     deduction_status VARCHAR(32) NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_charge_records_user_start ON charge_records(user_id, start_time);
@@ -94,10 +95,11 @@ CREATE TABLE payments (
     charge_record_id UUID REFERENCES charge_records(id),
     method VARCHAR(32),
     amount NUMERIC(12,2) NOT NULL,
-    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
+    status VARCHAR(32) CHECK (status IN ('pending', 'success', 'failed')),
     gateway_tx_id VARCHAR(255) UNIQUE,
     gateway_callback_payload JSONB,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_payments_user_id ON payments(user_id);
@@ -113,11 +115,12 @@ CREATE TABLE repairs (
     charger_id UUID NOT NULL REFERENCES chargers(id),
     reporter_id UUID REFERENCES users(id),
     description TEXT,
-    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
+    status VARCHAR(32) CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
     handled_by UUID REFERENCES users(id),
     reject_reason TEXT,
     reported_at TIMESTAMPTZ DEFAULT now(),
-    handled_at TIMESTAMPTZ
+    handled_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_repairs_status ON repairs(status);
@@ -140,7 +143,7 @@ CREATE TABLE audit_logs (
 
 CREATE INDEX idx_audit_logs_actor ON audit_logs(actor_id, created_at);
 COMMENT ON TABLE audit_logs IS '审计日志表，仅追加写入';
-COMMENT ON COLUMN audit_logs.actor_type IS '操作人类型: user / admin / system';
+COMMENT ON COLUMN audit_logs.actor_type IS '操作人类型: user / admin / maintainer / system';
 COMMENT ON COLUMN audit_logs.action IS '操作类型: start_charge / stop_charge / recharge / resolve_repair 等';
 COMMENT ON COLUMN audit_logs.client_ip IS '客户端 IP 地址，VARCHAR(45) 支持 IPv6';
 COMMENT ON COLUMN audit_logs.user_agent IS '客户端 User-Agent 原始字符串';
