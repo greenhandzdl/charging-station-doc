@@ -23,6 +23,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     - id: String
     - name: String
     - location: String
+    - chargerCount: int
     - status: String
   }
   note right of FStation : 充电站列表数据

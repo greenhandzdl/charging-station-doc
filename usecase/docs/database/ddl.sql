@@ -104,7 +104,7 @@ CREATE TABLE payments (
 
 CREATE INDEX idx_payments_user_id ON payments(user_id);
 COMMENT ON TABLE payments IS '支付记录表';
-COMMENT ON COLUMN payments.method IS '支付方式: wechat / alipay / card / system';
+COMMENT ON COLUMN payments.method IS '支付方式: wechat / alipay / card / system / auto_deduct';
 COMMENT ON COLUMN payments.status IS '支付状态: pending / success / failed';
 COMMENT ON COLUMN payments.charge_record_id IS '关联充电记录，仅扣费时有值';
 COMMENT ON COLUMN payments.gateway_tx_id IS '支付网关交易流水号，UNIQUE 约束用作幂等键';
@@ -124,6 +124,7 @@ CREATE TABLE repairs (
 );
 
 CREATE INDEX idx_repairs_status ON repairs(status);
+CREATE UNIQUE INDEX idx_repairs_charger_open ON repairs(charger_id) WHERE status = 'open';
 COMMENT ON TABLE repairs IS '故障报修单表';
 COMMENT ON COLUMN repairs.status IS '报修状态: open / in_progress / resolved / closed';
 

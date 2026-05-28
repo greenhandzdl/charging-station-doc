@@ -22,8 +22,10 @@
 | POST | `/api/v1/auth/register` | 用户注册（需验证码，防止机器人注册） | 公开 |
 | POST | `/api/v1/auth/login` | 用户登录，返回短期凭证。含暴力破解防护：IP 维度 5 分钟内失败 5 次触发验证码，10 次封禁 IP 30 分钟；账户维度连续失败 10 次锁定 30 分钟 | 公开 |
 | POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效） | 已认证 |
+| POST | `/api/v1/auth/logout` | 登出，使当前 access_token 和 refresh_token 失效 | 已认证 |
 | POST | `/api/v1/auth/password-reset` | 密码重置。需验证码 + 短信验证码双重校验，重置令牌绑定用户会话，令牌有效期 15 分钟。含 IP 级限流：同一 IP 5 分钟内最多发起 3 次重置请求 | 公开 |
-| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401） | 已认证 |
+| POST | `/api/v1/auth/password-reset/confirm` | 确认密码重置，携带令牌与新密码 | 公开 |
+| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401）。含用户级限流：同一用户 5 分钟内最多修改 3 次密码 | 已认证 |
 
 ### 充电流程
 | 方法 | 路径 | 说明 | 权限 |

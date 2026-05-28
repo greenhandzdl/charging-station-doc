@@ -9,6 +9,10 @@ partition "用户" {
   :提交报修单 [状态: open];
 }
 
+partition "系统" {
+  :将充电桩状态设为"故障";
+}
+
 partition "管理员" {
   :查看未处理报修;
   if (是否需要维修?) then (是)
@@ -21,7 +25,6 @@ partition "管理员" {
 }
 
 partition "系统" {
-  :将充电桩状态设为"故障";
   fork
     :通知维修人员;
   fork again

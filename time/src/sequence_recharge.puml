@@ -13,8 +13,8 @@ participant "Mock 支付网关" as Gateway
 database 数据库 as DB
 
 U -> FE: 选择充值金额，选择支付方式\n点击"充值"
-FE -> Ctrl: HTTP POST /api/v1/payments/recharge\n{amount: 100.00, method: "wechat"}
-note right FE : ApiService.recharge()\n请求头带 JWT Token\n必须使用 HTTPS 加密传输，防止凭证泄露
+FE -> Ctrl: HTTP POST /api/v1/payments/recharge\n{amount: 100.00, method: "wechat", idempotencyKey: "<UUID>"}
+note right FE : ApiService.recharge()\n请求头带 JWT Token\n必须使用 HTTPS 加密传输，防止凭证泄露\nidempotencyKey 由客户端生成 UUID，确保幂等
 
 group 授权检查 [Spring Security Filter Chain]
   Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)
@@ -23,10 +23,24 @@ group 授权检查 [Spring Security Filter Chain]
   note right Security : 验证请求携带有效 JWT Token\n不通过则返回 401 Unauthorized
 end
 
-Ctrl -> PS: recharge(userId, amount, method)
+group 幂等性检查 [防止重复充值]
+  Ctrl -> PS: recharge(userId, amount, method, idempotencyKey)
 
-PS -> DB: INSERT INTO payments (id, user_id, charge_record_id, method,\namount, status)\nVALUES (?, ?, NULL, ?, ?, 'pending')\n-- 使用 PreparedStatement 参数绑定
-DB --> PS: 支付记录创建成功 (status: pending)
+  PS -> DB: SELECT id FROM payments WHERE gateway_tx_id = ? AND user_id = ?
+  note right DB : 通过 idempotencyKey 查询是否已存在相同充值请求\ngateway_tx_id 存储 idempotencyKey 作为幂等键
+  DB --> PS: 查询结果
+
+  alt idempotencyKey 已存在
+    PS --> Ctrl: 返回已有支付记录 {paymentId}
+    note right PS : 幂等处理：直接返回已有的支付记录\n不创建重复充值
+    Ctrl --> FE: HTTP 200 {paymentId, redirectUrl}
+    FE --> U: 显示"正在跳转支付..."
+    note right FE : 已有相同充值请求，直接返回\n后续流程继续到支付网关
+  else idempotencyKey 不存在
+    PS -> DB: INSERT INTO payments (id, user_id, charge_record_id, method,\namount, status, gateway_tx_id)\nVALUES (?, ?, NULL, ?, ?, 'pending', ?)\n-- 使用 PreparedStatement 参数绑定\n-- gateway_tx_id 存储 idempotencyKey，UNIQUE 约束防重
+    DB --> PS: 支付记录创建成功 (status: pending)
+  end
+end
 
 PS --> Ctrl: 支付单已创建 {paymentId}
 Ctrl --> FE: HTTP 200 {paymentId, redirectUrl}

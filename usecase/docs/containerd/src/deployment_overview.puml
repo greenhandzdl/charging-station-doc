@@ -48,7 +48,7 @@ UA --> FE
 FE -right-> NGX : HTTPS
 
 MC -right-> NGX : HTTPS
-note on link #f00: Mock充电机客户端\nNginx 路由规则:\n  location /api/v1/charges/ → 转发至后端 (允许)\n  location /api/v1/ (catch-all) → return 403 (拒绝)\nJWT scope = mock_charger_only 做二次校验\n双层安全隔离：网络层 + 认证层
+note on link #f00: Mock充电机客户端\nNginx 路由规则:\n  location /api/v1/charges (prefix) → 转发至后端 (允许)\n  location /api/v1/ (catch-all) → return 403 (拒绝)\nJWT scope = mock_charger_only 做二次校验\n双层安全隔离：网络层 + 认证层
 
 NGX -right-> BE : 反向代理
 note on link #f00: 支付回调接口(/api/v1/payments/callback)仅限内网访问

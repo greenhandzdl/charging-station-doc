@@ -56,6 +56,7 @@ entity charge_records {
   status: VARCHAR(32)
   deduction_status: VARCHAR(32) (扣费状态)
   created_at: TIMESTAMPTZ
+  updated_at: TIMESTAMPTZ
 }
 
 entity payments {
@@ -69,6 +70,7 @@ entity payments {
   gateway_tx_id: VARCHAR(255) (UNIQUE 幂等键)
   gateway_callback_payload: JSONB
   created_at: TIMESTAMPTZ
+  updated_at: TIMESTAMPTZ
 }
 
 entity repairs {
@@ -82,6 +84,8 @@ entity repairs {
   reject_reason: TEXT
   reported_at: TIMESTAMPTZ
   handled_at: TIMESTAMPTZ
+  created_at: TIMESTAMPTZ
+  updated_at: TIMESTAMPTZ
 }
 
 entity audit_logs {
@@ -105,5 +109,5 @@ users ||--o{ payments
 charge_records ||--o| payments
 users ||--o{ repairs
 chargers ||--o{ repairs
-users ||--o{ audit_logs
+users ||..o{ audit_logs
 @enduml

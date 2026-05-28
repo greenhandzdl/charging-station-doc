@@ -40,6 +40,7 @@
 | charger_count | INTEGER | DEFAULT 0 | |
 | status | VARCHAR(32) | | normal / maintenance |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
+| updated_at | TIMESTAMPTZ | | |
 
 **对应模块：** 基础信息管理、统计与可视化
 
@@ -53,6 +54,7 @@
 | type | VARCHAR(32) | | fast / slow |
 | status | VARCHAR(32) | CHECK (status IN ('idle', 'charging', 'fault')) | idle / charging / fault |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
+| updated_at | TIMESTAMPTZ | | |
 
 **对应模块：** 基础信息管理、充电流程、故障报修、统计与可视化
 
@@ -70,7 +72,7 @@
 | status | VARCHAR(32) | | processing / completed，充电过程状态 |
 | deduction_status | VARCHAR(32) | NOT NULL DEFAULT 'pending' | pending / paid / arrears，扣费状态，独立于充电状态 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
-| updated_at | TIMESTAMPTZ | DEFAULT now() | 最后变更时间 |
+| updated_at | TIMESTAMPTZ | | 最后变更时间 |
 
 **对应模块：** 充电流程、账户与支付、统计与可视化
 
@@ -87,7 +89,7 @@
 | gateway_tx_id | VARCHAR(255) | UNIQUE | 支付网关交易流水号，用作幂等键防止重复回调 |
 | gateway_callback_payload | JSONB | NULLABLE | 支付网关回调原始数据 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
-| updated_at | TIMESTAMPTZ | DEFAULT now() | 最后变更时间 |
+| updated_at | TIMESTAMPTZ | | 最后变更时间 |
 
 **对应模块：** 账户与支付
 
@@ -104,7 +106,7 @@
 | reject_reason | TEXT | NULLABLE | 审核退回原因，管理员审核不通过时填写 |
 | reported_at | TIMESTAMPTZ | DEFAULT now() | |
 | handled_at | TIMESTAMPTZ | NULLABLE | |
-| updated_at | TIMESTAMPTZ | DEFAULT now() | 最后变更时间 |
+| updated_at | TIMESTAMPTZ | | 最后变更时间 |
 
 **对应模块：** 故障报修
 
@@ -166,6 +168,7 @@
 | idx_charge_records_user_start | charge_records | (user_id, start_time) | BTREE | 复合索引，用户充电历史查询 |
 | idx_charge_records_charger_time | charge_records | (charger_id, start_time) | BTREE | 充电桩使用记录查询 |
 | idx_repairs_status | repairs | status | BTREE | 未处理报修单筛选 |
+| idx_repairs_charger_open | repairs | charger_id | UNIQUE, PARTIAL WHERE status='open' | 同一充电桩不能有两条 open 状态的报修 |
 | idx_payments_user_id | payments | user_id | BTREE | 用户支付记录查询 |
 | idx_audit_logs_actor | audit_logs | (actor_id, created_at) | BTREE | 操作审计追溯 |
 | idx_charge_records_deduction | charge_records | deduction_status | BTREE | 欠费查询，配合扣费重试与欠费通知 |

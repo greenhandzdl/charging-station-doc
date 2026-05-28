@@ -23,5 +23,5 @@ MC --> MCS
 MC --> QC_CM
 note top of MC : Swing 桌面客户端\n模拟物理充电机前后端交互
 
-AUTO <.left. CB : <<include>>
+AUTO <.left. CB : <<extend>>
 @enduml
