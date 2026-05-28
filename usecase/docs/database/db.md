@@ -22,7 +22,7 @@
 | frozen_until | TIMESTAMPTZ | NULLABLE | 欠费冻结截止时间，欠费期间禁止启动充电。NULL 表示未冻结 |
 | failed_login_attempts | INTEGER | NOT NULL DEFAULT 0 | 连续登录失败次数，>= 5 触发验证码，>= 10 锁定账户 |
 | account_locked_until | TIMESTAMPTZ | NULLABLE | 账户锁定截止时间，锁定期间禁止登录。NULL 表示未锁定 |
-| password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌，与用户会话绑定，用于 /api/v1/auth/password-reset 端点 |
+| password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌的 bcrypt 哈希值。令牌查找使用 password_reset_token_hash (SHA-256) 索引列，验证使用 bcrypt 比对。 |
 | password_reset_token_hash | VARCHAR(64) | NULLABLE, INDEX | 令牌 SHA-256 哈希，索引列用于 O(1) 查找 |
 | reset_token_expires_at | TIMESTAMPTZ | NULLABLE | 密码重置令牌过期时间，有效期 15 分钟 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |

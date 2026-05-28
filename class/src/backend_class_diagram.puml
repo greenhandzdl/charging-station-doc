@@ -88,7 +88,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - createdAt: LocalDateTime
     - updatedAt: LocalDateTime
   }
-  note right of User : passwordResetToken 存储的是 bcrypt 哈希值\n不存储明文令牌，防止数据库泄露时被直接用于重置密码
+  note right of User : passwordResetToken 存储的是 bcrypt 哈希值\n不存储明文令牌，防止数据库泄露时被直接用于重置密码\npasswordResetTokenHash 存储的是 SHA-256 哈希值\n用于索引查询加速令牌查找
   note right of User : passwordHash 通过 @JsonIgnore 在序列化时过滤\n或在 Service 层返回 UserDTO（不含 passwordHash 字段）\n确保密码哈希值永不传输至客户端
   note right of User : 并发控制通过 WHERE balance >= ? 原子扣减实现，不使用 version 乐观锁
   note right of User : frozenUntil 非空时表示账户被冻结至该时间
@@ -260,6 +260,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @DeleteMapping("/users/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + deleteUser(@PathVariable id): ResponseEntity
+	    note right of UserController : deleteUser 用户删除属敏感操作\n必须记录 audit_logs（actor_id, resource_id, client_ip, action='user_delete'）
     @GetMapping("/users/balance")
     @PreAuthorize("isAuthenticated()")
     + getBalance(): ResponseEntity

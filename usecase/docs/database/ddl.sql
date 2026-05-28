@@ -10,7 +10,7 @@ CREATE TABLE users (
     phone VARCHAR(32) NOT NULL,
     plate_number VARCHAR(32),
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(32) NOT NULL DEFAULT 'user',
+    role VARCHAR(32) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'maintainer', 'admin', 'super_admin')),
     balance NUMERIC(12,2) DEFAULT 0.00,
     frozen_until TIMESTAMPTZ,
     failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE stations (
     name VARCHAR(200) NOT NULL,
     location TEXT,
     charger_count INTEGER DEFAULT 0,
-    status VARCHAR(32),
+    status VARCHAR(32) CHECK (status IN ('normal', 'maintenance')),
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -52,7 +52,7 @@ CREATE TABLE chargers (
     station_id UUID NOT NULL REFERENCES stations(id),
     charger_code VARCHAR(64) NOT NULL,
     type VARCHAR(32),
-    status VARCHAR(32),
+    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -71,7 +71,7 @@ CREATE TABLE charge_records (
     end_time TIMESTAMPTZ,
     energy_kwh NUMERIC(10,3),
     fee NUMERIC(12,2),
-    status VARCHAR(32),
+    status VARCHAR(32) CHECK (status IN ('processing', 'completed')),
     deduction_status VARCHAR(32) NOT NULL DEFAULT 'pending' CHECK (deduction_status IN ('pending', 'paid', 'arrears')),
     created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -90,7 +90,7 @@ CREATE TABLE payments (
     charge_record_id UUID REFERENCES charge_records(id),
     method VARCHAR(32),
     amount NUMERIC(12,2) NOT NULL,
-    status VARCHAR(32),
+    status VARCHAR(32) CHECK (status IN ('pending', 'success', 'failed')),
     gateway_tx_id VARCHAR(255) UNIQUE,
     gateway_callback_payload JSONB,
     created_at TIMESTAMPTZ DEFAULT now()
@@ -109,7 +109,7 @@ CREATE TABLE repairs (
     charger_id UUID NOT NULL REFERENCES chargers(id),
     reporter_id UUID REFERENCES users(id),
     description TEXT,
-    status VARCHAR(32),
+    status VARCHAR(32) CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
     handled_by UUID REFERENCES users(id),
     reject_reason TEXT,
     reported_at TIMESTAMPTZ DEFAULT now(),

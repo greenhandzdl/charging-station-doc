@@ -26,10 +26,7 @@ partition "管理员" {
 }
 
 partition "系统" {
-  fork
-    :通知维修人员;
-  fork again
-  endfork
+  :通知维修人员;
 }
 
 partition "维修人员" {

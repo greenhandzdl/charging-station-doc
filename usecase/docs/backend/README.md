@@ -19,7 +19,7 @@
 ### 认证与账户
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| POST | `/api/v1/auth/register` | 用户注册（需验证码，防止机器人注册） | 公开 |
+| POST | `/api/v1/auth/register` | 用户注册（需验证码，防止机器人注册）。含双层限流：同一 IP 每小时最多注册 3 次，同一手机号 24 小时内仅能注册 1 次（Redis INCR 计数器） | 公开 |
 | POST | `/api/v1/auth/login` | 用户登录，返回短期凭证。含暴力破解防护：IP 维度 5 分钟内失败 5 次触发验证码，10 次封禁 IP 30 分钟；账户维度连续失败 10 次锁定 30 分钟 | 公开 |
 | POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效） | 已认证 |
 | POST | `/api/v1/auth/logout` | 登出，使当前 access_token 和 refresh_token 失效 | 已认证 |
@@ -30,8 +30,8 @@
 ### 充电流程
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| POST | `/api/v1/charges/start` | 启动充电 | 已认证用户 |
-| POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在 Filter 链早期校验：普通用户仅能结束自己的充电记录，管理员可结束任意记录 | 已认证用户/管理员/系统 |
+| POST | `/api/v1/charges/start` | 启动充电。含用户级限流：同一用户每分钟最多发起 5 次启动充电请求 | 已认证用户 |
+| POST | `/api/v1/charges/stop` | 结束充电并结算。含用户级限流：同一用户每分钟最多发起 5 次结束充电请求。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在 Filter 链早期校验：普通用户仅能结束自己的充电记录，管理员可结束任意记录 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录（分页、过滤） | 已认证用户（仅自己的）/管理员（全部） |
 
@@ -42,7 +42,7 @@
 ### 充值支付
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| POST | `/api/v1/payments/recharge` | 创建充值请求 | 已认证用户 |
+| POST | `/api/v1/payments/recharge` | 创建充值请求。含用户级限流：同一用户每分钟最多发起 1 次充值请求（防止重复创建充值单） | 已认证用户 |
 | GET | `/api/v1/users/balance` | 查询当前用户余额 | 已认证用户 |
 | POST | `/api/v1/payments/callback` | 支付网关回调 | 支付网关 |
 | GET | `/api/v1/payments` | 查询支付记录 | 已认证用户（仅自己的） |
@@ -60,7 +60,7 @@
 | GET | `/api/v1/users` | 查看用户列表 | 管理员/最高管理者 |
 | PUT | `/api/v1/users/{id}/role` | 变更用户角色 | 最高管理者 |
 | PUT | `/api/v1/users/{id}` | 编辑用户信息 | 管理员/最高管理者 |
-| DELETE | `/api/v1/users/{id}` | 删除用户 | 管理员/最高管理者 |
+| DELETE | `/api/v1/users/{id}` | 删除用户。用户删除属敏感操作，必须记录 audit_logs（actor_id, resource_id, client_ip, action='user_delete' 等） | 管理员/最高管理者 |
 
 ### 故障报修
 | 方法 | 路径 | 说明 | 权限 |
@@ -82,6 +82,19 @@
 | GET | `/api/v1/analytics/export` | 导出 CSV | 管理员/最高管理者 |
 
 ## 关键安全措施
+
+### CORS 策略
+- 允许的前端 Origin：开发环境允许 `http://localhost:*`、`http://127.0.0.1:*`；生产环境绑定具体域名（如 `https://charging.example.com`）
+- 允许的 HTTP Methods：`GET, POST, PUT, DELETE, OPTIONS`
+- 允许的 Headers：`Authorization, Content-Type, X-Requested-With`
+- 凭证（Credentials）：允许携带 Cookie/Bearer Token
+- 预检请求（OPTIONS）缓存时间：3600 秒
+- 部署在 Nginx 后时，CORS header 建议在 Nginx 层配置，减少应用层处理开销
+
+### CSRF 防护
+- 本系统使用 JWT Bearer Token（存于内存，非 Cookie），传统 CSRF 攻击不适用
+- 对状态变更端点建议校验 `Content-Type: application/json`，拒绝非 JSON 请求
+- refresh_token 存储在 Redis 中，前端仅持有 access_token 和 refresh_token 字符串（内存变量），退出即失效
 
 - **认证：** JWT（无状态令牌），access_token 过期时间 15 分钟；refresh_token 存储在 Redis 中并设置 TTL（建议 7 天），用于无感续期。
   - 针对 Flutter 客户端，Token 存储在内存中（应用退出即失效），不持久化到本地存储。

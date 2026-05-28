@@ -47,7 +47,7 @@ alt 管理员直接关闭报修
 
   group 授权检查 [@PreAuthorize]
     Ctrl -> Security: @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
-    note right Security : 直接关闭报修仅限管理员\n不通过则返回 403 Forbidden
+    note right Security : 直接关闭报修仅限管理员或最高管理者\n不通过则返回 403 Forbidden
   end
 
   group 事务 [atomic] 覆盖: 关闭报修单 + 审计日志
@@ -69,8 +69,8 @@ else 管理员分配维修人员
   FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/assign\n{handledBy: maintainerId}
 
   group 授权检查 [@PreAuthorize]
-    Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
-    note right Security : 分配维修人员仅限管理员\n不通过则返回 403 Forbidden
+    Ctrl -> Security: @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    note right Security : 分配维修人员仅限管理员或最高管理者或最高管理者\n不通过则返回 403 Forbidden
   end
 
   Ctrl -> RS: assign(repairId, maintainerId)
@@ -112,8 +112,8 @@ else 管理员分配维修人员
     FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/close
 
     group 授权检查 [@PreAuthorize]
-      Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
-      note right Security : 审核关闭报修仅限管理员\n不通过则返回 403 Forbidden
+      Ctrl -> Security: @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+      note right Security : 审核关闭报修仅限管理员或最高管理者\n不通过则返回 403 Forbidden
     end
 
     group 事务 [atomic] 覆盖: 关闭报修单 + 恢复充电桩 + 审计日志
@@ -138,8 +138,8 @@ else 管理员分配维修人员
     FE -> Ctrl: HTTP PUT /api/v1/repairs/{id}/reject\n{reason: "维修不彻底，需重新处理"}
 
     group 授权检查 [@PreAuthorize]
-      Ctrl -> Security: @PreAuthorize("hasRole('ADMIN')")
-      note right Security : 审核退回仅限管理员\n不通过则返回 403 Forbidden
+      Ctrl -> Security: @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+      note right Security : 审核退回仅限管理员或最高管理者\n不通过则返回 403 Forbidden
     end
 
     Ctrl -> RS: reject(repairId, reason)

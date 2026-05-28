@@ -68,19 +68,19 @@
 | 2 | 扣减用户余额 | `UPDATE users SET balance = balance - ?, updated_at = now() WHERE id = ? AND balance >= ?`（事务） |
 | 3 | 记录扣费支付 | `INSERT INTO payments (id, user_id, charge_record_id, method, amount, status) VALUES (?, ?, ?, 'system', ?, 'success')` |
 | 4 | 更新充电桩状态 | `UPDATE chargers SET status = 'idle' WHERE id = ?` |
-| 5 | 扣费失败处理 | 若余额不足则 `UPDATE charge_records SET deduction_status = 'arrears' WHERE id = ?`，充电桩状态恢复为 'idle'（释放桩避免被无限期占用） |
-| 6 | 记录审计日志 | `INSERT INTO audit_logs ... action='stop_charge_deducted' / 'charge_arrears'` |
+| 5 | 扣费失败处理 | 若余额不足则 `UPDATE charge_records SET deduction_status = 'arrears' WHERE id = ?`，充电桩状态恢复为 'idle'（释放桩避免被无限期占用）。同时执行 `UPDATE users SET frozen_until = now() + INTERVAL '30 days' WHERE id = ?` 冻结用户账户 |
+| 6 | 记录审计日志 | `INSERT INTO audit_logs ... action='stop_charge_deducted' / 'charge_arrears'`（欠费时 audit_logs.action='charge_arrears'） |
 
 ## 用例：强制结束充电
 
 | 步骤 | 操作 | SQL / 说明 |
 |------|------|------------|
-| 1 | 查询充电记录 | `SELECT cr.*, u.balance FROM charge_records cr JOIN users u ON cr.user_id = u.id WHERE cr.id = ?` |
+| 1 | 查询充电记录（加行锁） | `SELECT cr.*, u.balance FROM charge_records cr JOIN users u ON cr.user_id = u.id WHERE cr.id = ? FOR UPDATE` |
 | 2 | 强制结束充电 | `UPDATE charge_records SET end_time = now(), energy_kwh = ?, fee = ?, status = 'completed' WHERE id = ?` |
 | 3 | 扣减用户余额 | `UPDATE users SET balance = balance - ?, updated_at = now() WHERE id = ? AND balance >= ?`（事务） |
 | 4 | 记录强制结束支付 | `INSERT INTO payments (id, user_id, charge_record_id, method, amount, status) VALUES (?, ?, ?, 'system', ?, 'success')` |
 | 5 | 更新充电桩状态 | `UPDATE chargers SET status = 'idle' WHERE id = ?` |
-| 6 | 扣费失败处理 | 若余额不足则 `UPDATE charge_records SET deduction_status = 'arrears' WHERE id = ?`，充电桩状态恢复为 'idle' |
+| 6 | 扣费失败处理 | 若余额不足则 `UPDATE charge_records SET deduction_status = 'arrears' WHERE id = ?`，充电桩状态恢复为 'idle'。同时执行 `UPDATE users SET frozen_until = now() + INTERVAL '30 days' WHERE id = ?` 冻结用户账户。向 `payments` 表插入欠费记录 `INSERT INTO payments (id, user_id, charge_record_id, method, amount, status) VALUES (?, ?, ?, 'system', ?, 'failed')` |
 | 7 | 记录审计日志 | `INSERT INTO audit_logs ... action='force_stop'（含 payload: {"reason": "..."}）/ 'force_stop_arrears'` |
 
 ## 用例：故障报修与处理
