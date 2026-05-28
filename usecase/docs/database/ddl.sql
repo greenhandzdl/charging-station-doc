@@ -16,7 +16,6 @@ CREATE TABLE users (
     failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
     account_locked_until TIMESTAMPTZ,
     password_reset_token VARCHAR(255),
-    password_reset_token_hash VARCHAR(64),
     reset_token_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ
@@ -24,7 +23,6 @@ CREATE TABLE users (
 
 CREATE UNIQUE INDEX idx_users_phone ON users(phone);
 CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_password_reset_token_hash ON users(password_reset_token_hash);
 COMMENT ON TABLE users IS '用户表，存储用户认证信息与账户余额';
 COMMENT ON COLUMN users.role IS '用户角色: user / maintainer / admin / super_admin';
 COMMENT ON COLUMN users.balance IS '余额，UPDATE 时使用 SET balance = balance - ? WHERE id = ? AND balance >= ? 原子操作';
@@ -41,9 +39,8 @@ CREATE TABLE stations (
     name VARCHAR(200) NOT NULL,
     location TEXT,
     charger_count INTEGER DEFAULT 0,
-    status VARCHAR(32) CHECK (status IN ('normal', 'maintenance')),
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ
+    status VARCHAR(32),
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
 COMMENT ON TABLE stations IS '充电站表';
@@ -55,9 +52,8 @@ CREATE TABLE chargers (
     station_id UUID NOT NULL REFERENCES stations(id),
     charger_code VARCHAR(64) NOT NULL,
     type VARCHAR(32),
-    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ
+    status VARCHAR(32),
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE UNIQUE INDEX idx_chargers_charger_code ON chargers(charger_code);
@@ -75,10 +71,9 @@ CREATE TABLE charge_records (
     end_time TIMESTAMPTZ,
     energy_kwh NUMERIC(10,3),
     fee NUMERIC(12,2),
-    status VARCHAR(32) CHECK (status IN ('processing', 'completed')),
-    deduction_status VARCHAR(32) NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ
+    status VARCHAR(32),
+    deduction_status VARCHAR(32) NOT NULL DEFAULT 'pending' CHECK (deduction_status IN ('pending', 'paid', 'arrears')),
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_charge_records_user_start ON charge_records(user_id, start_time);
@@ -95,16 +90,15 @@ CREATE TABLE payments (
     charge_record_id UUID REFERENCES charge_records(id),
     method VARCHAR(32),
     amount NUMERIC(12,2) NOT NULL,
-    status VARCHAR(32) CHECK (status IN ('pending', 'success', 'failed')),
+    status VARCHAR(32),
     gateway_tx_id VARCHAR(255) UNIQUE,
     gateway_callback_payload JSONB,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_payments_user_id ON payments(user_id);
 COMMENT ON TABLE payments IS '支付记录表';
-COMMENT ON COLUMN payments.method IS '支付方式: wechat / alipay / card / system / auto_deduct';
+COMMENT ON COLUMN payments.method IS '支付方式: wechat / alipay / card / system';
 COMMENT ON COLUMN payments.status IS '支付状态: pending / success / failed';
 COMMENT ON COLUMN payments.charge_record_id IS '关联充电记录，仅扣费时有值';
 COMMENT ON COLUMN payments.gateway_tx_id IS '支付网关交易流水号，UNIQUE 约束用作幂等键';
@@ -115,16 +109,14 @@ CREATE TABLE repairs (
     charger_id UUID NOT NULL REFERENCES chargers(id),
     reporter_id UUID REFERENCES users(id),
     description TEXT,
-    status VARCHAR(32) CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
+    status VARCHAR(32),
     handled_by UUID REFERENCES users(id),
     reject_reason TEXT,
     reported_at TIMESTAMPTZ DEFAULT now(),
-    handled_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ
+    handled_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_repairs_status ON repairs(status);
-CREATE UNIQUE INDEX idx_repairs_charger_open ON repairs(charger_id) WHERE status = 'open';
 COMMENT ON TABLE repairs IS '故障报修单表';
 COMMENT ON COLUMN repairs.status IS '报修状态: open / in_progress / resolved / closed';
 
@@ -144,7 +136,7 @@ CREATE TABLE audit_logs (
 
 CREATE INDEX idx_audit_logs_actor ON audit_logs(actor_id, created_at);
 COMMENT ON TABLE audit_logs IS '审计日志表，仅追加写入';
-COMMENT ON COLUMN audit_logs.actor_type IS '操作人类型: user / admin / maintainer / system';
+COMMENT ON COLUMN audit_logs.actor_type IS '操作人类型: user / admin / system';
 COMMENT ON COLUMN audit_logs.action IS '操作类型: start_charge / stop_charge / recharge / resolve_repair 等';
 COMMENT ON COLUMN audit_logs.client_ip IS '客户端 IP 地址，VARCHAR(45) 支持 IPv6';
 COMMENT ON COLUMN audit_logs.user_agent IS '客户端 User-Agent 原始字符串';

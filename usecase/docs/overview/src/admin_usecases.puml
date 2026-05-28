@@ -13,6 +13,7 @@ usecase "管理充电桩" as MC
 usecase "管理用户" as MU
 usecase "用户权限管理" as PM
 usecase "处理报修" as HR
+usecase "直接关闭报修" as DCR
 usecase "查看报修记录" as VR
 usecase "强制结束充电" as FSC
 usecase "生成统计报表" as GS
@@ -29,6 +30,7 @@ A --> MC
 A --> MU
 A --> PM
 A --> HR
+A --> DCR
 A --> VR
 A --> FSC
 A --> VPR

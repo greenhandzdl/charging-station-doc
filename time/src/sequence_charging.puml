@@ -16,6 +16,7 @@ database 数据库 as DB
 
 U -> FE: 选择充电桩，点击"启动充电"
 FE -> MC: API 调用: 通知充电机就绪\n{chargerId, stationId}
+note right FE : 查询充电桩列表和站点列表接口\n受 Nginx 层限流保护\nRedis INCR 计数器: 每用户每分钟最多 30 次\n防止频繁查询导致数据库压力
 
 group Mock充电机交互 [Swing UI]
   MC -> MC: 显示插枪提示界面\n等待用户模拟插枪操作

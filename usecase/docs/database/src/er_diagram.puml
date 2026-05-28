@@ -92,7 +92,7 @@ entity audit_logs {
   *id: UUID (PK)
   --
   actor_id: UUID
-  actor_type: VARCHAR(32)
+  actor_type: VARCHAR(32)  ' user/admin/maintainer/system'
   *action: VARCHAR(128)
   resource: VARCHAR(128)
   resource_id: UUID

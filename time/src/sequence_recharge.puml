@@ -52,7 +52,12 @@ Gateway --> PS: 同步返回 (接受成功)
 
 note right Gateway : Mock 支付网关始终返回 success\n回调签名已模拟\n签名载荷 = HmacSHA256(paymentId + amount + status + secret)\n字段按名称排序后拼接再哈希，减少歧义
 
-Gateway -> PS: HTTP POST 异步回调\n{paymentId, txId, status: 'success', signature}
+Gateway -> PS: HTTP POST 异步回调\n{paymentId, txId, status: 'success', signature}\nHeaders: {X-Payment-Gateway-Key: <共享密钥>}
+
+note right Gateway : 回调请求需携带 X-Payment-Gateway-Key 头\n共享密钥由系统配置，仅支付网关和后端知晓\n作为第一道防线防止伪造回调
+
+PS -> PS: 校验 X-Payment-Gateway-Key 头\n与配置的共享密钥比对
+note right PS : API 密钥认证先于 HMAC 签名校验\n双重验证确保回调来源可信\n密钥不匹配直接拒绝，返回 403
 
 PS -> PS: 校验回调签名 (HMAC-SHA256)
 
@@ -71,6 +76,34 @@ group 幂等性检查 [防止重复回调]
 
           PS -> DB: UPDATE users SET balance = balance + ?\nWHERE id = ? -- 使用 PreparedStatement 参数绑定
           DB --> PS: 余额更新成功
+
+          group 欠费自动补扣 [检查用户是否有未支付的充电欠费]
+            PS -> DB: SELECT cr.id, cr.fee, cr.deduction_status, u.balance\nFROM charge_records cr\nJOIN users u ON cr.user_id = u.id\nWHERE cr.user_id = ? AND cr.deduction_status = 'arrears'\nFOR UPDATE
+            note right DB : 使用 FOR UPDATE 锁定欠费记录行\n防止并发充值导致重复扣费
+            DB --> PS: 欠费记录列表
+
+            alt 存在欠费记录
+              loop 逐条处理欠费 [按时间顺序]
+                PS -> DB: UPDATE charge_records SET deduction_status = 'paid'\nWHERE id = ? AND deduction_status = 'arrears'
+                DB --> PS: 扣费状态更新
+
+                PS -> DB: UPDATE users SET balance = balance - ?\nWHERE id = ? AND balance >= ?
+                DB --> PS: 余额扣减
+
+                PS -> DB: UPDATE users SET frozen_until = NULL\nWHERE id = ? AND frozen_until IS NOT NULL
+                note right DB : 还清欠费后清除冻结时间\n用户恢复正常使用
+                DB --> PS: 冻结清除
+
+                PS -> DB: INSERT INTO payments (id, user_id, charge_record_id, method,\namount, status)\nVALUES (?, ?, ?, 'auto_deduct', ?, 'success')
+                DB --> PS: 补扣支付记录
+
+                PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'system', 'arrears_auto_deduct', 'charge_record', ?, ?::jsonb)
+                DB --> PS: 补扣审计日志
+              end
+            else 无欠费记录
+              note right PS : 无欠费记录，无需补扣
+            end
+          end
 
           PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'user', 'recharge', 'payment', ?)
           DB --> PS: 审计日志记录成功

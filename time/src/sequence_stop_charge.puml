@@ -43,13 +43,15 @@ Ctrl -> Service: 请求结束充电 (已通过授权)
 
 Service -> Pay: 校验并扣费 {userId, amount=22.50}
 
+note right Service #FFE4B5 : 整个结束充电流程必须用\n@Transactional(isolation = Isolation.REPEATABLE_READ) 包裹\n确保后续所有 SELECT ... FOR UPDATE 操作\n在同一数据库事务中执行
+
 group 事务 [atomic] 覆盖: 查询记录(FOR UPDATE) + 锁定用户余额 + 更新充电记录 + 扣减余额 + 插入支付记录 + 更新桩状态 + 插入审计日志
   Service -> DB: SELECT cr.*, c.status, u.balance\nFROM charge_records cr\nJOIN chargers c ON cr.charger_id = c.id\nJOIN users u ON cr.user_id = u.id\nWHERE cr.id = ? FOR UPDATE -- 使用 PreparedStatement 参数绑定，带行锁，确保事务内独占访问
   note right DB : FOR UPDATE 行锁锁定 charge_records + chargers + users 三表关联行\n锁释放由事务提交/回滚自动管理\nPostgreSQL MVCC 保证更新仅提交后可见
   DB --> Service: 充电记录、桩状态、用户余额
 
   Service -> DB: SELECT balance FROM users WHERE id = ? FOR UPDATE -- 显式锁定用户余额行，防止 TOCTOU 竞态
-  note right DB : 在 JOIN FOR UPDATE 基础上再次显式锁定用户行\n双重保证并发扣费场景下的原子性
+  note right DB : 在 JOIN FOR UPDATE 基础上再次显式锁定用户行\n双重保证并发扣费场景下的原子性\n\n如果任何 SELECT ... FOR UPDATE 失败\n（超时/死锁检测），整个事务必须回滚\n不允许部分提交导致数据不一致
   DB --> Service: 余额确认
 
   Service -> Bill: 计算充电量与费用

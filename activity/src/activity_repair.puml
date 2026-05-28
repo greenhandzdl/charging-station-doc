@@ -18,8 +18,9 @@ partition "管理员" {
   if (是否需要维修?) then (是)
     :分配维修人员 [状态: in_progress];
   else (否, 直接关闭)
-    :关闭报修 [状态: closed];
-    note right: 充电桩状态不变\n（桩未实际故障）
+    :选择直接关闭;
+    :关闭报修单 [状态: closed];
+    :记录审计日志;
     stop
   endif
 }
@@ -55,7 +56,8 @@ partition "系统" {
       note right: 退回返工时充电桩保持故障状态不变
     }
     :通知维修人员重新维修;
-    --> "接收任务" as return_to_repair
+    :接收任务;
+    note right: 系统自动跳转到维修流程\n通过 merge 节点汇合
   endif
 }
 

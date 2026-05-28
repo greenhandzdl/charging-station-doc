@@ -42,7 +42,7 @@ group 验证码校验 [防止机器人注册/批量注册]
   alt 验证码无效或已过期
     Ctrl --> FE: HTTP 400 {error: "验证码错误或已过期"}
     FE --> U: 提示"请重新输入验证码"
-    note right Ctrl : 结束流程，不继续执行
+    note right Ctrl : 结束流程，不继续执行\n校验失败不递增 register:ip 计数器\n防止恶意请求消耗限流额度
   else 验证码正确
     Ctrl -> Cache: DEL captcha:{captchaId} -- 一次性使用，防止重放
   end
