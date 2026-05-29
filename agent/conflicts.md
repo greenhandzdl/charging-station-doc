@@ -65,6 +65,30 @@
 
 ---
 
+### 2026-05-29: 第23轮评估 — overall/admin/frontend_admin 用例图缺少 DCR 连线、报修时序图缺审计日志
+
+**冲突描述：** 跨图一致性检查发现：
+1. usecase_overall.puml 完全没有"直接关闭报修"(DCR)用例及 A->DCR/SA->DCR 连线
+2. admin_usecases.puml 和 frontend_admin_usecases.puml 中 SA 缺少 DCR 连线
+3. sequence_repair_process.puml 中 assign（分配维修人员）和 resolve（维修完成）操作后缺少审计日志 INSERT
+4. 后端类图 closeRepair 注解为 `hasAnyRole('ADMIN', 'SUPER_ADMIN')`，repair.puml 也有 SA->直接关闭报修
+
+**涉及文件：**
+- usecase/docs/overview/src/usecase_overall.puml
+- usecase/docs/overview/src/admin_usecases.puml
+- usecase/docs/frontend/src/frontend_admin_usecases.puml
+- time/src/sequence_repair_process.puml
+
+**相关模块：** usecase/overview, usecase/frontend, time
+
+**用户决断：**
+- usecase_overall.puml 新增 DCR 用例及 A->DCR、SA->DCR 连线
+- admin_usecases.puml 和 frontend_admin_usecases.puml 补充 SA->DCR 连线
+- sequence_repair_process.puml assign 后追加 audit_logs INSERT (action=assign_repair)
+- sequence_repair_process.puml resolve 后追加 audit_logs INSERT (action=resolve_repair)
+
+---
+
 ### 2026-05-29: 第22轮评估 — StatisticsController 与 StatisticsService 方法名不一致、analytics.puml 权限偏差
 
 **冲突描述：** 跨图一致性检查发现：
