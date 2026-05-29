@@ -32,6 +32,7 @@
 | POST | `/api/v1/charges/start` | 启动充电 | 已认证用户 |
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在注解层进行授权校验：普通用户仅能结束自己的充电记录，管理员可结束任意充电记录。recordId 来自请求体，由 ChargeGuard 查询归属 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，禁止 HTML 标签。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
+| GET | `/api/v1/charges` | 查询充电记录列表。Service 层按当前用户 ID 过滤，普通用户仅能看到自己的充电记录，管理员可查看全部 | 已认证用户/管理员/最高管理者 |
 > **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机交互，通过 HTTP POST 调用 `/api/v1/charges/start` 和 `/api/v1/charges/stop` 执行充电启停，调用 `GET /api/v1/charges` 查询充电状态。Mock 客户端附带模拟电量生成逻辑（0.1kWh/秒），用于测试充电全流程。
 >
 > **Mock 客户端安全约束：** JWT Token scope 限定为 `mock_charger_only`，通过 API 网关/Nginx 路由规则仅允许访问 `/api/v1/charges/*` 端点，禁止访问管理（`/api/v1/stations`）、用户管理（`/api/v1/users`）、统计（`/api/v1/analytics`）等路径。使用隔离测试用户，不影响真实用户数据。所有访问必须经过 Controller 层 `@PreAuthorize` 校验，禁止直接操作数据访问层。

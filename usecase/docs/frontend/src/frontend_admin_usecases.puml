@@ -42,8 +42,11 @@ A --> RR
 A --> FCL
 SA --> FCL
 SA --> RR
+SA --> VR
 M --> HR
 M --> VR
+M --> VPR
+M --> VCR
 M --> QV
 M --> QC
 SA --> MM

@@ -130,7 +130,7 @@ CREATE TABLE audit_logs (
     id UUID PRIMARY KEY,
     actor_id UUID,
     actor_type VARCHAR(32),
-    action VARCHAR(128) NOT NULL CHECK (action IN ('start_charge', 'stop_charge', 'stop_charge_deducted', 'force_stop', 'force_stop_arrears', 'recharge', 'arrears_auto_deduct', 'deduct', 'submit_repair', 'assign_repair', 'resolve_repair', 'close_repair', 'close_repair_direct', 'reject_repair', 'register', 'login', 'login_success', 'login_failed', 'password_reset', 'password_reset_request', 'password_reset_confirm', 'change_password', 'change_role', 'update_user', 'delete_user', 'create_station', 'update_station', 'delete_station', 'create_charger', 'update_charger', 'delete_charger', 'export_csv', 'charge_arrears', 'callback_signature_failed')),
+    action VARCHAR(128) NOT NULL CHECK (action IN ('start_charge', 'stop_charge', 'stop_charge_deducted', 'force_stop', 'force_stop_arrears', 'recharge', 'arrears_auto_deduct', 'deduct', 'submit_repair', 'assign_repair', 'resolve_repair', 'close_repair', 'close_repair_direct', 'reject_repair', 'register', 'login', 'login_success', 'login_failed', 'password_reset', 'password_reset_request', 'password_reset_confirm', 'change_password', 'change_role', 'update_user', 'delete_user', 'create_station', 'update_station', 'delete_station', 'create_charger', 'update_charger', 'delete_charger', 'export_csv', 'charge_arrears', 'callback_signature_failed', 'token_replay_detected')),
     resource VARCHAR(128),
     resource_id UUID,
     payload JSONB,

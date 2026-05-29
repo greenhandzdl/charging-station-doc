@@ -207,6 +207,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PostMapping("/charges/{id}/force-stop")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     + forceStop(@PathVariable id): ResponseEntity
+    @GetMapping("/charges")
+    @PreAuthorize("isAuthenticated()")
+    + queryCharges(@RequestParam params): ResponseEntity
   }
 
   class PaymentController {
@@ -322,6 +325,7 @@ package "服务 (Service)" as SVC #F0E68C {
     + stopCharge()
     + calculateFee()
     + forceStop()
+    + queryCharges(params: Map): List
   }
 
   class ChargingServiceImpl implements ChargingService {
@@ -329,6 +333,7 @@ package "服务 (Service)" as SVC #F0E68C {
     + stopCharge()
     + calculateFee()
     + forceStop()
+    + queryCharges(params: Map): List
   }
   note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查
 
@@ -346,6 +351,7 @@ package "服务 (Service)" as SVC #F0E68C {
 
   interface RepairService {
     + submit()
+    + listRepairs(params: Map): List
     + assign()
     + resolve()
     + close()
@@ -354,6 +360,7 @@ package "服务 (Service)" as SVC #F0E68C {
 
   class RepairServiceImpl implements RepairService {
     + submit()
+    + listRepairs(params: Map): List
     + assign()
     + resolve()
     + close()

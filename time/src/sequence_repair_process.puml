@@ -32,7 +32,7 @@ group 授权检查 [Spring Security Filter Chain]
   end
 end
 
-Ctrl -> RS: listPending(currentUserId, currentRole)
+Ctrl -> RS: listRepairs(params)
 note right RS #FFE4B5 : Service 层根据角色动态拼接查询条件：\n如果当前角色不是 ADMIN/SUPER_ADMIN/MAINTAINER\n追加 AND reporter_id = :currentUserId\n防止普通用户查看他人的报修记录
 
 RS -> DB: SELECT r.*, c.charger_code, u.name as reporter_name\nFROM repairs r\nJOIN chargers c ON r.charger_id = c.id\nJOIN users u ON r.reporter_id = u.id\nWHERE r.status = 'open' ORDER BY r.reported_at DESC
