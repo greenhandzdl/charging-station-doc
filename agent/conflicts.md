@@ -65,6 +65,29 @@
 
 ---
 
+### 2026-05-29: 第24轮评估 — ChargerService 缺失 updateStatus、generateReport 权限偏差、前端缺失 FCL 及管理端报修方法
+
+**冲突描述：** 跨图一致性检查发现：
+1. (CRITICAL) ChargerService 接口在类图中缺少 updateStatus 方法（第23轮移除了该方法），但 sequence_repair_submit.puml 报修提交时序图调用了 CS.updateStatus(chargerId, FAULT)，时序图消息与类图接口不一致
+2. (MAJOR) StatisticsController.generateReport 的 @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')") 允许管理员访问，但整体用例图 usecase_overall.puml 和 analytics.puml 中管理员(A)没有"生成统计报表"（GS/GR）连线
+3. (MAJOR) 后端 StatisticsController 有 getFaultChargers() 端点且用例图中有"故障充电桩列表"(FCL)用例，但前端 ApiService 和 StatisticsProvider 均缺少对应方法
+4. (MINOR) 后端 RepairController 定义了 assignRepair/resolveRepair/closeRepair/rejectRepair 方法，前端管理用例图中有 HR/DCR 操作，但前端 ApiService 缺少这些方法
+
+**涉及文件：**
+- class/src/backend_class_diagram.puml（ChargerService + generateReport 权限）
+- class/src/frontend_class_diagram.puml（ApiService + StatisticsProvider 补充方法）
+- class/img/backend_class_diagram.svg、class/img/frontend_class_diagram.svg
+
+**相关模块：** class（类图）、time（时序图）、usecase/overview（用例图）
+
+**用户决断：**
+- ChargerService 接口及 ChargerServiceImpl 补充 updateStatus(chargerId, status) 方法
+- generateReport 权限从 hasAnyRole('ADMIN', 'SUPER_ADMIN') 降级为 hasRole('SUPER_ADMIN')，对齐用例图——普通充电统计报表（A有UCS）与收入统计报表（仅SA有GS）分层设计，GS已明确为汇总性收入报表
+- 前端 ApiService 补充 getFaultChargers()、assignRepair()、resolveRepair()、closeRepair()、rejectRepair() 方法
+- 前端 StatisticsProvider 补充 faultChargers 字段及 fetchFaultChargers() 方法
+
+---
+
 ### 2026-05-29: 第23轮评估 — overall/admin/frontend_admin 用例图缺少 DCR 连线、报修时序图缺审计日志
 
 **冲突描述：** 跨图一致性检查发现：
