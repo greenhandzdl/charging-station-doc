@@ -370,15 +370,29 @@ package "服务 (Service)" as SVC #F0E68C {
   interface UserService {
     + login()
     + register()
+    + refreshToken()
     + resetPassword()
+    + confirmPasswordReset()
     + changePassword()
+    + listUsers()
+    + updateUser()
+    + deleteUser()
+    + getBalance()
+    + changeRole()
   }
 
   class UserServiceImpl implements UserService {
     + login()
     + register()
+    + refreshToken()
     + resetPassword()
+    + confirmPasswordReset()
     + changePassword()
+    + listUsers()
+    + updateUser()
+    + deleteUser()
+    + getBalance()
+    + changeRole()
   }
 
   interface ChargerService {

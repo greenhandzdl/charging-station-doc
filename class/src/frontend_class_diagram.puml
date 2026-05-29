@@ -62,8 +62,12 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
 
   class "RepairModel" as FRepair {
     - id: String
+    - chargerId: String
+    - chargerCode: String
     - description: String
     - status: String
+    - reporterName: String
+    - reportedAt: String
   }
 
   class "LoginRequest" as LoginReq {
@@ -80,17 +84,18 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
 
   class "ApiService" as Api {
     + {static} login(phone, password): Future<LoginResponse>
-    + {static} register(name, phone, password): Future<void>
+    + {static} register(name, phone, password, plateNumber, captchaId, captchaCode): Future<void>
     + {static} refreshToken(refreshToken): Future<LoginResponse>
     + {static} getBalance(): Future<double>
     + {static} changePassword(oldPwd, newPwd): Future<void>
     + {static} resetPassword(phone, captcha): Future<void>
     + {static} confirmPasswordReset(token, smsCode, newPassword, captchaId, captchaCode): Future<void>
-    + {static} startCharge(userId, chargerId): Future<ChargeRecordModel>
+    + {static} startCharge(chargerId): Future<ChargeRecordModel>
+    note right of Api : userId 由服务端从 JWT Token 解析\n请求体: {chargerId}
     + {static} stopCharge(recordId): Future<ChargeRecordModel>
     + {static} forceStop(recordId, reason): Future<Map>
     note right of Api : forceStop 强制结束充电，需 ADMIN/SUPER_ADMIN 权限
-    + {static} recharge(userId, amount): Future<PaymentModel>
+    + {static} recharge(amount, method, idempotencyKey): Future<PaymentModel>
     + {static} submitRepair(chargerId, description): Future<RepairModel>
     + {static} getStations(): Future<List<StationModel>>
     + {static} getChargers(stationId): Future<List<ChargerModel>>

@@ -48,6 +48,7 @@ partition "系统" {
     :记录审计日志\naction=close_repair;
     stop
   else (否)
+    :填写退回原因;
     :退回返工;
     note right: 退回原因写入 reject_reason\n状态回退到 in_progress
     partition "系统" {

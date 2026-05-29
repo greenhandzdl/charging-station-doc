@@ -9,11 +9,9 @@ state "故障" as FAULT
 
 [*] --> IDLE : 系统初始化
 IDLE --> CHARGING : 用户启动充电
-CHARGING --> IDLE : 结束充电/扣费完成
+CHARGING --> IDLE : 正常结束充电（扣费成功或标记欠费，释放桩）
 CHARGING --> IDLE : 管理员强制结束充电
-CHARGING --> FAULT : 设备异常/心跳超时
 CHARGING --> FAULT : 异常中断（系统检测）
-  CHARGING --> IDLE : 扣费失败（标记欠费，释放桩）
 IDLE --> FAULT : 提交故障报修
 FAULT --> IDLE : 报修审核通过（close）
 

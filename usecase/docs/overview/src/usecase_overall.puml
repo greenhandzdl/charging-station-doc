@@ -68,7 +68,6 @@ A --> HR
 A --> VR
 A --> FSC
 A --> EC
-A --> EC
 A --> QV
 A --> QC
 A --> FCL
@@ -84,6 +83,7 @@ SA --> QV
 SA --> QC
 SA --> FCL
 SA --> UCS
+SA --> VR
 SA --> RR
 
 MC --> SC
