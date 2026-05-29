@@ -105,7 +105,7 @@ group 幂等性检查 [防止重复回调]
             end
           end
 
-          PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'user', 'recharge', 'payment', ?)
+          PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, client_ip)\nVALUES (?, 'user', 'recharge', 'payment', ?, ?)
           DB --> PS: 审计日志记录成功
         else 签名验证失败
 	          PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload) VALUES (?, 'system', 'callback_signature_failed', 'payment', ?, ?::jsonb) -- 记录签名校验失败审计日志

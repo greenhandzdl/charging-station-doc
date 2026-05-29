@@ -85,7 +85,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} getBalance(): Future<double>
     + {static} changePassword(oldPwd, newPwd): Future<void>
     + {static} resetPassword(phone, captcha): Future<void>
-    + {static} confirmPasswordReset(token, newPwd): Future<void>
+    + {static} confirmPasswordReset(token, smsCode, newPassword, captchaId, captchaCode): Future<void>
     + {static} startCharge(userId, chargerId): Future<ChargeRecordModel>
     + {static} stopCharge(recordId): Future<ChargeRecordModel>
     + {static} forceStop(recordId, reason): Future<Map>

@@ -193,7 +193,7 @@
 
 1. **充电记录：** `charge_records.status = 'completed'`（充电过程已完成），`charge_records.deduction_status = 'arrears'`（扣费欠费）。`status` 仅表达充电过程状态，欠费通过 `deduction_status` 独立跟踪。
 2. **充电桩：** `chargers.status = 'idle'`（桩恢复正常可用状态），欠费不应对桩造成无限期占用。
-3. **用户冻结：** `users.frozen_until` 设置为一个合理的截止时间（如扣费失败时刻 + 7 天）。冻结期间用户无法启动新的充电流程。
+3. **用户冻结：** `users.frozen_until` 设置为一个合理的截止时间（如扣费失败时刻 + 30 天）。冻结期间用户无法启动新的充电流程。
 4. **解冻：** 用户通过充值还清欠费后，系统执行：
    - 更新 `charge_records.deduction_status = 'paid'`
    - 重置 `users.frozen_until = NULL`

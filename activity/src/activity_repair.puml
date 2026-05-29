@@ -11,6 +11,7 @@ partition "用户" {
 
 partition "系统" {
   :将充电桩状态设为"故障";
+  :记录审计日志\naction=submit_repair;
 }
 
 partition "管理员" {
@@ -20,7 +21,8 @@ partition "管理员" {
   else (否, 直接关闭)
     :选择直接关闭;
     :关闭报修单 [状态: closed];
-    :记录审计日志;
+    note right: 直接关闭：桩状态不变
+    :记录审计日志\naction=close_repair;
     stop
   endif
 }
@@ -43,13 +45,14 @@ partition "系统" {
   if (审核通过?) then (是)
     :更新报修单状态为"已关闭" [状态: closed];
     :将充电桩状态恢复为"空闲";
+    :记录审计日志\naction=close_repair;
     stop
   else (否)
     :退回返工;
     note right: 退回原因写入 reject_reason\n状态回退到 in_progress
     partition "系统" {
       :更新报修单状态回退到 in_progress;
-      :记录审计日志;
+      :记录审计日志\naction=reject_repair;
       note right: 退回返工时充电桩保持故障状态不变
     }
     :通知维修人员重新维修;

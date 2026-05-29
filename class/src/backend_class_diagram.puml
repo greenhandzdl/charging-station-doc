@@ -232,9 +232,14 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     + login(@Valid @RequestBody req): ResponseEntity
     note right of UserController : login 加 @Valid 校验请求体字段格式:\nphone 必填且格式合法\npassword 必填且长度 >= 6\n防止空值/无效参数直达 Service 层\n减少无效数据库查询
     @PostMapping("/auth/refresh")
+    @PreAuthorize("isAuthenticated()")
     + refreshToken(@RequestBody req): ResponseEntity
     @PostMapping("/auth/password-reset")
+    @PreAuthorize("permitAll()")
     + resetPassword(@RequestBody req): ResponseEntity
+    @PostMapping("/auth/password-reset/confirm")
+    @PreAuthorize("permitAll()")
+    + confirmPasswordReset(@RequestBody req): ResponseEntity
     @PutMapping("/auth/password")
     @PreAuthorize("isAuthenticated()")
     + changePassword(@RequestBody req): ResponseEntity
@@ -255,7 +260,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PutMapping("/users/{id}/role")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
-    note right of UserController : changeRole 仅限 ADMIN/SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\n\ndeleteUser 安全约束：\n- ADMIN 不可删除/修改其他 ADMIN 或 SUPER_ADMIN\n- SUPER_ADMIN 不可删除自身\nService 层在 updateUser/deleteUser 中校验\n违反约束返回 HTTP 403\n\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
+    note right of UserController : changeRole 仅限 ADMIN/SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\n审计日志 payload 格式: {"old_role": "user", "new_role": "maintainer"}\n\ndeleteUser 安全约束：\n- ADMIN 不可删除/修改其他 ADMIN 或 SUPER_ADMIN\n- SUPER_ADMIN 不可删除自身\nService 层在 updateUser/deleteUser 中校验\n违反约束返回 HTTP 403\n\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
   }
 
   class RepairController {
@@ -598,7 +603,7 @@ StatisticsServiceImpl ..> Charger
 
 ' ===== 设计模式 =====
 ChargingServiceImpl --> BillingService : 注入
-ChargingService --> PricingStrategy
+ChargingServiceImpl --> PricingStrategy : 委托计费策略
 BillingService --> PricingStrategy : 委托计费策略
 PaymentFactory ..> PaymentChannel : 创建
 
