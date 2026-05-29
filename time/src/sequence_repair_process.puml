@@ -76,6 +76,10 @@ else 管理员分配维修人员
   Ctrl -> RS: assign(repairId, maintainerId)
   RS -> DB: UPDATE repairs SET status = 'in_progress',\nhandled_by = ? WHERE id = ? AND status = 'open'
   DB --> RS: 分配成功
+
+  RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'admin', 'assign_repair', 'repair', ?)
+  DB --> RS: 审计日志记录成功
+
   RS --> Ctrl: 分配完成
   Ctrl --> FE: HTTP 200 {status: 'in_progress'}
   FE --> Admin: 显示"已分配待维修"
@@ -100,6 +104,10 @@ else 管理员分配维修人员
   note right #F0E68C : MAINTAINER 只能处理自己被分配的报修\n非 assigned handler 返回 403 Forbidden\n管理员(ADMIN)可标记任意报修
   RS -> DB: UPDATE repairs SET status = 'resolved'\nWHERE id = ? AND status = 'in_progress'
   DB --> RS: 维修完成标记
+
+  RS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'maintainer', 'resolve_repair', 'repair', ?)
+  DB --> RS: 审计日志记录成功
+
   RS --> Ctrl: 已标记待审核
   Ctrl --> FE: HTTP 200 {status: 'resolved'}
   FE --> M: 显示"维修完成，待管理员审核"

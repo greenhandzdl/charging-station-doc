@@ -33,6 +33,7 @@ usecase "查看报修记录" as VR
 usecase "查询充电状态" as QC_CM
 usecase "故障充电桩列表" as FCL
 usecase "查看用户充电统计" as UCS
+usecase "直接关闭报修" as DCR
 usecase "退回报修" as RR
 
 G --> UC
@@ -73,6 +74,7 @@ A --> QC
 A --> FCL
 A --> RR
 A --> UCS
+A --> DCR
 SA --> MM
 SA --> PM
 SA --> GS
@@ -85,6 +87,7 @@ SA --> FCL
 SA --> UCS
 SA --> VR
 SA --> RR
+SA --> DCR
 
 MC --> SC
 MC --> EC

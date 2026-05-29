@@ -63,4 +63,5 @@ SA --> QC
 SA --> QV
 SA --> VPR
 SA --> UCS
+SA --> DCR
 @enduml
