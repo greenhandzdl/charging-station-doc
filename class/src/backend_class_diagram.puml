@@ -69,6 +69,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - type: ChargerType
     - status: ChargerStatus
     - createdAt: LocalDateTime
+    - updatedAt: LocalDateTime
   }
 
   class User {
@@ -302,7 +303,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + getUtilizationStats(): ResponseEntity
     @GetMapping("/analytics/fault-chargers")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + getFaultChargers(): ResponseEntity
     @GetMapping("/analytics/export")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")

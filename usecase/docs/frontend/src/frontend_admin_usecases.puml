@@ -41,6 +41,7 @@ A --> UCS
 A --> RR
 A --> FCL
 SA --> FCL
+SA --> RR
 M --> HR
 M --> VR
 M --> QV
