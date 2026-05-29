@@ -28,7 +28,7 @@ usecase "处理报修" as HR
 usecase "充电记录快捷视图" as QV
 usecase "充电桩状态快捷查询" as QC
 usecase "模拟插枪/拔枪" as MOC
-usecase "查询充电状态" as QCS
+usecase "查询充电状态" as QC_CM
 
 G --> LOG
 U --> CS
@@ -57,6 +57,6 @@ A --> QC
 MC --> MOC
 MC --> CS
 note right of MC : Mock充电机使用测试用户余额校验
-MC --> QCS
+MC --> QC_CM
 note right of MOC : 模拟物理充电机操作\n插枪后调用启动充电 API\n拔枪后调用结束充电 API\n\n权限边界：\n- JWT scope = mock_charger_only\n- 仅限 /api/v1/charges/* 端点\n- 不参与充值/报修/管理\n- 使用隔离测试用户数据\n\nMock 客户端作用域 scope=mock_charger_only\n仅允许访问 /api/v1/charges/* 端点
 @enduml

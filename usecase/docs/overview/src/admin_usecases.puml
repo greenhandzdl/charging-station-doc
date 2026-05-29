@@ -17,6 +17,7 @@ usecase "处理报修" as HR
 usecase "直接关闭报修" as DCR
 usecase "查看报修记录" as VR
 usecase "强制结束充电" as FSC
+usecase "结束充电" as EC
 usecase "生成统计报表" as GS
 usecase "充电桩状态快捷查询" as QC
 usecase "充电记录快捷视图" as QV
@@ -34,6 +35,7 @@ A --> HR
 A --> DCR
 A --> VR
 A --> FSC
+A --> EC
 A --> VPR
 A --> QC
 A --> QV
