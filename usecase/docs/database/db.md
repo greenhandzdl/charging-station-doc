@@ -22,8 +22,8 @@
 | frozen_until | TIMESTAMPTZ | NULLABLE | 欠费冻结截止时间，欠费期间禁止启动充电。NULL 表示未冻结 |
 | failed_login_attempts | INTEGER | NOT NULL DEFAULT 0 | 连续登录失败次数，>= 5 触发验证码，>= 10 锁定账户 |
 | account_locked_until | TIMESTAMPTZ | NULLABLE | 账户锁定截止时间，锁定期间禁止登录。NULL 表示未锁定 |
-| password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌的 bcrypt 哈希值。令牌查找使用 password_reset_token_hash (SHA-256) 索引列，验证使用 bcrypt 比对。 |
-| password_reset_token_hash | VARCHAR(64) | NULLABLE, INDEX | 令牌 SHA-256 哈希，索引列用于 O(1) 查找 |
+| password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌，与用户会话绑定，用于 /api/v1/auth/password-reset 端点 |
+| password_reset_token_hash | VARCHAR(64) | NULLABLE | 密码重置令牌 SHA-256 哈希，用于 O(1) 查找，对应索引 idx_users_password_reset_token_hash |
 | reset_token_expires_at | TIMESTAMPTZ | NULLABLE | 密码重置令牌过期时间，有效期 15 分钟 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | | |
@@ -40,7 +40,6 @@
 | charger_count | INTEGER | DEFAULT 0 | |
 | status | VARCHAR(32) | | normal / maintenance |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
-| updated_at | TIMESTAMPTZ | | |
 
 **对应模块：** 基础信息管理、统计与可视化
 
@@ -54,7 +53,6 @@
 | type | VARCHAR(32) | | fast / slow |
 | status | VARCHAR(32) | CHECK (status IN ('idle', 'charging', 'fault')) | idle / charging / fault |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
-| updated_at | TIMESTAMPTZ | | |
 
 **对应模块：** 基础信息管理、充电流程、故障报修、统计与可视化
 
@@ -72,7 +70,6 @@
 | status | VARCHAR(32) | | processing / completed，充电过程状态 |
 | deduction_status | VARCHAR(32) | NOT NULL DEFAULT 'pending' | pending / paid / arrears，扣费状态，独立于充电状态 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
-| updated_at | TIMESTAMPTZ | | 最后变更时间 |
 
 **对应模块：** 充电流程、账户与支付、统计与可视化
 
@@ -89,7 +86,6 @@
 | gateway_tx_id | VARCHAR(255) | UNIQUE | 支付网关交易流水号，用作幂等键防止重复回调 |
 | gateway_callback_payload | JSONB | NULLABLE | 支付网关回调原始数据 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
-| updated_at | TIMESTAMPTZ | | 最后变更时间 |
 
 **对应模块：** 账户与支付
 
@@ -106,7 +102,6 @@
 | reject_reason | TEXT | NULLABLE | 审核退回原因，管理员审核不通过时填写 |
 | reported_at | TIMESTAMPTZ | DEFAULT now() | |
 | handled_at | TIMESTAMPTZ | NULLABLE | |
-| updated_at | TIMESTAMPTZ | | 最后变更时间 |
 
 **对应模块：** 故障报修
 
@@ -116,7 +111,7 @@
 |------|------|------|------|
 | id | UUID | PK | |
 | actor_id | UUID | NULLABLE | 操作人 ID |
-| actor_type | VARCHAR(32) | | user / admin / maintainer / system |
+| actor_type | VARCHAR(32) | | user / admin / system |
 | action | VARCHAR(128) | | 操作类型 |
 | resource | VARCHAR(128) | | 操作资源 |
 | resource_id | UUID | NULLABLE | |
@@ -168,10 +163,10 @@
 | idx_charge_records_user_start | charge_records | (user_id, start_time) | BTREE | 复合索引，用户充电历史查询 |
 | idx_charge_records_charger_time | charge_records | (charger_id, start_time) | BTREE | 充电桩使用记录查询 |
 | idx_repairs_status | repairs | status | BTREE | 未处理报修单筛选 |
-| idx_repairs_charger_open | repairs | charger_id | UNIQUE, PARTIAL WHERE status='open' | 同一充电桩不能有两条 open 状态的报修 |
 | idx_payments_user_id | payments | user_id | BTREE | 用户支付记录查询 |
 | idx_audit_logs_actor | audit_logs | (actor_id, created_at) | BTREE | 操作审计追溯 |
 | idx_charge_records_deduction | charge_records | deduction_status | BTREE | 欠费查询，配合扣费重试与欠费通知 |
+| idx_users_password_reset_token_hash | users | password_reset_token_hash | BTREE (partial) | 条件索引，仅非空时有效，密码重置令牌查找 |
 
 ## DDL 建表脚本
 
@@ -196,23 +191,11 @@
 
 1. **充电记录：** `charge_records.status = 'completed'`（充电过程已完成），`charge_records.deduction_status = 'arrears'`（扣费欠费）。`status` 仅表达充电过程状态，欠费通过 `deduction_status` 独立跟踪。
 2. **充电桩：** `chargers.status = 'idle'`（桩恢复正常可用状态），欠费不应对桩造成无限期占用。
-3. **用户冻结：** `users.frozen_until` 设置为一个合理的截止时间（如扣费失败时刻 + 30 天）。冻结期间用户无法启动新的充电流程。
+3. **用户冻结：** `users.frozen_until` 设置为一个合理的截止时间（如扣费失败时刻 + 7 天）。冻结期间用户无法启动新的充电流程。
 4. **解冻：** 用户通过充值还清欠费后，系统执行：
    - 更新 `charge_records.deduction_status = 'paid'`
    - 重置 `users.frozen_until = NULL`
    - 记录支付流水到 `payments` 表
-
-## 数据保留策略
-
-不同业务数据按以下策略进行保留与归档，满足业务查询需求和合规要求：
-
-| 表 | 保留期限 | 策略说明 |
-|----|----------|----------|
-| audit_logs | 1年 | 审计日志保留 1 年后归档至冷存储，超出保留期限的日志可删除。仅追加写入，禁止修改或删除 |
-| charge_records | 3年 | 充电记录保留 3 年，超出后转入历史归档表，支持通过归档查询接口检索 |
-| payments | 7年 | 支付流水保留 7 年（税务合规要求），超出保留期限后转入归档存储 |
-
-归档方式：使用 PostgreSQL 分区表按时间分区（如按月分区），超期数据通过 `DROP` 旧分区或 `pg_archive` 方式迁移。不允许物理删除单行记录，确保审计完整性。
 
 ## 交叉索引
 

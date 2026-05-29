@@ -56,4 +56,5 @@ SA --> UCS
 M --> HR
 M --> VR
 M --> VPR
+M --> VCR
 @enduml

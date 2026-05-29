@@ -28,6 +28,7 @@ package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
     - progressBar: JProgressBar
     - statusLabel: JLabel
     - energyLabel: JLabel
+    - qrCodeDisplay: JLabel
   }
   note right of ChargerUIPanel : Swing 组件面板\n模拟充电机显示屏\n显示当前状态/电量/费用
 
@@ -68,7 +69,6 @@ package "实体 (Entity)" as ENT #F0E68C {
     - type: ChargerType
     - status: ChargerStatus
     - createdAt: LocalDateTime
-    - updatedAt: LocalDateTime
   }
 
   class User {
@@ -88,7 +88,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - createdAt: LocalDateTime
     - updatedAt: LocalDateTime
   }
-  note right of User : passwordResetToken 存储的是 bcrypt 哈希值\n不存储明文令牌，防止数据库泄露时被直接用于重置密码\npasswordResetTokenHash 存储的是 SHA-256 哈希值\n用于索引查询加速令牌查找
+  note right of User : passwordResetToken 存储的是 bcrypt 哈希值\n不存储明文令牌，防止数据库泄露时被直接用于重置密码\npasswordResetTokenHash 为 SHA-256 哈希，用作 O(1) 查找索引
   note right of User : passwordHash 通过 @JsonIgnore 在序列化时过滤\n或在 Service 层返回 UserDTO（不含 passwordHash 字段）\n确保密码哈希值永不传输至客户端
   note right of User : 并发控制通过 WHERE balance >= ? 原子扣减实现，不使用 version 乐观锁
   note right of User : frozenUntil 非空时表示账户被冻结至该时间
@@ -111,7 +111,7 @@ package "实体 (Entity)" as ENT #F0E68C {
     - id: UUID
     - userId: UUID
     - chargeRecordId: UUID
-    - method: String  ' wechat/alipay/card（用户充值）/ auto_deduct（自动扣费）/ system（强制结束系统扣费）
+    - method: String  ' wechat / alipay / card / system / auto_deduct
     - amount: BigDecimal
     - status: PaymentStatus
     - gatewayTxId: String
@@ -157,9 +157,9 @@ package "枚举 (Enum)" as ENUM #F0E68C {
   }
 
   enum ChargerStatus {
-    IDLE    ' 数据库存储小写值 'idle'
-    CHARGING  ' 数据库存储小写值 'charging'
-    FAULT   ' 数据库存储小写值 'fault'
+    IDLE
+    CHARGING
+    FAULT
   }
 
   enum UserRole {
@@ -170,35 +170,32 @@ package "枚举 (Enum)" as ENUM #F0E68C {
   }
 
   enum RecordStatus {
-    PROCESSING  ' 数据库存储小写值 'processing'
-    COMPLETED   ' 数据库存储小写值 'completed'
+    PROCESSING
+    COMPLETED
   }
 
   enum DeductionStatus {
-    PENDING ' 数据库存储小写值 'pending'
-    PAID    ' 数据库存储小写值 'paid'
-    ARREARS ' 数据库存储小写值 'arrears'
+    PENDING
+    PAID
+    ARREARS
   }
 
   enum PaymentStatus {
-    PENDING ' 数据库存储小写值 'pending'
-    SUCCESS ' 数据库存储小写值 'success'
-    FAILED  ' 数据库存储小写值 'failed'
+    PENDING
+    SUCCESS
+    FAILED
   }
 
   enum RepairStatus {
-    OPEN         ' 数据库存储小写值 'open'
-    IN_PROGRESS  ' 数据库存储小写值 'in_progress'
-    RESOLVED     ' 数据库存储小写值 'resolved'
-    CLOSED       ' 数据库存储小写值 'closed'
+    OPEN
+    IN_PROGRESS
+    RESOLVED
+    CLOSED
   }
 }
 
 package "控制器 (Controller)" as CTRL #B0C4DE {
   class ChargingController {
-    @GetMapping("/charges")
-    @PreAuthorize("isAuthenticated()")
-    + listCharges(@RequestParam params): ResponseEntity
     @PostMapping("/charges/start")
     @PreAuthorize("isAuthenticated()")
     + startCharge(@Valid @RequestBody req): ResponseEntity
@@ -216,7 +213,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + recharge(@RequestBody req): ResponseEntity
     @PostMapping("/payments/callback")
-    @PreAuthorize("hasIpAddress('10.0.0.0/8') and !hasAuthority('SCOPE_mock_charger_only')")
+    @PreAuthorize("hasIpAddress('10.0.0.0/8')")  ' 需根据实际网络环境调整内网IP段
     + handleCallback(@RequestBody callback): ResponseEntity
     note right of PaymentController : handleCallback 由支付网关回调\nNginx 层: IP 白名单 + mTLS\nController 层: @PreAuthorize hasIpAddress 防御深度\nService 层: HMAC-SHA256 签名校验
     @GetMapping("/payments")
@@ -224,13 +221,6 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     + queryPayments(@RequestParam params): ResponseEntity
     note right of PaymentController : queryPayments 在 Service 层\n按当前用户 ID 过滤，非管理员\n仅能查看自己的支付记录
   }
-
-  class CaptchaController {
-    @GetMapping("/captcha")
-    @PreAuthorize("isAnonymous()")
-    + generateCaptcha(): ResponseEntity
-  }
-  note right of CaptchaController : 生成图形验证码\n验证码 ID 随机不可预测\n验证码存储在 Redis，TTL 5 分钟\n使用后立即删除防止重放
 
   class UserController {
     @PostMapping("/auth/register")
@@ -240,14 +230,8 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     note right of UserController : login 加 @Valid 校验请求体字段格式:\nphone 必填且格式合法\npassword 必填且长度 >= 6\n防止空值/无效参数直达 Service 层\n减少无效数据库查询
     @PostMapping("/auth/refresh")
     + refreshToken(@RequestBody req): ResponseEntity
-    @PostMapping("/auth/logout")
-    @PreAuthorize("isAuthenticated()")
-    + logout(@RequestBody req): ResponseEntity
     @PostMapping("/auth/password-reset")
     + resetPassword(@RequestBody req): ResponseEntity
-    @PostMapping("/auth/password-reset/confirm")
-    @PreAuthorize("isAnonymous()")
-    + confirmResetPassword(@RequestBody req): ResponseEntity
     @PutMapping("/auth/password")
     @PreAuthorize("isAuthenticated()")
     + changePassword(@RequestBody req): ResponseEntity
@@ -257,17 +241,18 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PutMapping("/users/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + updateUser(@PathVariable id, @RequestBody req): ResponseEntity
+    note right of UserController : updateUser 安全约束:\nADMIN 不可修改其他 ADMIN 或 SUPER_ADMIN\nSUPER_ADMIN 不可修改自身\nService 层校验后返回 403
     @DeleteMapping("/users/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + deleteUser(@PathVariable id): ResponseEntity
-	    note right of UserController : deleteUser 用户删除属敏感操作\n必须记录 audit_logs（actor_id, resource_id, client_ip, action='user_delete'）
+    note right of UserController : deleteUser 安全约束:\nADMIN 不可删除其他 ADMIN 或 SUPER_ADMIN\nSUPER_ADMIN 不可删除自身\nService 层校验后返回 403
     @GetMapping("/users/balance")
     @PreAuthorize("isAuthenticated()")
     + getBalance(): ResponseEntity
     @PutMapping("/users/{id}/role")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
-    note right of UserController : changeRole 仅限 SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
+    note right of UserController : changeRole 仅限 SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\n\ndeleteUser 安全约束：\n- ADMIN 不可删除/修改其他 ADMIN 或 SUPER_ADMIN\n- SUPER_ADMIN 不可删除自身\nService 层在 updateUser/deleteUser 中校验\n违反约束返回 HTTP 403\n\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
   }
 
   class RepairController {
@@ -285,10 +270,10 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("hasRole('MAINTAINER') or hasRole('ADMIN')")
     + resolveRepair(@PathVariable id): ResponseEntity
     @PutMapping("/repairs/{id}/close")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     + closeRepair(@PathVariable id): ResponseEntity
     @PutMapping("/repairs/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     + rejectRepair(@PathVariable id, @RequestBody req): ResponseEntity
   }
 
@@ -303,7 +288,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
 
   class StatisticsController {
     @GetMapping("/analytics/charges")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     + getChargeStats(): ResponseEntity
     @GetMapping("/analytics/user-charges")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
@@ -312,10 +297,10 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     + getRevenueStats(): ResponseEntity
     @GetMapping("/analytics/utilization")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     + getUtilizationStats(): ResponseEntity
     @GetMapping("/analytics/fault-chargers")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     + getFaultChargers(): ResponseEntity
     @GetMapping("/analytics/export")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
@@ -337,14 +322,13 @@ package "服务 (Service)" as SVC #F0E68C {
     + calculateFee()
     + forceStop()
   }
-  note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查\n\nstartCharge() 中校验:\n1. 检查 frozen_until 是否过期\n2. 检查余额 >= 10 元（活动图和用例图约束）\n通过后才允许启动充电
+  note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查
 
   interface PaymentService {
     + recharge()
     + processCallback()
     + autoDeduct()
   }
-  note right of PaymentService : autoDeduct() 自动扣费重试机制:\n- 定时任务触发（每日凌晨）\n- 最多重试 3 次，每次间隔 24h\n- 重试 3 次仍失败标记为永久欠费\n- 用户充值后触发主动补扣
 
   class PaymentServiceImpl implements PaymentService {
     + recharge()
@@ -373,8 +357,6 @@ package "服务 (Service)" as SVC #F0E68C {
     + register()
     + resetPassword()
     + changePassword()
-    + requestPasswordReset()
-    + confirmPasswordReset()
   }
 
   class UserServiceImpl implements UserService {
@@ -382,22 +364,18 @@ package "服务 (Service)" as SVC #F0E68C {
     + register()
     + resetPassword()
     + changePassword()
-    + requestPasswordReset()
-    + confirmPasswordReset()
   }
 
   interface ChargerService {
     + restoreCharger(chargerId: UUID): void
     + getChargerStatus(chargerId: UUID): ChargerStatus
-    + updateStatus(chargerId: UUID, status: ChargerStatus): void
   }
 
   class ChargerServiceImpl implements ChargerService {
     + restoreCharger(chargerId: UUID): void
     + getChargerStatus(chargerId: UUID): ChargerStatus
-    + updateStatus(chargerId: UUID, status: ChargerStatus): void
   }
-  note right of ChargerServiceImpl : 充电桩管理服务\n供 RepairService 在报修关闭时\n将充电桩从 fault 恢复为 idle\nupdateStatus() 供报修提交时\n将充电桩状态设为 fault
+  note right of ChargerServiceImpl : 充电桩管理服务\n供 RepairService 在报修关闭时\n将充电桩从 fault 恢复为 idle
 
   interface StatisticsService {
     + generateReport(): ReportVO

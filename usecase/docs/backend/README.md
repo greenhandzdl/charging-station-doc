@@ -19,19 +19,18 @@
 ### 认证与账户
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| POST | `/api/v1/auth/register` | 用户注册（需验证码，防止机器人注册）。含双层限流：同一 IP 每小时最多注册 3 次，同一手机号 24 小时内仅能注册 1 次（Redis INCR 计数器） | 公开 |
+| POST | `/api/v1/auth/register` | 用户注册（需验证码，防止机器人注册） | 公开 |
 | POST | `/api/v1/auth/login` | 用户登录，返回短期凭证。含暴力破解防护：IP 维度 5 分钟内失败 5 次触发验证码，10 次封禁 IP 30 分钟；账户维度连续失败 10 次锁定 30 分钟 | 公开 |
 | POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效） | 已认证 |
-| POST | `/api/v1/auth/logout` | 登出，使当前 access_token 和 refresh_token 失效 | 已认证 |
-| POST | `/api/v1/auth/password-reset` | 密码重置。需验证码 + 短信验证码双重校验，重置令牌绑定用户会话，令牌有效期 15 分钟。含 IP 级限流：同一 IP 5 分钟内最多发起 3 次重置请求 | 公开 |
-| POST | `/api/v1/auth/password-reset/confirm` | 确认密码重置，携带令牌与新密码 | 公开 |
-| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401）。含用户级限流：同一用户 5 分钟内最多修改 3 次密码 | 已认证 |
+| POST | `/api/v1/auth/password-reset` | 密码重置请求（第一步）。需图形验证码 + 短信验证码双重校验，重置令牌绑定用户会话，令牌有效期 15 分钟。含 IP 级限流：同一 IP 5 分钟内最多发起 3 次重置请求；手机维度限流：同一手机号每日最多 3 次 | 公开 |
+| POST | `/api/v1/auth/password-reset/confirm` | 密码重置确认（第二步）。提交短信验证码、重置令牌和新密码，校验通过后更新密码并清除旧会话 | 公开 |
+| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401）。新密码不得与最近 3 次历史密码相同（服务端存储最近 3 次密码哈希用于比对） | 已认证 |
 
 ### 充电流程
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| POST | `/api/v1/charges/start` | 启动充电。含用户级限流：同一用户每分钟最多发起 5 次启动充电请求 | 已认证用户 |
-| POST | `/api/v1/charges/stop` | 结束充电并结算。含用户级限流：同一用户每分钟最多发起 5 次结束充电请求。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在 Filter 链早期校验：普通用户仅能结束自己的充电记录，管理员可结束任意记录 | 已认证用户/管理员/系统 |
+| POST | `/api/v1/charges/start` | 启动充电 | 已认证用户 |
+| POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("(#record.userId == authentication.principal.id) or hasRole('ADMIN')")` — 仅充电记录所有者和管理员可操作 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录（分页、过滤） | 已认证用户（仅自己的）/管理员（全部） |
 
@@ -42,7 +41,7 @@
 ### 充值支付
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| POST | `/api/v1/payments/recharge` | 创建充值请求。含用户级限流：同一用户每分钟最多发起 1 次充值请求（防止重复创建充值单） | 已认证用户 |
+| POST | `/api/v1/payments/recharge` | 创建充值请求 | 已认证用户 |
 | GET | `/api/v1/users/balance` | 查询当前用户余额 | 已认证用户 |
 | POST | `/api/v1/payments/callback` | 支付网关回调 | 支付网关 |
 | GET | `/api/v1/payments` | 查询支付记录 | 已认证用户（仅自己的） |
@@ -52,21 +51,25 @@
 |------|------|------|------|
 | CRUD | `/api/v1/stations` | 充电站管理 | 管理员/最高管理者 |
 | CRUD | `/api/v1/chargers` | 充电桩管理。写操作需 `@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` | 管理员/最高管理者 |
-| GET | `/api/v1/analytics/fault-chargers` | 故障充电桩列表：返回当前 status='fault' 的充电桩 | 管理员/最高管理者 |
 
 ### 用户管理
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
 | GET | `/api/v1/users` | 查看用户列表 | 管理员/最高管理者 |
-| PUT | `/api/v1/users/{id}/role` | 变更用户角色 | 最高管理者 |
+| PUT | `/api/v1/users/{id}/role` | 变更用户角色 | 管理员/最高管理者 |
 | PUT | `/api/v1/users/{id}` | 编辑用户信息 | 管理员/最高管理者 |
-| DELETE | `/api/v1/users/{id}` | 删除用户。用户删除属敏感操作，必须记录 audit_logs（actor_id, resource_id, client_ip, action='user_delete' 等） | 管理员/最高管理者 |
+| DELETE | `/api/v1/users/{id}` | 删除用户 | 管理员/最高管理者 |
+
+**用户管理安全约束：**
+- ADMIN 不得删除或修改其他 ADMIN 用户（同级保护），也不得删除或修改 SUPER_ADMIN 用户（越级保护）
+- SUPER_ADMIN 不得删除自身（自我保护），但可以管理其他 ADMIN 和普通用户
+- Service 层在 updateUser/deleteUser 方法中校验当前操作者与目标用户的关系，违反约束返回 HTTP 403
 
 ### 故障报修
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
 | POST | `/api/v1/repairs` | 提交报修单 | 已认证用户/管理员 |
-| GET | `/api/v1/repairs` | 查看报修列表 | 已认证用户（仅自己的）/管理员/最高管理者（全部） |
+| GET | `/api/v1/repairs` | 查看报修列表 | 已认证用户（仅自己的）/管理员（全部） |
 | PUT | `/api/v1/repairs/{id}/assign` | 分配维修人员 | 管理员/最高管理者 |
 | PUT | `/api/v1/repairs/{id}/resolve` | 处理完成报修 | 维修人员/管理员 |
 | PUT | `/api/v1/repairs/{id}/close` | 管理员审核关闭报修单 | 管理员/最高管理者 |
@@ -79,22 +82,9 @@
 | GET | `/api/v1/analytics/revenue` | 收入统计报表（金额维度：总收入、日均收入等，仅含金额敏感数据） | 最高管理者 |
 | GET | `/api/v1/analytics/utilization` | 充电桩使用率：返回空闲/使用中/故障三种状态比例 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/user-charges` | 查看用户充电统计 | 管理员/最高管理者 |
-| GET | `/api/v1/analytics/export` | 导出 CSV | 管理员/最高管理者 |
+| GET | `/api/v1/analytics/export` | 导出 CSV。含 IP 级限流：同一 IP 每 10 分钟最多导出 3 次，超出返回 429 | 管理员/最高管理者 |
 
 ## 关键安全措施
-
-### CORS 策略
-- 允许的前端 Origin：开发环境允许 `http://localhost:*`、`http://127.0.0.1:*`；生产环境绑定具体域名（如 `https://charging.example.com`）
-- 允许的 HTTP Methods：`GET, POST, PUT, DELETE, OPTIONS`
-- 允许的 Headers：`Authorization, Content-Type, X-Requested-With`
-- 凭证（Credentials）：允许携带 Cookie/Bearer Token
-- 预检请求（OPTIONS）缓存时间：3600 秒
-- 部署在 Nginx 后时，CORS header 建议在 Nginx 层配置，减少应用层处理开销
-
-### CSRF 防护
-- 本系统使用 JWT Bearer Token（存于内存，非 Cookie），传统 CSRF 攻击不适用
-- 对状态变更端点建议校验 `Content-Type: application/json`，拒绝非 JSON 请求
-- refresh_token 存储在 Redis 中，前端仅持有 access_token 和 refresh_token 字符串（内存变量），退出即失效
 
 - **认证：** JWT（无状态令牌），access_token 过期时间 15 分钟；refresh_token 存储在 Redis 中并设置 TTL（建议 7 天），用于无感续期。
   - 针对 Flutter 客户端，Token 存储在内存中（应用退出即失效），不持久化到本地存储。
@@ -104,6 +94,7 @@
 - **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。关键接口使用 `@PreAuthorize` 注解进行细粒度授权（如结束充电检查记录所有者、强制结束仅 ADMIN 可用）。
 - **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。所有数据库操作用 PreparedStatement 参数绑定。
 - **支付安全：** 支付回调签名校验（HMAC-SHA256 / RSA），回调处理幂等，防止重放攻击。回调端点 `/api/v1/payments/callback` 必须验证请求来源：开发环境使用 IP 白名单（仅允许 Mock 支付网关地址）；生产环境建议使用 mTLS 双向认证或预共享网关 API Key。建议使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。HMAC 签名密钥通过环境变量配置，定期轮换（建议 90 天），密钥仅服务端持有，不暴露至客户端。
+> **密钥隔离：** 每个支付通道（微信、支付宝、银联等）使用独立 API Key，单通道密钥泄露不影响其他通道安全。密钥按通道存储在环境变量中，如 `WECHAT_API_KEY`、`ALIPAY_API_KEY`。
 - **审计日志：** 所有关键操作（权限变更、充值、扣费、充电启停、报修处理、强制结束充电）记录日志，包含操作人、时间、资源与操作类型。权限提升/降级操作必须额外记录变更前后的角色值及操作原因。
   - audit_logs.payload 字段（JSONB）存储操作详情，例如强制结束充电时记录终止原因：`{"reason": "设备异常发热"}`；权限变更时记录变更前后角色：`{"old_role": "user", "new_role": "maintainer", "reason": "维修能力考核通过"}`。
 - **防重放：** Token 设置唯一 jti，服务端维护已作废 Token 黑名单或设置极短有效期。
@@ -111,7 +102,7 @@
 - **防暴力破解：** 双重防护机制：
   - IP 维度：同一 IP 5 分钟内登录失败 5 次触发图形验证码，失败 10 次封禁该 IP 30 分钟。封禁状态记录在 Redis 中，设置 TTL 自动解封。
   - 账户维度：`users.failed_login_attempts` 记录连续失败次数，达到 10 次时设置 `account_locked_until = now() + 30min` 锁定账户。
-- **密码重置安全：** 密码重置端点 `/api/v1/auth/password-reset` 需同时满足验证码校验 + 短信验证码双重验证。重置令牌（`passwordResetToken`）绑定用户会话，有效期 15 分钟。服务端对同一 IP 实施限流：5 分钟内最多 3 次重置请求，超出返回 429。
+- **密码重置安全：** 密码重置分为两步：第一步 `POST /api/v1/auth/password-reset` 校验图形验证码后生成重置令牌并发送短信验证码；第二步 `POST /api/v1/auth/password-reset/confirm` 校验短信验证码 + 重置令牌后执行密码更新。重置令牌（`passwordResetToken`）绑定用户会话，有效期 15 分钟；短信验证码为 6 位数字，有效期 5 分钟。服务端对同一 IP 实施限流：5 分钟内最多 3 次重置请求，超出返回 429。同时增加手机维度限流：同一手机号每日最多 3 次重置请求，使用 Redis key `password_reset:phone:{phone}`（TTL 86400），与 IP 限流形成双层防御。
 - **验证码安全：** 注册和登录的验证码存储在 Redis，TTL 5 分钟，使用后立即删除防止重放。验证码 ID 由服务端 `/api/v1/captcha` 端点生成，随机不可预测。
 - **授权检查可视化：** 所有涉及资源归属的关键操作（结束充电、强制结束充电、报修处理）在时序图中明确标注 `@PreAuthorize` 授权检查步骤，展示 Spring Security Filter Chain 处理流程。
 

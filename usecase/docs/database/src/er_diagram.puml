@@ -15,8 +15,8 @@ entity users {
   frozen_until: TIMESTAMPTZ (欠费冻结截止时间)
   failed_login_attempts: INTEGER (连续失败次数，>=5触发验证码)
   account_locked_until: TIMESTAMPTZ (锁定截止时间)
-  password_reset_token: VARCHAR(255) (密码重置令牌的 bcrypt 加盐哈希)
-  password_reset_token_hash: VARCHAR(64) (令牌的 SHA-256 哈希，用于索引查询)
+  password_reset_token: VARCHAR(255) (密码重置令牌)
+  password_reset_token_hash: VARCHAR(64) (SHA-256 令牌哈希)
   reset_token_expires_at: TIMESTAMPTZ (令牌过期时间)
   created_at: TIMESTAMPTZ
   updated_at: TIMESTAMPTZ
@@ -30,7 +30,6 @@ entity stations {
   charger_count: INTEGER
   status: VARCHAR(32)
   created_at: TIMESTAMPTZ
-  updated_at: TIMESTAMPTZ
 }
 
 entity chargers {
@@ -41,7 +40,6 @@ entity chargers {
   type: VARCHAR(32)
   status: VARCHAR(32)
   created_at: TIMESTAMPTZ
-  updated_at: TIMESTAMPTZ
 }
 
 entity charge_records {
@@ -56,7 +54,6 @@ entity charge_records {
   status: VARCHAR(32)
   deduction_status: VARCHAR(32) (扣费状态)
   created_at: TIMESTAMPTZ
-  updated_at: TIMESTAMPTZ
 }
 
 entity payments {
@@ -64,13 +61,12 @@ entity payments {
   --
   *user_id: UUID (FK)
   charge_record_id: UUID (FK)
-  method: VARCHAR(32) (wechat/alipay/card/system/auto_deduct)
+  method: VARCHAR(32)
   *amount: NUMERIC(12,2)
   status: VARCHAR(32)
   gateway_tx_id: VARCHAR(255) (UNIQUE 幂等键)
   gateway_callback_payload: JSONB
   created_at: TIMESTAMPTZ
-  updated_at: TIMESTAMPTZ
 }
 
 entity repairs {
@@ -84,15 +80,13 @@ entity repairs {
   reject_reason: TEXT
   reported_at: TIMESTAMPTZ
   handled_at: TIMESTAMPTZ
-  created_at: TIMESTAMPTZ
-  updated_at: TIMESTAMPTZ
 }
 
 entity audit_logs {
   *id: UUID (PK)
   --
   actor_id: UUID
-  actor_type: VARCHAR(32)  ' user/admin/maintainer/system'
+  actor_type: VARCHAR(32)
   *action: VARCHAR(128)
   resource: VARCHAR(128)
   resource_id: UUID
@@ -109,5 +103,5 @@ users ||--o{ payments
 charge_records ||--o| payments
 users ||--o{ repairs
 chargers ||--o{ repairs
-users ||..o{ audit_logs
+users ||--o{ audit_logs
 @enduml
