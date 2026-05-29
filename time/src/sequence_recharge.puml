@@ -9,6 +9,7 @@ participant "Flutter 客户端" as FE
 participant "支付控制器" as Ctrl
 participant "安全过滤器链" as Security
 participant "支付服务" as PS
+participant "用户服务" as US
 participant "Mock 支付网关" as Gateway
 database 数据库 as DB
 
@@ -124,10 +125,11 @@ note right FE : 通过 WebSocket 推送或轮询获取最新余额\nWebSocket �
 
 U -> FE: 手动刷新余额或收到回调通知
 FE -> Ctrl: HTTP GET /api/v1/users/balance
-Ctrl -> PS: getBalance(userId)
-PS -> DB: SELECT balance FROM users WHERE id = ?
-DB --> PS: 当前余额
-PS --> Ctrl: balance: 100.00
+note right FE : 此路径实际由 UserController 处理\n（时序图中复用支付控制器为入口标识）\n由前端统一 ApiService 分发
+Ctrl -> US: getBalance(userId)
+US -> DB: SELECT balance FROM users WHERE id = ?
+DB --> US: 当前余额
+US --> Ctrl: balance: 100.00
 Ctrl --> FE: HTTP 200 {balance: 100.00}
 FE --> U: 显示"充值成功，当前余额 100.00 元"
 @enduml

@@ -22,7 +22,7 @@ partition "管理员" {
     :选择直接关闭;
     :关闭报修单 [状态: closed];
     note right: 直接关闭：桩状态不变
-    :记录审计日志\naction=close_repair;
+    :记录审计日志\naction=close_repair_direct;
     stop
   endif
 }
