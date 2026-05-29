@@ -97,6 +97,10 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     note right of Api : forceStop 强制结束充电，需 ADMIN/SUPER_ADMIN 权限
     + {static} recharge(amount, method, idempotencyKey): Future<PaymentModel>
     + {static} submitRepair(chargerId, description): Future<RepairModel>
+    + {static} assignRepair(repairId, maintainerId): Future<void>
+    + {static} resolveRepair(repairId): Future<void>
+    + {static} closeRepair(repairId): Future<void>
+    + {static} rejectRepair(repairId, reason): Future<void>
     + {static} getStations(): Future<List<StationModel>>
     + {static} getChargers(stationId): Future<List<ChargerModel>>
     + {static} getChargeRecords(): Future<List<ChargeRecordModel>>
@@ -105,6 +109,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} getUserChargeStats(): Future<List<Map>>
     + {static} getStationAnalysis(): Future<List<Map>>
     + {static} getChargerUtilization(): Future<Map>
+    + {static} getFaultChargers(): Future<List<Map>>
     + {static} changeRole(userId, newRole): Future<void>
     + {static} deleteUser(userId): Future<void>
     + {static} updateUser(userId, data): Future<void>
@@ -144,11 +149,13 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     - chargeStats: List<Map>
     - stationAnalysis: List<Map>
     - chargerUtilization: Map
+    - faultChargers: List<Map>
     + fetchUserChargeStats(): Future<void>
     + fetchStationAnalysis(): Future<void>
     + fetchChargerUtilization(): Future<void>
+    + fetchFaultChargers(): Future<void>
   }
-  note right of StatsP : 统计报表状态管理\n管理用户充电统计、运营分析、使用率
+  note right of StatsP : 统计报表状态管理\n管理用户充电统计、运营分析、使用率、故障桩列表
 }
 
 ' ===== 关联关系 =====

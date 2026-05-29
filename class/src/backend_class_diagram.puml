@@ -299,7 +299,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
 
   class StatisticsController {
     @GetMapping("/analytics/charges")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     + generateReport(): ResponseEntity
     @GetMapping("/analytics/user-charges")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
@@ -401,13 +401,15 @@ package "服务 (Service)" as SVC #F0E68C {
   interface ChargerService {
     + restoreCharger(chargerId: UUID): void
     + getChargerStatus(chargerId: UUID): ChargerStatus
+    + updateStatus(chargerId: UUID, status: ChargerStatus): void
   }
 
   class ChargerServiceImpl implements ChargerService {
     + restoreCharger(chargerId: UUID): void
     + getChargerStatus(chargerId: UUID): ChargerStatus
+    + updateStatus(chargerId: UUID, status: ChargerStatus): void
   }
-  note right of ChargerServiceImpl : 充电桩管理服务\n供 RepairService 在报修关闭时\n将充电桩从 fault 恢复为 idle
+  note right of ChargerServiceImpl : 充电桩管理服务\n供 RepairService 在报修关闭时\n将充电桩从 fault 恢复为 idle\nupdateStatus() 供报修提交时\n将充电桩状态设为 fault
 
   interface StatisticsService {
     + generateReport(): ReportVO
