@@ -51,7 +51,7 @@ alt 管理员直接关闭报修
   end
 
   group 事务 [atomic] 覆盖: 关闭报修单 + 审计日志
-    Ctrl -> RS: closeDirectly(repairId)
+    Ctrl -> RS: close(repairId)
     RS -> DB: UPDATE repairs SET status = 'closed',\nhandled_at = now() WHERE id = ? AND status = 'open'
     note right DB : 直接关闭时充电桩状态不变\n（桩未实际故障）
     DB --> RS: 报修关闭

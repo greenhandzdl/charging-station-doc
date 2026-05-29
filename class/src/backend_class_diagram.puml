@@ -592,6 +592,7 @@ ChargingServiceImpl --> ChargerMapper : 注入
 ChargingServiceImpl --> ChargeRecordMapper : 注入
 ChargingServiceImpl --> UserMapper : 注入
 ChargingServiceImpl --> AuditLogMapper : 注入
+ChargingServiceImpl --> PaymentService : 注入（autoDeduct）
 PaymentServiceImpl --> PaymentMapper : 注入
 PaymentServiceImpl --> ChargeRecordMapper : 注入
 PaymentServiceImpl --> UserMapper : 注入

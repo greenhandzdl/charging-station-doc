@@ -17,6 +17,7 @@ usecase "管理充电站/充电桩" as MM
 usecase "用户权限管理" as PM
 usecase "管理用户" as MU
 usecase "强制结束充电" as FSC
+usecase "结束充电" as EC
 usecase "生成统计报表" as GS
 usecase "充电桩状态快捷查询" as QC
 usecase "查看报修记录" as VR
@@ -35,6 +36,7 @@ A --> MM
 A --> PM
 A --> MU
 A --> FSC
+A --> EC
 A --> QC
 A --> QV
 A --> VCR

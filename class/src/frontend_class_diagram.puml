@@ -129,7 +129,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     - chargers: List<ChargerModel>
     - currentRecord: ChargeRecordModel?
     + fetchStations(): Future<void>
-    + startCharge(userId, chargerId): Future<void>
+    + startCharge(chargerId): Future<void>
     + stopCharge(recordId): Future<void>
   }
   note right of CP : 充电业务状态管理\n管理站点列表、桩列表、当前充电记录
