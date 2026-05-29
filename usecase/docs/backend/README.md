@@ -31,7 +31,7 @@
 |------|------|------|------|
 | POST | `/api/v1/charges/start` | 启动充电 | 已认证用户 |
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("(#record.userId == authentication.principal.id) or hasRole('ADMIN')")` — 仅充电记录所有者和管理员可操作 | 已认证用户/管理员/系统 |
-| POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
+| POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，禁止 HTML 标签。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录（分页、过滤） | 已认证用户（仅自己的）/管理员（全部） |
 
 > **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机交互，通过 HTTP POST 调用 `/api/v1/charges/start` 和 `/api/v1/charges/stop` 执行充电启停，调用 `GET /api/v1/charges` 查询充电状态。Mock 客户端附带模拟电量生成逻辑（0.1kWh/秒），用于测试充电全流程。
@@ -82,6 +82,7 @@
 | GET | `/api/v1/analytics/revenue` | 收入统计报表（金额维度：总收入、日均收入等，仅含金额敏感数据） | 最高管理者 |
 | GET | `/api/v1/analytics/utilization` | 充电桩使用率：返回空闲/使用中/故障三种状态比例 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/user-charges` | 查看用户充电统计 | 管理员/最高管理者 |
+| GET | `/api/v1/analytics/fault-chargers` | 故障充电桩列表：返回当前所有状态为 fault 的充电桩 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/export` | 导出 CSV。含 IP 级限流：同一 IP 每 10 分钟最多导出 3 次，超出返回 429 | 管理员/最高管理者 |
 
 ## 关键安全措施

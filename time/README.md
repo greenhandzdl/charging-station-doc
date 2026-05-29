@@ -58,12 +58,6 @@
 
 **流程：** 管理员选择强制结束 → 填写终止原因 → 角色权限校验 → 事务内释放桩 → 审计日志记录终止原因 → 强制结束通知推送至 Mock充电机客户端显示。
 
-### 密码重置
-
-![密码重置时序图](img/sequence_password_reset.svg)
-
-**流程：** 用户输入手机号 → 验证码校验 → Redis 限流检查 → 服务端校验手机号 → 生成重置令牌 → 短信发送 → 用户输入令牌和新密码 → 验证码二次校验 → bcrypt 密码散列 → 更新数据库 → 清除旧会话。
-
 ## 源文件
 
 - `src/sequence_charging.puml` — 启动充电时序图源文件
@@ -75,7 +69,6 @@
 - `src/sequence_repair_process.puml` — 报修处理时序图源文件
 - `src/sequence_recharge.puml` — 充值时序图源文件
 - `src/sequence_force_stop.puml` — 强制结束充电时序图源文件
-- `src/sequence_password_reset.puml` — 密码重置时序图源文件
 
 ## 相关文档
 

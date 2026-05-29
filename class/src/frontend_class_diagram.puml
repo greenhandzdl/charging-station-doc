@@ -81,10 +81,15 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
   class "ApiService" as Api {
     + {static} login(phone, password): Future<LoginResponse>
     + {static} register(name, phone, password): Future<void>
+    + {static} refreshToken(refreshToken): Future<LoginResponse>
+    + {static} getBalance(): Future<double>
+    + {static} changePassword(oldPwd, newPwd): Future<void>
+    + {static} resetPassword(phone, captcha): Future<void>
+    + {static} confirmPasswordReset(token, newPwd): Future<void>
     + {static} startCharge(userId, chargerId): Future<ChargeRecordModel>
     + {static} stopCharge(recordId): Future<ChargeRecordModel>
     + {static} forceStop(recordId, reason): Future<Map>
-	  note right of Api : forceStop 强制结束充电，需 ADMIN/SUPER_ADMIN 权限
+    note right of Api : forceStop 强制结束充电，需 ADMIN/SUPER_ADMIN 权限
     + {static} recharge(userId, amount): Future<PaymentModel>
     + {static} submitRepair(chargerId, description): Future<RepairModel>
     + {static} getStations(): Future<List<StationModel>>
@@ -95,6 +100,10 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} getUserChargeStats(): Future<List<Map>>
     + {static} getStationAnalysis(): Future<List<Map>>
     + {static} getChargerUtilization(): Future<Map>
+    + {static} changeRole(userId, newRole): Future<void>
+    + {static} deleteUser(userId): Future<void>
+    + {static} updateUser(userId, data): Future<void>
+    + {static} exportCsv(type, params): Future<void>
   }
   note right of Api : 基于 http 包封装 REST API 调用\n自动附加 JWT Token (Authorization: Bearer)\n统一错误处理与异常转换\n所有方法返回 Future，异步非阻塞\n生产环境必须启用 HTTPS，密码仅 HTTPS 加密传输
 

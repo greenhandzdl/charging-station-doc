@@ -22,7 +22,7 @@
 | frozen_until | TIMESTAMPTZ | NULLABLE | 欠费冻结截止时间，欠费期间禁止启动充电。NULL 表示未冻结 |
 | failed_login_attempts | INTEGER | NOT NULL DEFAULT 0 | 连续登录失败次数，>= 5 触发验证码，>= 10 锁定账户 |
 | account_locked_until | TIMESTAMPTZ | NULLABLE | 账户锁定截止时间，锁定期间禁止登录。NULL 表示未锁定 |
-| password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌，与用户会话绑定，用于 /api/v1/auth/password-reset 端点 |
+| password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌，与用户会话绑定，用于 /api/v1/auth/password-reset 端点。存储 bcrypt 哈希值，非明文令牌 |
 | password_reset_token_hash | VARCHAR(64) | NULLABLE | 密码重置令牌 SHA-256 哈希，用于 O(1) 查找，对应索引 idx_users_password_reset_token_hash |
 | reset_token_expires_at | TIMESTAMPTZ | NULLABLE | 密码重置令牌过期时间，有效期 15 分钟 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
@@ -40,6 +40,7 @@
 | charger_count | INTEGER | DEFAULT 0 | |
 | status | VARCHAR(32) | | normal / maintenance |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
+| updated_at | TIMESTAMPTZ | | |
 
 **对应模块：** 基础信息管理、统计与可视化
 
@@ -53,6 +54,7 @@
 | type | VARCHAR(32) | | fast / slow |
 | status | VARCHAR(32) | CHECK (status IN ('idle', 'charging', 'fault')) | idle / charging / fault |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
+| updated_at | TIMESTAMPTZ | | |
 
 **对应模块：** 基础信息管理、充电流程、故障报修、统计与可视化
 

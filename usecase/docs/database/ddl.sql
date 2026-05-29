@@ -41,9 +41,10 @@ CREATE TABLE stations (
     id UUID PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
     location TEXT,
-    charger_count INTEGER DEFAULT 0,
+    charger_count INTEGER DEFAULT 0 CHECK (charger_count >= 0),
     status VARCHAR(32) CHECK (status IN ('normal', 'maintenance')),
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ
 );
 
 COMMENT ON TABLE stations IS '充电站表';
@@ -56,7 +57,8 @@ CREATE TABLE chargers (
     charger_code VARCHAR(64) NOT NULL,
     type VARCHAR(32),
     status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ
 );
 
 CREATE UNIQUE INDEX idx_chargers_charger_code ON chargers(charger_code);
@@ -128,7 +130,7 @@ CREATE TABLE audit_logs (
     id UUID PRIMARY KEY,
     actor_id UUID,
     actor_type VARCHAR(32),
-    action VARCHAR(128) NOT NULL,
+    action VARCHAR(128) NOT NULL CHECK (action IN ('start_charge', 'stop_charge', 'force_stop', 'recharge', 'deduct', 'submit_repair', 'assign_repair', 'resolve_repair', 'close_repair', 'reject_repair', 'register', 'login', 'password_reset', 'change_password', 'change_role', 'update_user', 'delete_user', 'create_station', 'update_station', 'delete_station', 'create_charger', 'update_charger', 'delete_charger', 'export_csv')),
     resource VARCHAR(128),
     resource_id UUID,
     payload JSONB,

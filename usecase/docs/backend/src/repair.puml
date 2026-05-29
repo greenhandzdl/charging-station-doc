@@ -7,6 +7,7 @@ skinparam linetype ortho
 actor "用户" as U
 actor "维修人员" as M
 actor "管理员" as A
+actor "最高管理者" as SA
 
 (提交报修)
 (处理报修)
@@ -23,6 +24,9 @@ A --> 处理报修
 A --> 直接关闭报修
 A --> 查看报修记录
 A --> 退回报修
+SA --> 直接关闭报修
+SA --> 查看报修记录
+SA --> 退回报修
 
 处理报修 <.down. 查看报修记录 : <<include>>
 @enduml
