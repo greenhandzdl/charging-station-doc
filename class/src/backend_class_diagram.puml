@@ -83,11 +83,12 @@ package "实体 (Entity)" as ENT #F0E68C {
     - failedLoginAttempts: int
     - accountLockedUntil: LocalDateTime
     - passwordResetToken: String
+    - passwordResetTokenHash: String
     - resetTokenExpiresAt: LocalDateTime
     - createdAt: LocalDateTime
     - updatedAt: LocalDateTime
   }
-  note right of User : passwordResetToken 存储的是 bcrypt 哈希值\n不存储明文令牌，防止数据库泄露时被直接用于重置密码
+  note right of User : passwordResetToken 存储的是 bcrypt 哈希值\n不存储明文令牌，防止数据库泄露时被直接用于重置密码\npasswordResetTokenHash 为 SHA-256 哈希，用作 O(1) 查找索引
   note right of User : passwordHash 通过 @JsonIgnore 在序列化时过滤\n或在 Service 层返回 UserDTO（不含 passwordHash 字段）\n确保密码哈希值永不传输至客户端
   note right of User : 并发控制通过 WHERE balance >= ? 原子扣减实现，不使用 version 乐观锁
   note right of User : frozenUntil 非空时表示账户被冻结至该时间
@@ -240,16 +241,18 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PutMapping("/users/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + updateUser(@PathVariable id, @RequestBody req): ResponseEntity
+    note right of UserController : updateUser 安全约束:\nADMIN 不可修改其他 ADMIN 或 SUPER_ADMIN\nSUPER_ADMIN 不可修改自身\nService 层校验后返回 403
     @DeleteMapping("/users/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + deleteUser(@PathVariable id): ResponseEntity
+    note right of UserController : deleteUser 安全约束:\nADMIN 不可删除其他 ADMIN 或 SUPER_ADMIN\nSUPER_ADMIN 不可删除自身\nService 层校验后返回 403
     @GetMapping("/users/balance")
     @PreAuthorize("isAuthenticated()")
     + getBalance(): ResponseEntity
     @PutMapping("/users/{id}/role")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
-    note right of UserController : changeRole 仅限 SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
+    note right of UserController : changeRole 仅限 SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\n\ndeleteUser 安全约束：\n- ADMIN 不可删除/修改其他 ADMIN 或 SUPER_ADMIN\n- SUPER_ADMIN 不可删除自身\nService 层在 updateUser/deleteUser 中校验\n违反约束返回 HTTP 403\n\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
   }
 
   class RepairController {

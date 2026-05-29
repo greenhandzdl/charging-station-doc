@@ -16,6 +16,7 @@ entity users {
   failed_login_attempts: INTEGER (连续失败次数，>=5触发验证码)
   account_locked_until: TIMESTAMPTZ (锁定截止时间)
   password_reset_token: VARCHAR(255) (密码重置令牌)
+  password_reset_token_hash: VARCHAR(64) (SHA-256 令牌哈希)
   reset_token_expires_at: TIMESTAMPTZ (令牌过期时间)
   created_at: TIMESTAMPTZ
   updated_at: TIMESTAMPTZ

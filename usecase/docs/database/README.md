@@ -38,7 +38,7 @@
 | 3 | 支付网关回调 | 后端接收回调，验证签名 |
 | 4 | 更新用户余额 | `UPDATE users SET balance = balance + ?, updated_at = now() WHERE id = ?`（事务中） |
 | 5 | 更新支付记录状态 | `UPDATE payments SET status = 'success', gateway_callback_payload = ? WHERE id = ?`（同一事务） |
-| 6 | 记录审计日志 | `INSERT INTO audit_logs (id, actor_id, actor_type, action, resource, resource_id, payload) VALUES (?, ?, 'user', 'recharge', 'payment', ?, ?)` |
+| 6 | 记录审计日志 | `INSERT INTO audit_logs (id, actor_id, actor_type, action, resource, resource_id, payload, client_ip) VALUES (?, ?, 'user', 'recharge', 'payment', ?, ?, ?)` |
 
 ## 用例：启动充电
 

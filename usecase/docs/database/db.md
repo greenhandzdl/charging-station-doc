@@ -23,6 +23,7 @@
 | failed_login_attempts | INTEGER | NOT NULL DEFAULT 0 | 连续登录失败次数，>= 5 触发验证码，>= 10 锁定账户 |
 | account_locked_until | TIMESTAMPTZ | NULLABLE | 账户锁定截止时间，锁定期间禁止登录。NULL 表示未锁定 |
 | password_reset_token | VARCHAR(255) | NULLABLE | 密码重置令牌，与用户会话绑定，用于 /api/v1/auth/password-reset 端点 |
+| password_reset_token_hash | VARCHAR(64) | NULLABLE | 密码重置令牌 SHA-256 哈希，用于 O(1) 查找，对应索引 idx_users_password_reset_token_hash |
 | reset_token_expires_at | TIMESTAMPTZ | NULLABLE | 密码重置令牌过期时间，有效期 15 分钟 |
 | created_at | TIMESTAMPTZ | DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | | |
@@ -165,6 +166,7 @@
 | idx_payments_user_id | payments | user_id | BTREE | 用户支付记录查询 |
 | idx_audit_logs_actor | audit_logs | (actor_id, created_at) | BTREE | 操作审计追溯 |
 | idx_charge_records_deduction | charge_records | deduction_status | BTREE | 欠费查询，配合扣费重试与欠费通知 |
+| idx_users_password_reset_token_hash | users | password_reset_token_hash | BTREE (partial) | 条件索引，仅非空时有效，密码重置令牌查找 |
 
 ## DDL 建表脚本
 

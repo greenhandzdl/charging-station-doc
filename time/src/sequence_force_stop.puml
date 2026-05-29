@@ -38,6 +38,12 @@ DB --> Service: 充电记录、桩状态、桩类型
 alt 记录状态为 processing（充电中）
   group 事务 [atomic] 覆盖: 结束记录 + 扣减余额 + 插入支付记录 + 释放桩 + 审计日志
     Service -> Bill: 计算充电量与费用\ncalculateFee(chargerType, energyKwh)
+
+    group 计费策略选择 [按 chargerType 选择定价策略]
+      Bill -> Bill: chargerType = fast → StandardPricing\nchargerType = slow → StandardPricing\n高峰期 (8:00-22:00) → PeakPricing
+      note right Bill : StandardPricing: FAST 1.5 元/kWh，SLOW 0.8 元/kWh\nPeakPricing: 高峰期上浮 50%，低谷期下浮 30%\n策略由 BillingService 内部根据 chargerType 和当前时间选择
+    end
+
 Bill --> Service: fee = calculated amount
 
     Service -> DB: SELECT balance FROM users WHERE id = ? FOR UPDATE -- 锁定用户行

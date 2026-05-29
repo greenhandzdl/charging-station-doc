@@ -46,6 +46,12 @@
 
 **流程：** 用户选择金额 → 后端创建支付单 → Mock 支付网关回调 → 签名校验 → 更新余额与支付状态。
 
+### 密码重置
+
+![密码重置时序图](img/sequence_password_reset.svg)
+
+**流程：** 用户点击"忘记密码" → 输入手机号 → IP 和手机号双层限流 → 图形验证码校验 → 生成重置令牌 → 发送短信验证码 → 用户输入短信验证码和令牌 → 第二重短信验证码校验 → 令牌验证 → 新密码写入数据库 → 清除旧会话。
+
 ### 管理员强制结束充电
 
 ![强制结束充电时序图](img/sequence_force_stop.svg)
@@ -58,6 +64,7 @@
 - `src/sequence_stop_charge.puml` — 结束充电时序图源文件
 - `src/sequence_login.puml` — 登录时序图源文件
 - `src/sequence_register.puml` — 注册时序图源文件
+- `src/sequence_password_reset.puml` — 密码重置时序图源文件
 - `src/sequence_repair_submit.puml` — 报修提交时序图源文件
 - `src/sequence_repair_process.puml` — 报修处理时序图源文件
 - `src/sequence_recharge.puml` — 充值时序图源文件

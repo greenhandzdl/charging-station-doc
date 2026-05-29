@@ -36,7 +36,7 @@ FE --> U: 显示"正在跳转支付..."
 PS -> Gateway: HTTP POST 模拟支付请求\n{paymentId, amount, method, callbackUrl}
 Gateway --> PS: 同步返回 (接受成功)
 
-note right Gateway : Mock 支付网关始终返回 success\n回调签名已模拟\n签名载荷 = HmacSHA256(paymentId + amount + status + secret)\n字段按名称排序后拼接再哈希，减少歧义
+note right Gateway : Mock 支付网关始终返回 success\n回调签名已模拟\n签名载荷 = HmacSHA256(paymentId + amount + status + secret)\n字段按名称排序后拼接再哈希，减少歧义\n\n每个支付通道（微信/支付宝/银联）使用独立 API Key\n单通道密钥泄露不影响其他通道安全
 
 Gateway -> PS: HTTP POST 异步回调\n{paymentId, txId, status: 'success', signature}
 
