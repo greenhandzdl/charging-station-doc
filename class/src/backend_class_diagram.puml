@@ -206,7 +206,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     note right of ChargingController : stopCharge 使用 ChargeGuard bean 进行授权\n@chargeGuard.canStop() 在注解层校验:\n- 普通用户仅能结束自己的充电记录\n- 管理员可结束任意充电记录\n- recordId 来自请求体，由 ChargeGuard 查询归属\n相比旧 isAuthenticated() + Service 层校验模式\n此模式在 Filter 链早期拒绝未授权请求\n减少数据库无意义访问\n\nstartCharge: Service 层检查用户无 processing 状态的记录\n防止同一用户同时启动多笔充电
     @PostMapping("/charges/{id}/force-stop")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
-    + forceStop(@PathVariable id): ResponseEntity
+    + forceStop(@PathVariable id, @RequestBody req): ResponseEntity
     @GetMapping("/charges")
     @PreAuthorize("isAuthenticated()")
     + queryCharges(@RequestParam params): ResponseEntity
@@ -300,19 +300,22 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
   class StatisticsController {
     @GetMapping("/analytics/charges")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    + getChargeStats(): ResponseEntity
+    + generateReport(): ResponseEntity
     @GetMapping("/analytics/user-charges")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    + getUserChargeStats(): ResponseEntity
+    + getUserChargingStats(): ResponseEntity
     @GetMapping("/analytics/revenue")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     + getRevenueStats(): ResponseEntity
     @GetMapping("/analytics/utilization")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    + getUtilizationStats(): ResponseEntity
+    + getChargerUtilization(): ResponseEntity
     @GetMapping("/analytics/fault-chargers")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + getFaultChargers(): ResponseEntity
+    @GetMapping("/analytics/stations")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + getStationAnalysis(): ResponseEntity
     @GetMapping("/analytics/export")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + exportCsv(): ResponseEntity

@@ -88,7 +88,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} refreshToken(refreshToken): Future<LoginResponse>
     + {static} getBalance(): Future<double>
     + {static} changePassword(oldPwd, newPwd): Future<void>
-    + {static} resetPassword(phone, captcha): Future<void>
+    + {static} resetPassword(phone, captchaId, captchaCode): Future<void>
     + {static} confirmPasswordReset(token, smsCode, newPassword, captchaId, captchaCode): Future<void>
     + {static} startCharge(chargerId): Future<ChargeRecordModel>
     note right of Api : userId 由服务端从 JWT Token 解析\n请求体: {chargerId}

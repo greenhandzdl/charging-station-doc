@@ -16,7 +16,6 @@ usecase "用户充电统计" as UCS
 usecase "故障充电桩列表" as FCL
 
 S  --> GR
-A  --> GR
 A  --> VU
 A  --> EXP
 SA --> GR
