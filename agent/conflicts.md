@@ -63,6 +63,34 @@
 
 ---
 
+---
+
+### 2026-05-29: 第22轮评估 — StatisticsController 与 StatisticsService 方法名不一致、analytics.puml 权限偏差
+
+**冲突描述：** 跨图一致性检查发现：
+1. StatisticsController 方法名 `getChargeStats`/`getUserChargeStats`/`getUtilizationStats` 与 StatisticsService 接口的 `generateReport`/`getUserChargingStats`/`getChargerUtilization` 不一致
+2. StatisticsService 的 `getStationAnalysis()` 方法在 Controller 无对应端点
+3. analytics.puml 中管理员(A)连接"生成统计报表"(GR)，但 admin_usecases.puml/usecase_overall.puml/frontend_admin_usecases.puml 中管理员无此权限
+
+**涉及文件：**
+- class/src/backend_class_diagram.puml（Controller 方法名对齐 + 新增 getStationAnalysis 端点）
+- class/img/backend_class_diagram.svg
+- class/src/frontend_class_diagram.puml（resetPassword 参数名对齐）
+- class/img/frontend_class_diagram.svg
+- usecase/docs/overview/src/analytics.puml（移除 A->GR 连线）
+- usecase/docs/overview/img/analytics.svg
+
+**相关模块：** class、usecase/overview
+
+**用户决断：**
+- Controller 方法名对齐 Service 接口名（generateReport/getUserChargingStats/getChargerUtilization）
+- Controller 新增 getStationAnalysis() 端点映射 /analytics/stations
+- analytics.puml 移除 A->GR，与后端权限注解和其他用例图一致
+- ChargingController.forceStop 类图签名补充 @RequestBody req 参数
+- 前端 ApiService.resetPassword 参数名从 captcha 改为 captchaId, captchaCode
+
+---
+
 ### 2026-05-23: 架构与安全审计第二轮 — 类图权限注解、审计日志字段一致性、状态图恢复时机
 
 **冲突描述：** 架构师和安全员分别对所有 32 个 .puml 文件进行全面评估，发现 9 个架构问题和 20 个安全问题（含 2 CRITICAL + 6 MAJOR + 7 MINOR + 5 INFO），涉及跨图一致性、权限模型遗漏、字段格式不统一。
