@@ -299,7 +299,7 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
 
   class StatisticsController {
     @GetMapping("/analytics/charges")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + generateReport(): ResponseEntity
     @GetMapping("/analytics/user-charges")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
