@@ -58,3 +58,36 @@ Test Agent 顺序跑各 repo: 编译/测试 → 失败 → dev agent 修复 → 
 ### Phase 4 — 文档矛盾裁决
 
 任何时候发现 UML 文档不一致 → Architect 修 puml → 渲染 SVG → 提交 doc repo。
+
+---
+
+## 当前进度
+
+### ✅ 已完成（Phase 0-3 + 第13轮综合修复）
+
+**Phase 0**: compose (pg14 + .env + DDL + seed data)
+**Phase 1**: Backend(Spring Boot) + Flutter + Mock Swing 并行开发
+**Phase 2**: Reviewer 审查合并（3 repo + UML 文档修复）
+**Phase 3**: 测试循环（Backend 49 tests 通过、Flutter analyze clean、Mock Swing 编译通过）
+**Phase 4**: 按需执行
+
+**第13轮修复（本轮）**:
+- CRITICAL: 枚举值 DDL 大小写统一为 UPPERCASE（7 张表 CHECK + DEFAULT）
+- CRITICAL: Station/Charger 读权限放开为 isAuthenticated()
+- CRITICAL: Init SQL 种子数据（5 用户 + 3 电站 + 7 桩）
+- MAJOR: Flutter 模型字段对齐后端 + CRUD 增删改表单
+- MAJOR: 查询联表富化（userName/plateNumber/chargerCode/stationName）
+- MAJOR: 统计数据补齐图表（fl_chart 柱状图+饼图）
+- MAJOR: 模块5 快捷视图 + 按名称查询 + 欠费支付录入
+- FIX: Mock充电机登录失败（seed.sql 预置 mock_user/mock123）
+- DOCS: 测试账号表补充到 compose/backend README
+
+### 各仓库提交
+
+| 仓库 | 最新提交 | 说明 |
+|------|---------|------|
+| backend | `61701ef` | 枚举DDL+权限+查询联表+CRUD+种子数据+gitignore |
+| client | `5dfd24c` | 模型对齐+CRUD+图表+快捷视图+欠费支付 |
+| compose | `3468500` | seed.sql 种子数据+测试账号+容器编排 |
+| mock | `53b30b9` | （之前完成，本次无变动） |
+| doc | `be327d6` | ER图修复+子模块指针+后端README测试账号 |
