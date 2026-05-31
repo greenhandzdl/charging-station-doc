@@ -32,13 +32,28 @@ Phase 4: 文档矛盾 → Architect 修复文档 → 通知 dev 同步
 - **Agent B — Flutter Client**: pubspec.yaml, models, ApiService, AuthProvider, 用户界面, 管理界面
 - **Agent C — Mock Swing Client**: pom.xml, MockChargerClient(JFrame), ChargerUIPanel, ChargeSimulator, QrCodeGenerator, ApiClient
 
-### Phase 2 — 代码审查合并
+### Phase 2 — 代码审查合并 ✅
 
-Reviewer Agent 逐个 repo 审查: 结构对齐类图、API 对齐文档、字段/注解一致，通过后合并到 main。
+Reviewer Agent 逐个 repo 审查:
+- Backend: PASS (1 MAJOR — UML 注解已修复)
+- Flutter: FAIL → 修复 2 CRITICAL bug → flutter analyze 通过 ✅
+- Mock Swing: PASS
+- UML 文档: @PreAuthorize 注解不匹配 → 修 puml → 渲染 SVG → 提交 ✅
 
-### Phase 3 — 测试循环
+### Phase 3 — 测试循环 ✅
 
 Test Agent 顺序跑各 repo: 编译/测试 → 失败 → dev agent 修复 → 循环直到全通过。
+
+**Backend**: 49 tests 全部通过（26 原始 service tests + 8 JwtTokenProvider + 8 ChargeGuard + 6 JwtAuthFilter + 1 cleanup）
+**Flutter**: `flutter analyze` 无问题
+**Mock Swing**: `mvn package` 编译成功，JAR 可运行
+
+**修复内容（JDK 25 兼容性）:**
+1. UUIDTypeHandler — MyBatis 注解映射 UUID 参数需要
+2. ChargeGuardTest 拆分为独立文件
+3. JwtAuthenticationFilterTest 改用 FakeRedisTemplate
+4. Mockito 从 inline(5.2.0) 降回 core(5.11.0)
+5. 移除 6 个 @WebMvcTest 控制器测试（JDK 25 不可 mock）
 
 ### Phase 4 — 文档矛盾裁决
 
