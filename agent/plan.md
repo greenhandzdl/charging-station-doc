@@ -82,12 +82,62 @@ Test Agent 顺序跑各 repo: 编译/测试 → 失败 → dev agent 修复 → 
 - FIX: Mock充电机登录失败（seed.sql 预置 mock_user/mock123）
 - DOCS: 测试账号表补充到 compose/backend README
 
+### 第14轮修复（Mock充电机 403）
+
+**根因追查**：Mock充电机运行时全部端点报 403，经架构师逐层排查发现 3 个根因：
+1. **CRITICAL: Redis 未运行导致 JWT 过滤器崩溃** — docker-compose 只有 PostgreSQL 没有 Redis。`JwtAuthenticationFilter:43` 调用 `redisTemplate.hasKey()` 无 try-catch，Redis 连接失败抛异常 → 所有请求无认证态 → `.anyRequest().authenticated()` → 403
+2. **CRITICAL: ChargeGuard 方法签名不兼容** — `@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` 传递 `Authentication`+`UUID`，但方法签名 `canStop(JwtUserPrincipal, String)` 不匹配 → SpEL 反射调用失败 → 403
+3. **MAJOR: compose 缺少 Redis** — 部署图和架构文档均标注 Redis 为必需组件，但 docker-compose.yml 未包含
+
+**修复**:
+- Backend: `JwtAuthenticationFilter.java` — Redis 调用加 try-catch，不可用时跳过黑名单检查
+- Backend: `ChargeGuard.java` — 签名改为 `canStop(Authentication, UUID)`
+- Compose: `docker-compose.yml` + `README.md` — 添加 `redis:7-alpine` 服务
+
+### 第15轮修复（Mock充电机 500 + Flutter Web 白屏 + 编译修复）
+
+**根因追查**：Mock充电机运行报 500，Flutter 浏览器打开空白，其他端编译报错。
+
+**500 根因**：
+1. **CRITICAL: @NotBlank 不能用于 UUID 类型** — `StartChargeRequest.chargerId`、`StopChargeRequest.recordId`、`SubmitRepairRequest.chargerId`、`ChargerRequest.stationId` 均用 `@NotBlank` 注解 `UUID` 字段。Hibernate Validator 抛出 `UnexpectedTypeException` → 500
+2. **CRITICAL: @NotBlank 不能用于 UUID 类型**（剩余 2 个 DTO 文件）
+
+**Flutter Web 空白根因**：
+1. **CRITICAL: `flutter_secure_storage` 在 Web 平台初始化失败** — 构造函数直接 `const FlutterSecureStorage()` 导致 Provider 创建时抛异常 → widget 树构建中断 → 白屏
+2. **CRITICAL: `_checkAuth()` 未处理异常** — `tryAutoLogin()` 抛出异常后 `setState(() => _initialized = true)` 不执行 → 卡在加载圈
+
+**Flutter 编译警告清理**：
+- 去除未使用的 `_storageAvailable` 字段
+- 去除多余的 `!` 非空断言（Dart 3 类型提升后不需要）
+
+**修复**:
+- Backend: 4 个 DTO 文件 `@NotBlank` → `@NotNull`
+- Backend: `application-dev.yml` Redis 端口 30002→6379（宿主 Redis）
+- Flutter: `auth_provider.dart` — 构造器 try-catch，所有存储操作加 try-catch fallback
+- Flutter: `main.dart` — `_checkAuth` 加 try-finally 确保 `_initialized = true`
+
+### 第16轮修复 — 测试循环（ChargeGuard 签名变更测试修复）
+
+**测试问题**：前两轮 `ChargeGuard` 签名从 `canStop(JwtUserPrincipal, String)` 改为 `canStop(Authentication, UUID)` 后，3 个测试文件未同步更新。
+
+**修复**：
+- `ChargeGuardTest.java` — 全部测试改用 `UsernamePasswordAuthenticationToken(auth)` 包装 `Authentication`，UUID 参数直传
+- `RepairServiceTest.java` — 构造器补 `UserMapper` 参数
+- `StatisticsServiceTest.java` — 构造器补 `UserMapper` + `RepairMapper` 参数
+
+**验证结果**：
+- Backend: `mvn test` — **48 tests, 0 failures**
+- Backend: `mvn package` — **BUILD SUCCESS**
+- Mock Swing: `mvn package` — **BUILD SUCCESS**
+- Flutter: `flutter analyze` — **0 errors, 4 infos** ✅
+- Compose: `docker compose up -d` — PG + Redis 运行正常
+
 ### 各仓库提交
 
 | 仓库 | 最新提交 | 说明 |
 |------|---------|------|
-| backend | `61701ef` | 枚举DDL+权限+查询联表+CRUD+种子数据+gitignore |
-| client | `5dfd24c` | 模型对齐+CRUD+图表+快捷视图+欠费支付 |
-| compose | `3468500` | seed.sql 种子数据+测试账号+容器编排 |
-| mock | `53b30b9` | （之前完成，本次无变动） |
+| backend | `0ea9f4a` | 测试文件同步 + 48 tests 全部通过 |
+| client | `922d350` | 白屏修复 + Flutter analyze 0 error |
+| compose | `794ce34` | 端口映射 30000+（PG 30001, Redis 30002）|
+| mock | `53b30b9` | （无变动） |
 | doc | `be327d6` | ER图修复+子模块指针+后端README测试账号 |

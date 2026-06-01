@@ -10,16 +10,16 @@ CREATE TABLE users (
     phone VARCHAR(32) NOT NULL,
     plate_number VARCHAR(32),
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(32) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'maintainer', 'admin', 'super_admin')),
+    role VARCHAR(32) NOT NULL DEFAULT 'USER' CHECK (role IN ('USER', 'MAINTAINER', 'ADMIN', 'SUPER_ADMIN')),
     balance NUMERIC(12,2) DEFAULT 0.00,
-    frozen_until TIMESTAMPTZ,
+    frozen_until TIMESTAMP,
     failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
-    account_locked_until TIMESTAMPTZ,
+    account_locked_until TIMESTAMP,
     password_reset_token VARCHAR(255),
     password_reset_token_hash VARCHAR(64),
-    reset_token_expires_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ
+    reset_token_expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP
 );
 
 CREATE UNIQUE INDEX idx_users_phone ON users(phone);
@@ -42,9 +42,9 @@ CREATE TABLE stations (
     name VARCHAR(200) NOT NULL,
     location TEXT,
     charger_count INTEGER DEFAULT 0 CHECK (charger_count >= 0),
-    status VARCHAR(32) CHECK (status IN ('normal', 'maintenance')),
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ
+    status VARCHAR(32) CHECK (status IN ('NORMAL', 'MAINTENANCE')),
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP
 );
 
 COMMENT ON TABLE stations IS '充电站表';
@@ -56,9 +56,9 @@ CREATE TABLE chargers (
     station_id UUID NOT NULL REFERENCES stations(id),
     charger_code VARCHAR(64) NOT NULL,
     type VARCHAR(32),
-    status VARCHAR(32) CHECK (status IN ('idle', 'charging', 'fault')),
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ
+    status VARCHAR(32) CHECK (status IN ('IDLE', 'CHARGING', 'FAULT')),
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP
 );
 
 CREATE UNIQUE INDEX idx_chargers_charger_code ON chargers(charger_code);
@@ -72,13 +72,13 @@ CREATE TABLE charge_records (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id),
     charger_id UUID NOT NULL REFERENCES chargers(id),
-    start_time TIMESTAMPTZ,
-    end_time TIMESTAMPTZ,
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
     energy_kwh NUMERIC(10,3),
     fee NUMERIC(12,2),
-    status VARCHAR(32) CHECK (status IN ('processing', 'completed')),
-    deduction_status VARCHAR(32) NOT NULL DEFAULT 'pending' CHECK (deduction_status IN ('pending', 'paid', 'arrears')),
-    created_at TIMESTAMPTZ DEFAULT now()
+    status VARCHAR(32) CHECK (status IN ('PROCESSING', 'COMPLETED')),
+    deduction_status VARCHAR(32) NOT NULL DEFAULT 'PENDING' CHECK (deduction_status IN ('PENDING', 'PAID', 'ARREARS')),
+    created_at TIMESTAMP DEFAULT now()
 );
 
 CREATE INDEX idx_charge_records_user_start ON charge_records(user_id, start_time);
@@ -95,10 +95,10 @@ CREATE TABLE payments (
     charge_record_id UUID REFERENCES charge_records(id),
     method VARCHAR(32),
     amount NUMERIC(12,2) NOT NULL,
-    status VARCHAR(32) CHECK (status IN ('pending', 'success', 'failed')),
+    status VARCHAR(32) CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED')),
     gateway_tx_id VARCHAR(255) UNIQUE,
     gateway_callback_payload JSONB,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMP DEFAULT now()
 );
 
 CREATE INDEX idx_payments_user_id ON payments(user_id);
@@ -114,11 +114,11 @@ CREATE TABLE repairs (
     charger_id UUID NOT NULL REFERENCES chargers(id),
     reporter_id UUID REFERENCES users(id),
     description TEXT,
-    status VARCHAR(32) CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
+    status VARCHAR(32) CHECK (status IN ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED')),
     handled_by UUID REFERENCES users(id),
     reject_reason TEXT,
-    reported_at TIMESTAMPTZ DEFAULT now(),
-    handled_at TIMESTAMPTZ
+    reported_at TIMESTAMP DEFAULT now(),
+    handled_at TIMESTAMP
 );
 
 CREATE INDEX idx_repairs_status ON repairs(status);
@@ -130,13 +130,13 @@ CREATE TABLE audit_logs (
     id UUID PRIMARY KEY,
     actor_id UUID,
     actor_type VARCHAR(32),
-    action VARCHAR(128) NOT NULL CHECK (action IN ('start_charge', 'stop_charge', 'stop_charge_deducted', 'force_stop', 'force_stop_arrears', 'recharge', 'arrears_auto_deduct', 'deduct', 'submit_repair', 'assign_repair', 'resolve_repair', 'close_repair', 'close_repair_direct', 'reject_repair', 'register', 'login', 'login_success', 'login_failed', 'password_reset', 'password_reset_request', 'password_reset_confirm', 'change_password', 'change_role', 'update_user', 'delete_user', 'create_station', 'update_station', 'delete_station', 'create_charger', 'update_charger', 'delete_charger', 'export_csv', 'charge_arrears', 'callback_signature_failed', 'token_replay_detected')),
+    action VARCHAR(128) NOT NULL CHECK (action IN ('START_CHARGE', 'STOP_CHARGE', 'STOP_CHARGE_DEDUCTED', 'FORCE_STOP', 'FORCE_STOP_ARREARS', 'RECHARGE', 'ARREARS_AUTO_DEDUCT', 'DEDUCT', 'SUBMIT_REPAIR', 'ASSIGN_REPAIR', 'RESOLVE_REPAIR', 'CLOSE_REPAIR', 'CLOSE_REPAIR_DIRECT', 'REJECT_REPAIR', 'REGISTER', 'LOGIN', 'LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_RESET', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_CONFIRM', 'CHANGE_PASSWORD', 'CHANGE_ROLE', 'UPDATE_USER', 'DELETE_USER', 'CREATE_STATION', 'UPDATE_STATION', 'DELETE_STATION', 'CREATE_CHARGER', 'UPDATE_CHARGER', 'DELETE_CHARGER', 'EXPORT_CSV', 'CHARGE_ARREARS', 'CALLBACK_SIGNATURE_FAILED', 'TOKEN_REPLAY_DETECTED')),
     resource VARCHAR(128),
     resource_id UUID,
     payload JSONB,
     client_ip VARCHAR(45),
     user_agent TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMP DEFAULT now()
 );
 
 CREATE INDEX idx_audit_logs_actor ON audit_logs(actor_id, created_at);
