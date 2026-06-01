@@ -132,12 +132,28 @@ Test Agent 顺序跑各 repo: 编译/测试 → 失败 → dev agent 修复 → 
 - Flutter: `flutter analyze` — **0 errors, 4 infos** ✅
 - Compose: `docker compose up -d` — PG + Redis 运行正常
 
+### 第17轮修复（运行验证）
+
+**发现与修复**:
+- CRITICAL: DDL 使用 TIMESTAMPTZ 但实体字段为 LocalDateTime → PG 驱动报 PSQLException → 500。修复: init.sql/ddl.sql TIMESTAMPTZ → TIMESTAMP
+- CRITICAL: 预计算 bcrypt 哈希与 BCryptPasswordEncoder 不兼容 → 仅 mock_user 能登录，其他4账号 401。修复: seed.sql 统一使用已验证的哈希
+- MAJOR: GlobalExceptionHandler 中 Map.of("details", e.getDetails()) 当 details 为 null 时抛 NPE → 500。修复: 改用 HashMap + null 检查
+- INFO: doc DDL 校验值使用小写但代码枚举为大写 → 对齐为 UPPERCASE
+
+**验证结果**:
+- Backend: `mvn test` — **48 tests, 0 failures** ✅
+- Backend: `mvn package` — **BUILD SUCCESS** ✅
+- Backend 运行时: 登录(mock_user→USER, admin→ADMIN 等全部5账号可登录)、充电桩列表、启动充电、停止充电、统计查询全正常 ✅
+- Mock Swing: `mvn package` — **BUILD SUCCESS** ✅
+- Flutter: `flutter build web --release` — **BUILD SUCCESS** ✅
+- Flutter: `flutter analyze` — **0 errors, 4 infos** ✅
+
 ### 各仓库提交
 
 | 仓库 | 最新提交 | 说明 |
 |------|---------|------|
-| backend | `0ea9f4a` | 测试文件同步 + 48 tests 全部通过 |
+| backend | `dc61b0c` | GlobalExceptionHandler Map.of null 修复 + 48 tests |
 | client | `922d350` | 白屏修复 + Flutter analyze 0 error |
-| compose | `794ce34` | 端口映射 30000+（PG 30001, Redis 30002）|
+| compose | `824ec93` | TIMESTAMP 类型对齐 + bcrypt 哈希统一 |
 | mock | `53b30b9` | （无变动） |
-| doc | `be327d6` | ER图修复+子模块指针+后端README测试账号 |
+| doc | `73f3546` | DDL 对齐运行时（TIMESTAMPTZ→TIMESTAMP + 枚举大写）|
