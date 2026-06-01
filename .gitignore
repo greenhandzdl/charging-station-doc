@@ -26,3 +26,6 @@ replay_pid*
 # Tool / agent directories (not project deliverables)
 .claude/
 _bmad/
+
+# Generated SVG build artifacts in src/out/
+**/src/out/
