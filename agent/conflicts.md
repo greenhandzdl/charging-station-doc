@@ -176,3 +176,18 @@
 **相关模块：** 全局 — class（类图）、time（时序图）、usecase/frontend（前端用例）、usecase/containerd（部署架构）
 
 **用户决断：** 前端采用 Flutter/Dart。评分标准原文（Swing+JDBC 评分项）保持不动，UML 文档中的前端部分更新为 Flutter。类图拆分为前端 Flutter 模型与后端 Spring Boot 实体两个独立文件加一个总览图。
+
+---
+
+### 2026-06-02: 第21轮架构审查 — 10个文档冲突修复
+
+**修复内容：**
+1. 测试方案密码对齐backend README（mock_user除外保持mock123）
+2. 充电流程文档补充QR+Flutter交互说明
+3. 管理界面说明补充Flutter载体标注
+4. 幂等键字段名统一为gateway_tx_id
+5. verification-results.md补齐/api/v1前缀
+6. 充电桩读权限补充说明
+7. 冲突决断文档更新
+
+**涉及文件：** 测试方案与结果记录.md, charging-flow.md, basic-info.md, backend/README.md, verification-results.md, view-features.md, conflicts.md

@@ -57,9 +57,9 @@
 
 | 模块 | 描述 | 覆盖端点 |
 |------|------|----------|
-| Module 1 | 基础信息管理 | POST /auth/login (4 roles), GET /stations, /chargers, /users |
-| Module 2 | 充电业务与记录 | POST /charges/start, /charges/stop, GET /charges |
-| Module 3 | 支付与故障报修 | POST /payments/recharge, GET /users/balance, POST /repairs, PUT /repairs/{id}/assign, PUT /repairs/{id}/resolve |
-| Module 4 | 数据统计与分析 | GET /analytics/user-charges, /analytics/revenue, /analytics/utilization, /analytics/stations, /analytics/charges |
-| Module 5 | 快捷视图查询 | GET /charges, GET /stations/search, GET /chargers/by-code/{code} |
+| Module 1 | 基础信息管理 | POST /api/v1/auth/login (4 roles), GET /api/v1/stations, /api/v1/chargers, /api/v1/users |
+| Module 2 | 充电业务与记录 | POST /api/v1/charges/start, /api/v1/charges/stop, GET /api/v1/charges |
+| Module 3 | 支付与故障报修 | POST /api/v1/payments/recharge, GET /api/v1/users/balance, POST /api/v1/repairs, PUT /api/v1/repairs/{id}/assign, PUT /api/v1/repairs/{id}/resolve |
+| Module 4 | 数据统计与分析 | GET /api/v1/analytics/user-charges, /api/v1/analytics/revenue, /api/v1/analytics/utilization, /api/v1/analytics/stations, /api/v1/analytics/charges |
+| Module 5 | 快捷视图查询 | GET /api/v1/charges, GET /api/v1/stations/search, GET /api/v1/chargers/by-code/{code} |
 | Module 6 | 扩展功能与边界 | 充电起停循环、多支付方式充值、支付记录查询、Station CRUD、权限校验（USER非授权403、未认证403）、故障桩查询 |
