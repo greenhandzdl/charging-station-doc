@@ -21,7 +21,7 @@
 1. 用户、管理员或系统触发"结束充电"。
 2. 系统记录结束时间，计算充电量与费用。
 3. 系统从用户账户扣费；成功则更新充电记录状态为"完成"，并将充电桩状态设为"空闲"。
-4. 扣费失败则更新 `charge_records.status = 'completed'`、`charge_records.deduction_status = 'arrears'`，并将充电桩状态恢复为 `idle`，同时冻结用户的启动充电权限（`users.frozen_until` 设为截止时间），记录异常日志并通知管理员。
+4. 扣费失败则向用户返回"余额不足，扣费失败"提示，同时更新 `charge_records.status = 'completed'`、`charge_records.deduction_status = 'arrears'`，并将充电桩状态恢复为 `idle`，同时冻结用户的启动充电权限（`users.frozen_until` 设为截止时间），记录异常日志并通知管理员。
 
 > **TOCTOU 防护：** 结束充电时的余额校验与扣费操作之间存在 Time-of-Check Time-of-Use 窗口。解决方案：使用 `SELECT ... FOR UPDATE` 锁定用户余额行，在同一事务中完成余额校验和扣减：
 > ```sql
