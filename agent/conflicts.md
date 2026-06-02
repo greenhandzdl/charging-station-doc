@@ -184,6 +184,12 @@
 **修复内容：**
 1. 测试方案密码对齐backend README（mock_user除外保持mock123）
 2. 充电流程文档补充QR+Flutter交互说明
+3. basic-info.md补充管理界面Flutter载体标注
+4. backend/README.md幂等键字段名统一为gateway_tx_id
+5. verification-results.md补齐/api/v1前缀
+6. view-features.md补充充电桩读权限说明（已有权限描述，补充后端API对应）
+7. Mock Swing使用本地测试数据（新增TestDataProvider）
+8. Flutter充值模拟成功分支 + 管理界面修复
 3. 管理界面说明补充Flutter载体标注
 4. 幂等键字段名统一为gateway_tx_id
 5. verification-results.md补齐/api/v1前缀

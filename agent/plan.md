@@ -256,3 +256,52 @@ Test Agent 顺序跑各 repo: 编译/测试 → 失败 → dev agent 修复 → 
 | compose | `824ec93` | （无变动）|
 | mock | `c47d92a` | ChargeRecord @JsonAlias 兼容后端recordId字段名 |
 | doc | `4c17057` | db.md 对齐DDL + 清理orphan SVG + 18轮记录 |
+
+---
+
+### 第21轮修复（架构审查 + 文档冲突 + Mock本地化 + Flutter充值/管理修复）
+
+**本轮焦点**：依据用户反馈修正 Mock ↔ Flutter 交互边界 + 全面文档审计修复。
+
+**架构审查发现 10 个冲突**（详见 `agent/conflicts.md`）：
+- 1 CRITICAL: 测试方案密码不一致（mock123→对齐backend README）
+- 2 MAJOR: 充电流程描述过时（未反映QR+Flutter交互）+ 结束充电流程不一致
+- 7 MINOR: 管理界面载体、幂等键字段名、API路径、权限描述等
+
+**修复内容**：
+
+| 维度 | 修复项 | 说明 |
+|------|--------|------|
+| 📄 文档 | 测试方案密码 | 4个账号密码对齐backend README，仅mock_user保留mock123 |
+| 📄 文档 | charging-flow.md | 补充QR+Flutter交互说明 |
+| 📄 文档 | basic-info.md | 补充管理界面Flutter载体标注 |
+| 📄 文档 | backend/README.md | 幂等键字段名统一为gateway_tx_id |
+| 📄 文档 | verification-results.md | API路径补齐/api/v1前缀 |
+| 📄 文档 | view-features.md | 补充充电桩读操作权限说明 |
+| 📄 文档 | conflicts.md | 记录本轮审查与修复 |
+| 🖥️ Mock | TestDataProvider | 新增本地测试数据类，7个硬编码充电桩 |
+| 🖥️ Mock | loadChargers() | 改为从TestDataProvider获取，不依赖后端API |
+| 🖥️ Mock | doLogin()改造 | 登录失败不阻塞界面加载（仅禁用轮询同步） |
+| 🖥️ Mock | 菜单项 | 刷新充电桩列表→重置充电桩状态 |
+| 📱 Flutter | 充值原型模式 | API失败吞异常，始终显示成功提示 |
+| 📱 Flutter | refreshBalance() | AuthProvider新增，充值后刷新余额 |
+| 📱 Flutter | 报修分配对话框 | 分配维修人员改为交互式输入 |
+| 📱 Flutter | initialValue修复 | 对齐Flutter 3.33 API（全部替换完毕） |
+
+**构建验证**：
+| 检查项 | 结果 |
+|--------|:----:|
+| `mvn test` | ✅ 60/60 |
+| `mvn package` | ✅ BUILD SUCCESS |
+| `flutter test` | ✅ 25/25 |
+| `flutter analyze` | ✅ 0 errors, 0 warnings, 6 infos |
+| 文档冲突 | ✅ 10/10 已修复 |
+
+**各仓库提交**:
+
+| 仓库 | 最新提交 | 说明 |
+|------|---------|------|
+| backend | `dc61b0c` | （无变动）|
+| client | `11e61b6` | fix: 充值模拟成功 + 管理界面修复 + initialValue对齐 |
+| mock | `f302a08` | fix: Mock Swing本地测试数据 + 登录非阻塞 |
+| doc | `f88d123` | 本轮全部文档修复 + 子模块指针同步 |
