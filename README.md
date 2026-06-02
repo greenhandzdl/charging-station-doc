@@ -52,8 +52,13 @@
 ├── status/                           # 状态图
 ├── activity/                         # 活动图
 │
+├── doc/
+│   ├── 测试方案与结果记录.md           # 测试方案、测试用例与验证结果（评分标准第3项要求）
+│   └── ...
+│
 ├── agent/                            # 工作跟踪
 │   ├── plan.md                       # 项目计划与进度
+│   ├── verification-results.md       # API 端到端验证日志
 │   ├── conflicts.md                  # 冲突决断记录
 │   └── prompts.md                    # 可复用提示词模板
 │
