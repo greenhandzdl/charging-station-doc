@@ -61,7 +61,37 @@ Test Agent 顺序跑各 repo: 编译/测试 → 失败 → dev agent 修复 → 
 
 ---
 
-### 第19轮修复（测试覆盖补齐 + 测试文档 + 端到端验证）
+### 第20轮修复（Flutter Linux编译 + Mock充电机交互流程重构）
+
+**本轮焦点**：修复 `flutter build linux` 编译失败 + 纠正 Mock ↔ Flutter 充电交互流程。
+
+**问题1：Flutter Linux编译失败**
+- **根因**: `flutter_secure_storage` Linux 插件依赖 nlohmann json.hpp，该头文件使用 deprecated literal operator 语法，被现代 C++ 编译器视为 error
+- **修复**: `flutter_secure_storage` → `shared_preferences`（跨平台，Linux无加密需求）
+- **验证**: `flutter build linux` ✅ | `flutter build web --release` ✅ | `flutter test 25/25` ✅ | `flutter analyze 0 errors/0 warnings` ✅
+
+**问题2：Mock充电机交互流程错误**
+- **根因**: Mock Swing 直接调用后端 start/stop API，与 Flutter 的 API 调用冲突；物理充电桩模拟器应仅提供屏幕显示和二维码
+- **正确流程**: Mock插枪→生成QR→Flutter扫码启动充电→Mock轮询同步→Flutter停止充电→Mock显示结果
+- **变更文件**:
+  - `MockChargerClient.java`: 移除直接调用 start/stop API，改为 QR 生成 + 后台轮询同步
+  - `ChargerUIPanel.java`: 添加 `generateQrForCharger()`，插枪时生成含 chargerId 的二维码
+  - `ChargeSimulator.java`: 添加 `reset()` + `getCurrentSimulationId()` 支持轮询
+  - `charging_screen.dart`: 添加 QR 扫码/手动输入充电桩 ID 模式，支持 Mock 充电机启动流程
+- **验证**: `mvn test 60/60` ✅ | `mvn package` ✅
+
+**各仓库提交**:
+
+| 仓库 | 最新提交 | 说明 |
+|------|---------|------|
+| backend | `04e9918` | （无变动）|
+| client | `53d63c6` | fix: flutter_secure_storage→shared_preferences + 充电流程QR模式 |
+| mock | `0bfd72c` | fix: Mock充电机仅生成二维码不直接调用API |
+| doc | 本轮 | plan更新 + 子模块指针同步 |
+
+---
+
+## 当前进度
 
 **本轮焦点**：补齐评分标准明确要求的 "测试方案与测试结果记录" 文档 + 扩展测试代码覆盖。
 
