@@ -347,3 +347,58 @@ Test Agent 顺序跑各 repo: 编译/测试 → 失败 → dev agent 修复 → 
 | client | `6922c6f` | fix: 枚举值大小写对齐后端UPPERCASE + 管理界面修复 |
 | mock | `d3a3654` | fix: Mock Swing心跳模拟+断网异常场景 |
 | doc | `4d092fd` | doc: 30项文档冲突修复 + 子模块指针同步 |
+
+---
+
+### 第23轮修复（架构师+安全师联合评估 + Mock Swing UI简化重构）
+
+**本轮焦点**：架构师+安全师联合文档评估优化 + Mock Swing UI重构为仅插枪/拔枪+测试场景+自动QR。
+
+**阶段一：文档评估优化（架构师+安全师）**
+
+**架构师评估**（7文件修复）：
+- `frontend/README.md` — Mock职责更新（QR+Flutter模式）
+- `overview/usecases.md` — Mock角色描述更新
+- `containerd/README.md` — 架构组件表Mock行更新
+- `backend/README.md` — Mock行+API端点补充+测试账号表优化
+- `charging-flow.md` — frozen_until检查+定价策略
+- `conflicts.md` — 记录评估
+- `plan.md` — 进度记录
+
+**安全师审计**（21项发现，5文件修复）：
+- `ddl.sql`: audit_logs增加REVOKE+触发器强制只追加；新增CAPTCHA_FAILED/REGISTRATION_FAILED审计操作
+- `db.md`: payload敏感数据禁止存储说明
+- `backend/README.md`: 12项安全措施增强（refresh限流、SUPER_ADMIN保护、jti黑名单TTL、时间戳+nonce防重放、captcha限流、captcha_failed日志、failed_login_attempts重置、HttpOnly Cookie建议、HTML白名单过滤）
+- `charging-flow.md`: 并发模型一致性说明（乐观锁vs悲观锁）
+- `conflicts.md`: 安全审计记录
+
+**阶段二：Mock Swing UI简化重构**
+
+| 组件 | 变更 |
+|------|------|
+| 布局 | 充电桩选择 → 状态标签 → 插枪/拔枪按钮 → 测试场景按钮(3个) → QR码(280x280) |
+| 移除 | 启动/停止充电按钮、进度条、电量/功率/时长标签 |
+| 移除 | ChargeSimulator实例、uiTimer(1s)、pollAndSync、onStartCharge/StopCharge |
+| 新增 | 选择充电桩时自动生成QR码(无需插枪) |
+| 新增 | 面板内测试场景按钮(断网测试/服务器重启/桩离线) |
+| 保留 | 30s心跳、NetworkSimulator、标题栏状态、菜单栏 |
+
+**阶段三：全仓库测试验证**
+
+| 检查项 | 结果 |
+|--------|:----:|
+| `flutter test` | ✅ 25/25 |
+| `flutter analyze` | ✅ 0 errors, 0 warnings, 4 infos |
+| `mvn test` (mock) | ✅ 60/60 |
+| `mvn package` (mock) | ✅ BUILD SUCCESS |
+| `mvn test` (backend) | ✅ 通过 |
+| Mock Swing UI | ✅ 仅插枪/拔枪+自动QR+测试场景面板 |
+
+**各仓库提交**:
+
+| 仓库 | 最新提交 | 说明 |
+|------|---------|------|
+| backend | `dc61b0c` | （无变动）|
+| client | `6922c6f` | （无变动）|
+| mock | `b021edb` | refactor: Mock Swing UI简化重构 + 测试60/60 |
+| doc | `7a6b810` | doc: 第23轮 — 联合评估+UI重构+子模块同步 |
