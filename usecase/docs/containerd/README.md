@@ -7,7 +7,7 @@
 | 组件 | 技术栈 | 说明 |
 |------|--------|------|
 | 前端 | Flutter Desktop (Dart) | 用户与管理员界面 |
-| Mock充电机客户端 | Swing 桌面客户端 (Java) | 模拟物理充电机交互。使用 Swing 组件（JButton、JProgressBar、JLabel 等）提供插枪/拔枪/刷卡 UI，调用后端充电 API 执行充电业务，内置 ChargeSimulator 模拟电量增长。不参与充值、报修、管理等业务流程。满足评分标准 Swing+JDBC 要求 |
+| Mock充电机客户端 | Swing 桌面客户端 (Java) | 模拟物理充电机面板交互。使用 Swing 组件（JButton、JProgressBar、JLabel 等）提供插枪/拔枪 UI，生成含充电桩 ID 的二维码供 Flutter 扫码启动充电，通过后台轮询同步 Flutter 发起的充电会话状态，内置 ChargeSimulator 模拟电量增长。**不直接调用充电启停 API（启停由 Flutter 调用后端完成）**。不参与充值、报修、管理等业务流程。满足评分标准 Swing+JDBC 要求 |
 | 接入层 | Nginx | SSL 终端、路由分发、限流、静态资源服务 |
 | 后端 | Java Spring Boot | REST API 服务，提供业务接口 |
 | 数据库 | PostgreSQL | 核心业务数据存储 |

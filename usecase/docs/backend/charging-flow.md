@@ -17,6 +17,8 @@
 > UPDATE chargers SET status = 'charging' WHERE id = ? AND status = 'idle';
 > ```
 > 检查上述语句的 `affected_rows`（JDBC `executeUpdate()` 返回值），若为 0 则表示桩已被其他请求占用，需回滚事务并返回错误。此操作与 INSERT charge_records 应在同一数据库事务中执行。
+>
+> **注意：** 启动充电使用乐观锁模式（`WHERE status = 'idle'`），结束充电和强制结束使用悲观锁（`SELECT ... FOR UPDATE`）。两种模式在事务隔离级别为 READ COMMITTED 时均可正确工作，但需确保整个事务不跨请求边界（即不持有数据库连接等待用户输入）。
 
 ## 结束充电
 

@@ -179,16 +179,26 @@
 
 ---
 
-## 2026-06-03 第22轮架构审查 — 30项文档冲突修复
+### 2026-06-03: 文档评估 — Mock 充电机角色描述对齐 QR+Flutter 模式 + 缺失 API 端点补充
 
-架构审查发现了30项文档冲突（3 CRITICAL + 6 MAJOR + 21 MINOR），核心修复包括：
+**冲突描述：** 全量文档审查发现以下不一致：
+1. (MAJOR) frontend/README.md、containerd/README.md、overview/usecases.md 中 Mock 充电机描述仍沿用"直接调用 start/stop API"，与实际代码（QR 生成 + 轮询同步）不一致
+2. (MINOR) backend/README.md 基础信息管理表使用"CRUD"聚合描述，缺少 5 个细分端点（`GET /stations/{id}`、`GET /chargers/{id}`、`GET /stations/search`、`GET /chargers/by-code/{code}`、`GET /analytics/stations`）及 `POST /payments/pay-arrears`
+3. (MINOR) charging-flow.md 缺少 frozen_until 冻结检查、定价策略描述、Mock+Flutter QR 交互说明
+4. (MINOR) 测试方案 doc/测试方案与结果记录.md 版本号仍为 v1.0，应升级至 v1.2
 
-1. [CRITICAL] 后端README缺失6个API端点（/stations/search、/chargers/by-code、/analytics/stations、/payments/pay-arrears、/stations GET/PUT/DELETE细分、/chargers GET/PUT/DELETE细分）
-2. [CRITICAL] 后端README Mock充电机描述过时（仍描述为直接调用start/stop API，实为QR+Flutter模式）
-3. [CRITICAL] class类图StationController权限标注过时（GET端点应为isAuthenticated()）
-4. [MAJOR] charging-flow.md缺少冻结状态检查（frozen_until）
-5. [MAJOR] charging-flow.md定价描述过于简化，未体现快慢充差异化定价
-6. [MAJOR] 测试账号表列名"手机号"中mock_user实际为用户名
-7. [MINOR] DDL注释枚举值大小写不一致（lowercase vs UPPERCASE）
-8. [MINOR] PostgreSQL版本三处不一致（14/15+/17）
-9. [MINOR] 其他文档细节对齐
+**涉及文件：**
+- usecase/docs/frontend/README.md
+- usecase/docs/containerd/README.md
+- usecase/docs/overview/usecases.md
+- usecase/docs/backend/README.md
+- usecase/docs/backend/charging-flow.md
+- doc/测试方案与结果记录.md
+
+**相关模块：** 后端、前端、部署、总体用例
+
+**用户决断：**
+- 所有 Mock 充电机描述统一为：插枪→生成二维码→Flutter扫码启动充电→Mock轮询同步状态→Flutter停止充电→Mock显示结果。明确标注"不直接调用 start/stop API"
+- backend/README.md 基础信息管理表补全 7 个细分端点 + pay-arrears + analytics/stations
+- charging-flow.md 补充 frozen_until 检查、快慢充差异化定价、Mock+Flutter QR 交互段落
+- 测试方案文档版本号升级至 v1.2

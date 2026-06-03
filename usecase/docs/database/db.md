@@ -205,4 +205,4 @@
 - [参与者定义与用例总览](../overview/usecases.md) — 参与者角色说明、核心用例、安全要点
 - [后端 API 与权限映射](../backend/README.md) — 后端接口定义、权限控制、安全措施
 - [前端用例](../frontend/README.md) — 前端界面与交互契约
-- [容器化与部署](../containerd/README.md) — Docker/K8s/CI 配置
+- [容器化与部署](../containerd/README.md) — Docker/K8s/CI 配置COMMENT ON COLUMN audit_logs.payload IS 'JSONB 操作详情，禁止存储密码明文、完整银行卡号等敏感信息';

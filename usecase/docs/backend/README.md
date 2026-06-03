@@ -11,7 +11,7 @@
 | 维修人员 | 基础+ | 用户全部功能 + 查看和处理报修单（由管理员从用户提升）。**注意：维修人员不可访问统计报表端点** |
 | 管理员 | 中级 | CRUD 充电站/充电桩、管理用户权限、分配和处理报修、部分统计数据 |
 | 最高管理者 | 最高 | 全部管理功能、权限变更、全局统计报表 |
-| Mock充电机 | 基础（模拟用户） | 模拟物理充电机的前端交互：插枪/拔枪/刷卡启动，调用后端充电 API（/api/v1/charges/start、/api/v1/charges/stop、/api/v1/charges），模拟电量增长。不参与充值、报修、管理流程 |
+| Mock充电机 | 基础（模拟用户） | 模拟物理充电机面板交互：插枪/拔枪、生成含充电桩 ID 的二维码供 Flutter 扫码、后台轮询同步充电状态（`GET /api/v1/charges`）、模拟电量增长。**不直接调用充电启停 API**，不参与充值、报修、管理流程 |
 | 系统 | 系统级 | 定时任务、自动结算、统计汇总 |
 
 ## 必须支持的 API
@@ -21,9 +21,9 @@
 |------|------|------|------|
 | POST | `/api/v1/auth/register` | 用户注册（需验证码，防止机器人注册）。限流策略：同一 IP 每小时最多注册 3 次；同一手机号每日最多注册 1 次 | 公开 |
 | POST | `/api/v1/auth/login` | 用户登录，返回短期凭证。含暴力破解防护：IP 维度 5 分钟内失败 5 次触发验证码，10 次封禁 IP 30 分钟；账户维度连续失败 10 次锁定 30 分钟 | 公开 |
-| POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效） | 已认证 |
+| POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效）。含 IP 级限流：同一 IP 每分钟最多刷新 5 次，超出返回 429 | 已认证 |
 | POST | `/api/v1/auth/password-reset` | 密码重置请求（第一步）。需图形验证码 + 短信验证码双重校验，重置令牌绑定用户会话，令牌有效期 15 分钟。含 IP 级限流：同一 IP 5 分钟内最多发起 3 次重置请求；手机维度限流：同一手机号每日最多 3 次 | 公开 |
-| POST | `/api/v1/auth/password-reset/confirm` | 密码重置确认（第二步）。提交短信验证码、重置令牌和新密码，校验通过后更新密码并清除旧会话 | 公开 |
+| POST | `/api/v1/auth/password-reset/confirm` | 密码重置确认（第二步）。提交短信验证码、重置令牌和新密码，校验通过后更新密码并清除旧会话。含 IP 级限流：同一 IP 每分钟最多尝试 5 次确认操作，防止验证码暴力破解，超出返回 429 | 公开 |
 | PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401）。新密码不得与最近 3 次历史密码相同（服务端存储最近 3 次密码哈希用于比对） | 已认证 |
 
 ### 充电流程
@@ -31,9 +31,9 @@
 |------|------|------|------|
 | POST | `/api/v1/charges/start` | 启动充电 | 已认证用户 |
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在注解层进行授权校验：普通用户仅能结束自己的充电记录，管理员可结束任意充电记录。recordId 来自请求体，由 ChargeGuard 查询归属 | 已认证用户/管理员/系统 |
-| POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，禁止 HTML 标签。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
+| POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，HTML 标签过滤（使用白名单机制，仅允许 `<br/>` 等基本安全标签）。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录列表。Service 层按当前用户 ID 过滤，普通用户仅能看到自己的充电记录，管理员可查看全部 | 已认证用户/管理员/最高管理者 |
-> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电桩的面板显示与交互。Mock客户端**不直接调用** `/api/v1/charges/start` 和 `/api/v1/charges/stop` API，而是：生成含充电桩ID的二维码供Flutter客户端扫描、显示实时充电进度（电量/功率/时长）、通过后台轮询同步Flutter发起的充电会话状态。Mock客户端附带模拟电量生成逻辑（0.1kWh/秒），用于测试充电全流程。
+> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。其核心职责是：插枪后生成含充电桩 ID 的二维码供 Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电；通过后台轮询 `GET /api/v1/charges` 同步充电状态；通过心跳检测维护连接状态。**不直接调用 `POST /api/v1/charges/start` 和 `POST /api/v1/charges/stop` API**（充电启停由 Flutter 完成）。Mock 客户端附带 ChargeSimulator 模拟电量生成逻辑（0.1kWh/秒），用于实时展示充电进度。
 >
 > **Mock 客户端安全约束：** JWT Token scope 限定为 `mock_charger_only`，通过 API 网关/Nginx 路由规则仅允许访问 `/api/v1/charges/*` 端点，禁止访问管理（`/api/v1/stations`）、用户管理（`/api/v1/users`）、统计（`/api/v1/analytics`）等路径。使用隔离测试用户，不影响真实用户数据。所有访问必须经过 Controller 层 `@PreAuthorize` 校验，禁止直接操作数据访问层。
 
@@ -50,15 +50,17 @@
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
 | GET | `/api/v1/stations` | 查询充电站列表 — `@PreAuthorize("isAuthenticated()")` 任何已认证用户可读 | 已认证用户 |
-| POST | `/api/v1/stations` | 创建充电站 | 管理员/最高管理者 |
+| GET | `/api/v1/stations/search?name=xxx` | 按名称查询充电站 | 已认证用户 |
+| GET | `/api/v1/stations/{id}` | 按 ID 查询充电站 | 已认证用户 |
+| POST | `/api/v1/stations` | 创建充电站 — `@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")` | 管理员/最高管理者 |
 | PUT | `/api/v1/stations/{id}` | 更新充电站信息 | 管理员/最高管理者 |
 | DELETE | `/api/v1/stations/{id}` | 删除充电站 | 管理员/最高管理者 |
-| GET | `/api/v1/stations/search?name=xxx` | 按名称查询充电站，任何已认证用户可访问 | 已认证用户 |
-| GET | `/api/v1/chargers?stationId=xxx` | 按充电站查询充电桩列表 — `@PreAuthorize("isAuthenticated()")` 任何已认证用户可读 | 已认证用户 |
-| POST | `/api/v1/chargers` | 创建充电桩 | 管理员/最高管理者 |
+| GET | `/api/v1/chargers` | 查询充电桩列表（可选按 stationId 筛选）— `@PreAuthorize("isAuthenticated()")` | 已认证用户 |
+| GET | `/api/v1/chargers/{id}` | 按 ID 查询充电桩 | 已认证用户 |
+| GET | `/api/v1/chargers/by-code/{code}` | 按充电桩编码查询 | 已认证用户 |
+| POST | `/api/v1/chargers` | 创建充电桩 — `@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")` | 管理员/最高管理者 |
 | PUT | `/api/v1/chargers/{id}` | 更新充电桩信息 | 管理员/最高管理者 |
 | DELETE | `/api/v1/chargers/{id}` | 删除充电桩 | 管理员/最高管理者 |
-| GET | `/api/v1/chargers/by-code/{code}` | 按充电桩编码查询，任何已认证用户可访问 | 已认证用户 |
 
 ### 用户管理
 | 方法 | 路径 | 说明 | 权限 |
@@ -71,6 +73,7 @@
 **用户管理安全约束：**
 - ADMIN 不得删除或修改其他 ADMIN 用户（同级保护），也不得删除或修改 SUPER_ADMIN 用户（越级保护）
 - SUPER_ADMIN 不得删除自身（自我保护），但可以管理其他 ADMIN 和普通用户
+- 系统中必须至少保留 1 名 SUPER_ADMIN 用户，deleteUser 方法在删除 SUPER_ADMIN 前检查剩余 SUPER_ADMIN 数量，若仅为 1 人则拒绝操作并返回 HTTP 403
 - Service 层在 updateUser/deleteUser 方法中校验当前操作者与目标用户的关系，违反约束返回 HTTP 403
 
 ### 故障报修
@@ -90,50 +93,33 @@
 | GET | `/api/v1/analytics/revenue` | 收入统计报表（金额维度：总收入、日均收入等，仅含金额敏感数据） | 最高管理者 |
 | GET | `/api/v1/analytics/utilization` | 充电桩使用率：返回空闲/使用中/故障三种状态比例 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/user-charges` | 查看用户充电统计 | 管理员/最高管理者 |
-| GET | `/api/v1/analytics/stations` | 充电站运营分析（含使用率、收入、充电量等维度） | 管理员/最高管理者 |
+| GET | `/api/v1/analytics/stations` | 充电站运营分析：返回各充电站的总充电次数、总收入等 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/fault-chargers` | 故障充电桩列表：返回当前所有状态为 fault 的充电桩 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/export` | 导出 CSV。含 IP 级限流：同一 IP 每 10 分钟最多导出 3 次，超出返回 429 | 管理员/最高管理者 |
 
 ## 关键安全措施
 
 - **认证：** JWT（无状态令牌），access_token 过期时间 15 分钟；refresh_token 存储在 Redis 中并设置 TTL（建议 7 天），用于无感续期。
-  - 针对 Flutter 客户端，Token 存储在内存中（应用退出即失效），不持久化到本地存储。
+  - 针对 Flutter 客户端，Token 存储在内存中（应用退出即失效），不持久化到本地存储。生产环境部署到 Web 时，建议使用 HttpOnly Cookie 替换前端内存存储，防止 XSS 攻击窃取 Token。
   - 每个 Token 包含唯一 jti（JWT ID），服务端维护 jti 黑名单用于令牌吊销，登出时将 access_token 和 refresh_token 加入黑名单。
   - **refresh_token 轮换：** 每次使用 refresh_token 换取新 access_token 时，服务端同时颁发新的 refresh_token 并使旧的 refresh_token 失效（替换 Redis 中的记录），防止 refresh_token 泄露后被重放。
 - **密码：** bcrypt/Argon2 加盐散列，密码强度校验（至少 8 位，必须含大写字母、小写字母、数字、特殊字符中的至少三类）。
 - **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。关键接口使用 `@PreAuthorize` 注解进行细粒度授权（如结束充电检查记录所有者、强制结束仅 ADMIN 可用）。
 - **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。所有数据库操作用 PreparedStatement 参数绑定。
-- **支付安全：** 支付回调签名校验（HMAC-SHA256 / RSA），回调处理幂等，防止重放攻击。回调端点 `/api/v1/payments/callback` 必须验证请求来源：开发环境使用 IP 白名单（仅允许 Mock 支付网关地址）；生产环境建议使用 mTLS 双向认证或预共享网关 API Key。建议使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。HMAC 签名密钥通过环境变量配置，定期轮换（建议 90 天），密钥仅服务端持有，不暴露至客户端。
+- **支付安全：** 支付回调签名校验（HMAC-SHA256 / RSA），回调处理幂等，防止重放攻击。回调端点 `/api/v1/payments/callback` 必须验证请求来源：开发环境使用 IP 白名单（仅允许 Mock 支付网关地址）；生产环境建议使用 mTLS 双向认证或预共享网关 API Key。建议使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。此外，回调请求应校验时间戳（timestamp 参数在服务端当前时间 +/- 5 分钟内），结合可选 nonce 参数形成双层重放防护。HMAC 签名密钥通过环境变量配置，定期轮换（建议 90 天），密钥仅服务端持有，不暴露至客户端。
 
 > **密钥轮换自动化：** 密钥托管于 Kubernetes Secret（或 Vault/KMS），由 Secrets Operator 定时轮换（CronJob）。轮换策略：新密钥立即生效，旧密钥保留 24 小时宽限期用于处理已发出但未完成的回调验证，宽限期后自动废弃。密钥泄露时执行紧急轮换：立即更新 Secret + 刷新所有网关配置 + 记录安全审计事件。每个支付通道（微信、支付宝、银联）使用独立 API Key，参见下方密钥隔离说明。
 > **密钥隔离：** 每个支付通道（微信、支付宝、银联等）使用独立 API Key，单通道密钥泄露不影响其他通道安全。密钥按通道存储在环境变量中，如 `WECHAT_API_KEY`、`ALIPAY_API_KEY`。
 - **审计日志：** 所有关键操作（权限变更、充值、扣费、充电启停、报修处理、强制结束充电）记录日志，包含操作人、时间、资源与操作类型。权限提升/降级操作必须额外记录变更前后的角色值及操作原因。
   - audit_logs.payload 字段（JSONB）存储操作详情，例如强制结束充电时记录终止原因：`{"reason": "设备异常发热"}`；权限变更时记录变更前后角色：`{"old_role": "user", "new_role": "maintainer", "reason": "维修能力考核通过"}`。
 - **防重放：** Token 设置唯一 jti，服务端维护已作废 Token 黑名单或设置极短有效期。
-- **jti 黑名单 TTL：** 与 access_token 有效期一致（15 分钟），由 Redis TTL 自动清理，避免黑名单无限增长。
+- **jti 黑名单 TTL：** 与 access_token 有效期一致（15 分钟），由 Redis TTL 自动清理，避免黑名单无限增长。refresh_token 的 jti 同样加入黑名单，TTL 与 refresh_token 有效期一致（7 天），由 Redis TTL 自动清理，防止已轮换的 refresh_token 被重放。
 - **防暴力破解：** 双重防护机制：
   - IP 维度：同一 IP 5 分钟内登录失败 5 次触发图形验证码，失败 10 次封禁该 IP 30 分钟。封禁状态记录在 Redis 中，设置 TTL 自动解封。
-  - 账户维度：`users.failed_login_attempts` 记录连续失败次数，达到 10 次时设置 `account_locked_until = now() + 30min` 锁定账户。
+  - 账户维度：`users.failed_login_attempts` 记录连续失败次数，达到 10 次时设置 `account_locked_until = now() + 30min` 锁定账户。**登录成功后 `failed_login_attempts` 重置为 0**，避免前次失败的遗留计数导致后续误锁定。
 - **密码重置安全：** 密码重置分为两步：第一步 `POST /api/v1/auth/password-reset` 校验图形验证码后生成重置令牌并发送短信验证码；第二步 `POST /api/v1/auth/password-reset/confirm` 校验短信验证码 + 重置令牌后执行密码更新。重置令牌（`passwordResetToken`）绑定用户会话，有效期 15 分钟；短信验证码为 6 位数字，有效期 5 分钟。服务端对同一 IP 实施限流：5 分钟内最多 3 次重置请求，超出返回 429。同时增加手机维度限流：同一手机号每日最多 3 次重置请求，使用 Redis key `password_reset:phone:{phone}`（TTL 86400），与 IP 限流形成双层防御。
-- **验证码安全：** 注册和登录的验证码存储在 Redis，TTL 5 分钟，使用后立即删除防止重放。验证码 ID 由服务端 `/api/v1/captcha` 端点生成，随机不可预测。
+- **验证码安全：** 注册和登录的验证码存储在 Redis，TTL 5 分钟，使用后立即删除防止重放。验证码 ID 由服务端 `/api/v1/captcha` 端点生成，随机不可预测。生成验证码的端点 `/api/v1/captcha` 同样需要限流：同一 IP 每分钟最多请求 10 次，防止 Redis 内存耗尽或验证码泛滥，超出返回 429。验证码校验失败（验证码错误或过期）应记录审计日志（action='CAPTCHA_FAILED'），用于检测自动化攻击。
 - **授权检查可视化：** 所有涉及资源归属的关键操作（结束充电、强制结束充电、报修处理）在时序图中明确标注 `@PreAuthorize` 授权检查步骤，展示 Spring Security Filter Chain 处理流程。
-
-## 测试账号
-
-首次启动数据库并启动后端后，种子数据中包含以下测试账号：
-
-| 角色 | 登录名/手机号 | 密码 | 说明 |
-|------|-------------|------|------|
-| 普通用户 (USER) | `mock_user` | `mock123` | Mock充电机客户端专用，余额 100 元 |
-| 普通用户 (USER) | `13800138001` | `user123` | 演示用户，车牌京A·88888，余额 50 元 |
-| 管理员 (ADMIN) | `13800138002` | `admin123` | 后台管理，可管理充电站/桩/报修 |
-| 维修人员 (MAINTAINER) | `13800138003` | `maintain123` | 可处理分配的报修单 |
-| 超级管理员 (SUPER_ADMIN) | `13800138000` | `super123` | 全部权限，含收入统计 |
-
-> **注意**：admin 用户可查看除收入统计外的所有统计报表；super_admin 可查看全部数据包括收入统计。
-> 使用 Flutter 客户端首次启动建议用 `13800138001` / `user123` 登录体验充电流程，
-> 用 `13800138002` / `admin123` 登录体验管理功能。
-> Mock充电机客户端默认使用 `mock_user` / `mock123` 自动登录。
 
 ## 测试与质量保障
 
