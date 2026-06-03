@@ -33,7 +33,7 @@
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在注解层进行授权校验：普通用户仅能结束自己的充电记录，管理员可结束任意充电记录。recordId 来自请求体，由 ChargeGuard 查询归属 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，禁止 HTML 标签。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录列表。Service 层按当前用户 ID 过滤，普通用户仅能看到自己的充电记录，管理员可查看全部 | 已认证用户/管理员/最高管理者 |
-> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机交互，通过 HTTP POST 调用 `/api/v1/charges/start` 和 `/api/v1/charges/stop` 执行充电启停，调用 `GET /api/v1/charges` 查询充电状态。Mock 客户端附带模拟电量生成逻辑（0.1kWh/秒），用于测试充电全流程。
+> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电桩的面板显示与交互。Mock客户端**不直接调用** `/api/v1/charges/start` 和 `/api/v1/charges/stop` API，而是：生成含充电桩ID的二维码供Flutter客户端扫描、显示实时充电进度（电量/功率/时长）、通过后台轮询同步Flutter发起的充电会话状态。Mock客户端附带模拟电量生成逻辑（0.1kWh/秒），用于测试充电全流程。
 >
 > **Mock 客户端安全约束：** JWT Token scope 限定为 `mock_charger_only`，通过 API 网关/Nginx 路由规则仅允许访问 `/api/v1/charges/*` 端点，禁止访问管理（`/api/v1/stations`）、用户管理（`/api/v1/users`）、统计（`/api/v1/analytics`）等路径。使用隔离测试用户，不影响真实用户数据。所有访问必须经过 Controller 层 `@PreAuthorize` 校验，禁止直接操作数据访问层。
 
@@ -44,12 +44,21 @@
 | GET | `/api/v1/users/balance` | 查询当前用户余额 | 已认证用户 |
 | POST | `/api/v1/payments/callback` | 支付网关回调 | 支付网关 |
 | GET | `/api/v1/payments` | 查询支付记录 | 已认证用户（仅自己的） |
+| POST | `/api/v1/payments/pay-arrears` | 支付欠费（选择支付方式后调用） | 已认证用户 |
 
 ### 基础信息管理
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| CRUD | `/api/v1/stations` | 充电站管理 | 管理员/最高管理者 |
-| CRUD | `/api/v1/chargers` | 充电桩管理。写操作需 `@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` | 管理员/最高管理者 |
+| GET | `/api/v1/stations` | 查询充电站列表 — `@PreAuthorize("isAuthenticated()")` 任何已认证用户可读 | 已认证用户 |
+| POST | `/api/v1/stations` | 创建充电站 | 管理员/最高管理者 |
+| PUT | `/api/v1/stations/{id}` | 更新充电站信息 | 管理员/最高管理者 |
+| DELETE | `/api/v1/stations/{id}` | 删除充电站 | 管理员/最高管理者 |
+| GET | `/api/v1/stations/search?name=xxx` | 按名称查询充电站，任何已认证用户可访问 | 已认证用户 |
+| GET | `/api/v1/chargers?stationId=xxx` | 按充电站查询充电桩列表 — `@PreAuthorize("isAuthenticated()")` 任何已认证用户可读 | 已认证用户 |
+| POST | `/api/v1/chargers` | 创建充电桩 | 管理员/最高管理者 |
+| PUT | `/api/v1/chargers/{id}` | 更新充电桩信息 | 管理员/最高管理者 |
+| DELETE | `/api/v1/chargers/{id}` | 删除充电桩 | 管理员/最高管理者 |
+| GET | `/api/v1/chargers/by-code/{code}` | 按充电桩编码查询，任何已认证用户可访问 | 已认证用户 |
 
 ### 用户管理
 | 方法 | 路径 | 说明 | 权限 |
@@ -81,6 +90,7 @@
 | GET | `/api/v1/analytics/revenue` | 收入统计报表（金额维度：总收入、日均收入等，仅含金额敏感数据） | 最高管理者 |
 | GET | `/api/v1/analytics/utilization` | 充电桩使用率：返回空闲/使用中/故障三种状态比例 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/user-charges` | 查看用户充电统计 | 管理员/最高管理者 |
+| GET | `/api/v1/analytics/stations` | 充电站运营分析（含使用率、收入、充电量等维度） | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/fault-chargers` | 故障充电桩列表：返回当前所有状态为 fault 的充电桩 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/export` | 导出 CSV。含 IP 级限流：同一 IP 每 10 分钟最多导出 3 次，超出返回 429 | 管理员/最高管理者 |
 
@@ -93,7 +103,7 @@
 - **密码：** bcrypt/Argon2 加盐散列，密码强度校验（至少 8 位，必须含大写字母、小写字母、数字、特殊字符中的至少三类）。
 - **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。关键接口使用 `@PreAuthorize` 注解进行细粒度授权（如结束充电检查记录所有者、强制结束仅 ADMIN 可用）。
 - **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。所有数据库操作用 PreparedStatement 参数绑定。
-- **支付安全：** 支付回调签名校验（HMAC-SHA256 / RSA），回调处理幂等，防止重放攻击。回调端点 `/api/v1/payments/callback` 必须验证请求来源：开发环境使用 IP 白名单（仅允许 Mock 支付网关地址）；生产环境建议使用 mTLS 双向认证或预共享网关 API Key。建议使用 `gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。HMAC 签名密钥通过环境变量配置，定期轮换（建议 90 天），密钥仅服务端持有，不暴露至客户端。
+- **支付安全：** 支付回调签名校验（HMAC-SHA256 / RSA），回调处理幂等，防止重放攻击。回调端点 `/api/v1/payments/callback` 必须验证请求来源：开发环境使用 IP 白名单（仅允许 Mock 支付网关地址）；生产环境建议使用 mTLS 双向认证或预共享网关 API Key。建议使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。HMAC 签名密钥通过环境变量配置，定期轮换（建议 90 天），密钥仅服务端持有，不暴露至客户端。
 
 > **密钥轮换自动化：** 密钥托管于 Kubernetes Secret（或 Vault/KMS），由 Secrets Operator 定时轮换（CronJob）。轮换策略：新密钥立即生效，旧密钥保留 24 小时宽限期用于处理已发出但未完成的回调验证，宽限期后自动废弃。密钥泄露时执行紧急轮换：立即更新 Secret + 刷新所有网关配置 + 记录安全审计事件。每个支付通道（微信、支付宝、银联）使用独立 API Key，参见下方密钥隔离说明。
 > **密钥隔离：** 每个支付通道（微信、支付宝、银联等）使用独立 API Key，单通道密钥泄露不影响其他通道安全。密钥按通道存储在环境变量中，如 `WECHAT_API_KEY`、`ALIPAY_API_KEY`。
@@ -112,8 +122,8 @@
 
 首次启动数据库并启动后端后，种子数据中包含以下测试账号：
 
-| 角色 | 手机号 | 密码 | 说明 |
-|------|--------|------|------|
+| 角色 | 登录名/手机号 | 密码 | 说明 |
+|------|-------------|------|------|
 | 普通用户 (USER) | `mock_user` | `mock123` | Mock充电机客户端专用，余额 100 元 |
 | 普通用户 (USER) | `13800138001` | `user123` | 演示用户，车牌京A·88888，余额 50 元 |
 | 管理员 (ADMIN) | `13800138002` | `admin123` | 后台管理，可管理充电站/桩/报修 |

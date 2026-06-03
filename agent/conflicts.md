@@ -179,21 +179,16 @@
 
 ---
 
-### 2026-06-02: 第21轮架构审查 — 10个文档冲突修复
+## 2026-06-03 第22轮架构审查 — 30项文档冲突修复
 
-**修复内容：**
-1. 测试方案密码对齐backend README（mock_user除外保持mock123）
-2. 充电流程文档补充QR+Flutter交互说明
-3. basic-info.md补充管理界面Flutter载体标注
-4. backend/README.md幂等键字段名统一为gateway_tx_id
-5. verification-results.md补齐/api/v1前缀
-6. view-features.md补充充电桩读权限说明（已有权限描述，补充后端API对应）
-7. Mock Swing使用本地测试数据（新增TestDataProvider）
-8. Flutter充值模拟成功分支 + 管理界面修复
-3. 管理界面说明补充Flutter载体标注
-4. 幂等键字段名统一为gateway_tx_id
-5. verification-results.md补齐/api/v1前缀
-6. 充电桩读权限补充说明
-7. 冲突决断文档更新
+架构审查发现了30项文档冲突（3 CRITICAL + 6 MAJOR + 21 MINOR），核心修复包括：
 
-**涉及文件：** 测试方案与结果记录.md, charging-flow.md, basic-info.md, backend/README.md, verification-results.md, view-features.md, conflicts.md
+1. [CRITICAL] 后端README缺失6个API端点（/stations/search、/chargers/by-code、/analytics/stations、/payments/pay-arrears、/stations GET/PUT/DELETE细分、/chargers GET/PUT/DELETE细分）
+2. [CRITICAL] 后端README Mock充电机描述过时（仍描述为直接调用start/stop API，实为QR+Flutter模式）
+3. [CRITICAL] class类图StationController权限标注过时（GET端点应为isAuthenticated()）
+4. [MAJOR] charging-flow.md缺少冻结状态检查（frozen_until）
+5. [MAJOR] charging-flow.md定价描述过于简化，未体现快慢充差异化定价
+6. [MAJOR] 测试账号表列名"手机号"中mock_user实际为用户名
+7. [MINOR] DDL注释枚举值大小写不一致（lowercase vs UPPERCASE）
+8. [MINOR] PostgreSQL版本三处不一致（14/15+/17）
+9. [MINOR] 其他文档细节对齐

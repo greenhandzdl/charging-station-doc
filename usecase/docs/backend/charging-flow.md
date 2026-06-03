@@ -4,14 +4,14 @@
 
 **前置条件：** 用户已登录，充电桩在系统中存在且未被占用。
 
-> **交互说明**：本系统的充电启停API调用由Flutter客户端（用户手机App）统一发起。Mock充电机客户端（Swing桌面应用）模拟物理充电桩的屏幕面板，仅负责：生成含充电桩ID的二维码供Flutter扫描、显示实时充电进度、通过轮询同步充电状态。完整流程：Mock插枪→生成QR→Flutter扫码启动充电→Mock轮询同步→Flutter停止充电→Mock显示结果。
-
 ## 启动充电
 
 1. 用户或维修人员选择充电桩并发起"启动充电"。
-2. 系统校验用户存在、账户余额 >= 10元且充电桩状态为"空闲"。
+2. 系统校验用户存在、账户余额 >= 10元、账户未被冻结（`users.frozen_until` 为 NULL 或已过期）且充电桩状态为"空闲"。
 3. 系统创建充电记录，记录开始时间，并将充电桩状态设为"使用中"。
 
+> **定价策略**：实际费用根据充电桩类型计算——快充桩（DC）按 1.5 元/kWh 计费，慢充桩（AC）按 0.8 元/kWh 计费。可在 StandardPricing 基础上扩展为 PeakPricing 峰谷定价策略。
+>
 > **并发控制：** 充电桩状态更新必须使用原子 SQL 避免竞态条件：
 > ```sql
 > UPDATE chargers SET status = 'charging' WHERE id = ? AND status = 'idle';
@@ -23,7 +23,7 @@
 1. 用户、管理员或系统触发"结束充电"。
 2. 系统记录结束时间，计算充电量与费用。
 3. 系统从用户账户扣费；成功则更新充电记录状态为"完成"，并将充电桩状态设为"空闲"。
-4. 扣费失败则向用户返回"余额不足，扣费失败"提示，同时更新 `charge_records.status = 'completed'`、`charge_records.deduction_status = 'arrears'`，并将充电桩状态恢复为 `idle`，同时冻结用户的启动充电权限（`users.frozen_until` 设为截止时间），记录异常日志并通知管理员。
+4. 扣费失败则更新 `charge_records.status = 'completed'`、`charge_records.deduction_status = 'arrears'`，并将充电桩状态恢复为 `idle`，同时冻结用户的启动充电权限（`users.frozen_until` 设为截止时间），记录异常日志并通知管理员。
 
 > **TOCTOU 防护：** 结束充电时的余额校验与扣费操作之间存在 Time-of-Check Time-of-Use 窗口。解决方案：使用 `SELECT ... FOR UPDATE` 锁定用户余额行，在同一事务中完成余额校验和扣减：
 > ```sql

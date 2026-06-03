@@ -305,3 +305,45 @@ Test Agent 顺序跑各 repo: 编译/测试 → 失败 → dev agent 修复 → 
 | client | `11e61b6` | fix: 充值模拟成功 + 管理界面修复 + initialValue对齐 |
 | mock | `f302a08` | fix: Mock Swing本地测试数据 + 登录非阻塞 |
 | doc | `f88d123` | 本轮全部文档修复 + 子模块指针同步 |
+
+---
+
+### 第22轮修复（文档冲突修复 + Mock心跳/断网模拟 + Flutter管理界面枚举对齐）
+
+**本轮焦点**：架构审查发现30项文档冲突 + Mock Swing添加心跳与断网测试场景 + Flutter管理界面枚举值大小写对齐。
+
+**架构审查30项冲突**（详见 `agent/conflicts.md`）：
+- 3 CRITICAL: 后端README缺失6个API端点 + Mock充电机描述过时 + class图权限标注过时
+- 6 MAJOR: frozen_until检查缺失、定价描述简化、测试账号表header、ChargingService/PaymentService接口等
+- 21 MINOR: PostgreSQL版本不一致、DDL注释大小写、枚举值大小写等
+
+**修复内容**：
+
+| 维度 | 修复项 | 说明 |
+|------|--------|------|
+| 📄 文档 | 后端README | 补充6个缺失端点、Mock描述QR+Flutter模式、测试账号表header改为"登录名/手机号" |
+| 📄 文档 | charging-flow.md | 补充frozen_until检查 + 差异化定价描述(DC 1.5/AC 0.8) |
+| 📄 文档 | conflicts.md | 记录30项冲突修复 |
+| 📄 文档 | 测试方案.md | v1.1版本更新 |
+| 🖥️ Mock | NetworkSimulator | 新增，管理在线/离线状态 |
+| 🖥️ Mock | heartbeat | 30秒心跳定时器，标题栏动态显示[心跳正常/断开] |
+| 🖥️ Mock | 测试场景菜单 | 断网测试(15s恢复)、服务器重启(20s)、充电桩离线(20s) |
+| 🖥️ Mock | ApiClient | checkOffline()前置检查，离线时抛出IOException |
+| 📱 Flutter | 枚举值对齐 | 5个阻塞性枚举大小写不匹配(StationStatus/ChargerStatus/Type/RepairStatus/UserRole)全修复 |
+| 📱 Flutter | 测试修复 | 11个测试文件和helper对齐大写枚举值 |
+
+**构建验证**：
+| 检查项 | 结果 |
+|--------|:----:|
+| `flutter test` | ✅ 25/25 |
+| `flutter analyze` | ✅ 0 errors, 0 warnings, 4 infos |
+| Mock Swing compile | ✅ BUILD SUCCESS |
+
+**各仓库提交**:
+
+| 仓库 | 最新提交 | 说明 |
+|------|---------|------|
+| backend | `dc61b0c` | （无变动）|
+| client | `6922c6f` | fix: 枚举值大小写对齐后端UPPERCASE + 管理界面修复 |
+| mock | `d3a3654` | fix: Mock Swing心跳模拟+断网异常场景 |
+| doc | `4d092fd` | doc: 30项文档冲突修复 + 子模块指针同步 |
