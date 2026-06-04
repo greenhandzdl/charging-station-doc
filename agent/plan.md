@@ -155,6 +155,9 @@ T0: 架构师同步文档 + 评估
 | client | `53a1208` | fix: Flutter API参数全面修复 |
 | mock | `e2e5bd5` | fix: Mock UI优化 — QR保留+删除菜单栏+测试按钮放大 |
 | doc | `ead14b1` | fix: 第24轮 — 全仓库变更 + 文档同步 |
+| backend | `a1a40f8` | feat: 集成SpringDoc OpenAPI (Swagger) — 三组安全分组 |
+| doc | `991944e` | fix: 集成Swagger + 子模块指针同步 |
+| doc | `ca76a32` | docs: 架构师文档更新 — Swagger文档同步 + Mock描述修正 |
 
 > **Flutter API参数修复详情**（`53a1208`）：
 > - CRITICAL: `_handleResponse` 错误解析 — 后端 `{"error":{"message":"xxx"}}` 是嵌套Map，Flutter `as String?` 强制失败导致所有错误显示"请求失败(xxx)"
@@ -165,3 +168,12 @@ T0: 架构师同步文档 + 评估
 > **Backend参数修复详情**（`5a6b1f9`）：
 > - `refreshToken` 返回值中查询并填充 `user` 字段
 > - `application.yml` 添加 Jackson 日期格式配置：`yyyy-MM-dd HH:mm:ss`、`Asia/Shanghai`、禁止时间戳数组
+>
+> **Swagger集成详情**（`a1a40f8`）：
+> - pom.xml 添加 springdoc-openapi-starter-webmvc-ui 2.6.0
+> - SwaggerConfig.java: 三组 GroupedOpenApi（公开/认证/管理）+ Bearer JWT 安全方案
+> - Swagger UI: http://localhost:8080/swagger-ui/index.html
+>
+> **架构师文档更新**（`ca76a32`）：
+> - backend/README.md 新增「API文档(Swagger)」章节
+> - Mock描述修正：删除轮询/ChargeSimulator/进度条旧描述
