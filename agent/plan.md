@@ -119,3 +119,37 @@ T0: 架构师同步文档 + 评估
        │
        └── T3: 全仓库测试
 ```
+
+---
+
+## 第24轮 — UI优化 + Flutter登录修复 + CaptchaController + 文档一致性
+
+### 本轮问题与修复
+
+| # | 问题 | 仓库 | 解决方案 |
+|---|------|------|---------|
+| 1 | 拔枪后二维码消失 | Mock | `resetToIdle()` 保留 `currentChargerId` 和 QR |
+| 2 | 测试场景按钮太小 | Mock | 字体 12px→14px，最小尺寸 140×38（BOLD） |
+| 3 | 菜单栏和面板重复 | Mock | 删除整个 `initMenuBar()` |
+| 4 | `/api/v1/captcha` 不存在 | Backend | 新增 `CaptchaController.java` |
+| 5 | 注册强制验证码必败 | Backend+Flutter | `RegisterRequest` 移除 `@NotBlank` |
+| 6 | Mock文档描述过时 | Doc | 3个README同步更新 |
+
+### 完整验证结果
+
+| 检查项 | 结果 |
+|--------|:----:|
+| Flutter `flutter analyze` | ✅ 0 errors |
+| Flutter `flutter test` | ✅ 25/25 |
+| Backend CaptchaController | ✅ 3 files, 65+ lines |
+| Mock resetToIdle QR保留 | ✅ |
+| Mock 菜单栏删除 | ✅ -71 lines |
+
+### 各仓库提交
+
+| 仓库 | 最新提交 | 说明 |
+|------|---------|------|
+| backend | `e06186f` | fix: CaptchaController + RegisterRequest验证码可选 |
+| client | `6b1c447` | fix: 注册页验证码容错 |
+| mock | `e2e5bd5` | fix: Mock UI优化 — QR保留+删除菜单栏+测试按钮放大 |
+| doc | `ead14b1` | fix: 第24轮 — 全仓库变更 + 文档同步 |
