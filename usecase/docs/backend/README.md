@@ -33,9 +33,8 @@
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在注解层进行授权校验：普通用户仅能结束自己的充电记录，管理员可结束任意充电记录。recordId 来自请求体，由 ChargeGuard 查询归属 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，HTML 标签过滤（使用白名单机制，仅允许 `<br/>` 等基本安全标签）。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录列表。Service 层按当前用户 ID 过滤，普通用户仅能看到自己的充电记录，管理员可查看全部 | 已认证用户/管理员/最高管理者 |
-> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。其核心职责是：插枪后生成含充电桩 ID 的二维码供 Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电；通过后台轮询 `GET /api/v1/charges` 同步充电状态；通过心跳检测维护连接状态。**不直接调用 `POST /api/v1/charges/start` 和 `POST /api/v1/charges/stop` API**（充电启停由 Flutter 完成）。Mock 客户端附带 ChargeSimulator 模拟电量生成逻辑（0.1kWh/秒），用于实时展示充电进度。
->
-> **Mock 客户端安全约束：** JWT Token scope 限定为 `mock_charger_only`，通过 API 网关/Nginx 路由规则仅允许访问 `/api/v1/charges/*` 端点，禁止访问管理（`/api/v1/stations`）、用户管理（`/api/v1/users`）、统计（`/api/v1/analytics`）等路径。使用隔离测试用户，不影响真实用户数据。所有访问必须经过 Controller 层 `@PreAuthorize` 校验，禁止直接操作数据访问层。
+> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。用户选择充电桩后屏幕自动生成含充电桩 ID 的二维码，Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电。客户端通过 30 秒心跳检测连接状态，面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API**，不轮询同步，不模拟电量增长。
+> **Mock 客户端安全约束：** 面板仅含充电桩选择与插拔枪操作，无管理功能入口。使用隔离测试用户账户，不影响真实用户数据。
 
 ### 充值支付
 | 方法 | 路径 | 说明 | 权限 |
@@ -96,6 +95,21 @@
 | GET | `/api/v1/analytics/stations` | 充电站运营分析：返回各充电站的总充电次数、总收入等 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/fault-chargers` | 故障充电桩列表：返回当前所有状态为 fault 的充电桩 | 管理员/最高管理者 |
 | GET | `/api/v1/analytics/export` | 导出 CSV。含 IP 级限流：同一 IP 每 10 分钟最多导出 3 次，超出返回 429 | 管理员/最高管理者 |
+
+## API 文档（Swagger）
+
+项目集成 SpringDoc OpenAPI (Swagger) 提供在线 API 文档：
+
+| 分组 | 访问入口 | 说明 |
+|------|---------|------|
+| 公开接口 | `http://localhost:8080/swagger-ui/index.html` → 选择 `public` | 登录/注册/密码重置/验证码等无需认证的端点 |
+| 认证接口 | 选择 `authenticated` 分组，点击 Authorize 输入 JWT Token | 充电/电站桩/支付/报修等需要 JWT 认证的端点 |
+| 管理接口 | 选择 `admin` 分组 | 用户管理/统计等需要 ADMIN/SUPER_ADMIN 角色的端点 |
+
+**安全约束：**
+- Swagger UI 和 OpenAPI JSON 路径（`/swagger-ui/**`、`/v3/api-docs/**`）公开可访问，但文档中的认证分组要求调用时携带 JWT
+- API 文档不暴露 JWT 密钥、支付网关 HMAC 密钥等敏感配置
+- 生产环境应通过 Nginx 反向代理限制 Swagger UI 的访问来源
 
 ## 关键安全措施
 
