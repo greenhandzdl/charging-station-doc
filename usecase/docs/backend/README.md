@@ -24,7 +24,7 @@
 | POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效）。含 IP 级限流：同一 IP 每分钟最多刷新 5 次，超出返回 429 | 已认证 |
 | POST | `/api/v1/auth/password-reset` | 密码重置请求（第一步）。需图形验证码 + 短信验证码双重校验，重置令牌绑定用户会话，令牌有效期 15 分钟。含 IP 级限流：同一 IP 5 分钟内最多发起 3 次重置请求；手机维度限流：同一手机号每日最多 3 次 | 公开 |
 | POST | `/api/v1/auth/password-reset/confirm` | 密码重置确认（第二步）。提交短信验证码、重置令牌和新密码，校验通过后更新密码并清除旧会话。含 IP 级限流：同一 IP 每分钟最多尝试 5 次确认操作，防止验证码暴力破解，超出返回 429 | 公开 |
-| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401）。新密码不得与最近 3 次历史密码相同（服务端存储最近 3 次密码哈希用于比对） | 已认证 |
+| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401） | 已认证 |
 
 ### 充电流程
 | 方法 | 路径 | 说明 | 权限 |
@@ -33,7 +33,7 @@
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在注解层进行授权校验：普通用户仅能结束自己的充电记录，管理员可结束任意充电记录。recordId 来自请求体，由 ChargeGuard 查询归属 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，HTML 标签过滤（使用白名单机制，仅允许 `<br/>` 等基本安全标签）。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录列表。Service 层按当前用户 ID 过滤，普通用户仅能看到自己的充电记录，管理员可查看全部 | 已认证用户/管理员/最高管理者 |
-> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。用户选择充电桩后屏幕自动生成含充电桩 ID 的二维码，Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电。客户端通过 30 秒心跳检测连接状态，面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API**，不轮询同步，不模拟电量增长。
+> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。用户选择充电桩后屏幕自动生成含充电桩 ID 的二维码，Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API**，不轮询同步，不模拟电量增长。
 > **Mock 客户端安全约束：** 面板仅含充电桩选择与插拔枪操作，无管理功能入口。使用隔离测试用户账户，不影响真实用户数据。
 
 ### 充值支付
@@ -102,14 +102,14 @@
 
 | 分组 | 访问入口 | 说明 |
 |------|---------|------|
-| 公开接口 | `http://localhost:8080/swagger-ui/index.html` → 选择 `public` | 登录/注册/密码重置/验证码等无需认证的端点 |
-| 认证接口 | 选择 `authenticated` 分组，点击 Authorize 输入 JWT Token | 充电/电站桩/支付/报修等需要 JWT 认证的端点 |
-| 管理接口 | 选择 `admin` 分组 | 用户管理/统计等需要 ADMIN/SUPER_ADMIN 角色的端点 |
+| 分组 | 访问入口 | 说明 |
+|------|---------|------|
+| 全部 | `http://localhost:8080/api/swagger-ui.html` | 全部 API 分组（仅 dev profile 启用） |
 
 **安全约束：**
-- Swagger UI 和 OpenAPI JSON 路径（`/swagger-ui/**`、`/v3/api-docs/**`）公开可访问，但文档中的认证分组要求调用时携带 JWT
-- API 文档不暴露 JWT 密钥、支付网关 HMAC 密钥等敏感配置
-- 生产环境应通过 Nginx 反向代理限制 Swagger UI 的访问来源
+- Swagger UI 仅在 `spring.profiles.active=dev` 时启用（`@Profile("dev")`）
+- 生产环境不加载 Swagger 相关 beans，无安全暴露风险
+- API 文档不暴露密钥等敏感配置
 
 ## 关键安全措施
 
@@ -117,7 +117,7 @@
   - 针对 Flutter 客户端，Token 存储在内存中（应用退出即失效），不持久化到本地存储。生产环境部署到 Web 时，建议使用 HttpOnly Cookie 替换前端内存存储，防止 XSS 攻击窃取 Token。
   - 每个 Token 包含唯一 jti（JWT ID），服务端维护 jti 黑名单用于令牌吊销，登出时将 access_token 和 refresh_token 加入黑名单。
   - **refresh_token 轮换：** 每次使用 refresh_token 换取新 access_token 时，服务端同时颁发新的 refresh_token 并使旧的 refresh_token 失效（替换 Redis 中的记录），防止 refresh_token 泄露后被重放。
-- **密码：** bcrypt/Argon2 加盐散列，密码强度校验（至少 8 位，必须含大写字母、小写字母、数字、特殊字符中的至少三类）。
+- **密码：** bcrypt 加盐散列，密码强度校验（至少 8 位，必须含字母和数字）
 - **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。关键接口使用 `@PreAuthorize` 注解进行细粒度授权（如结束充电检查记录所有者、强制结束仅 ADMIN 可用）。
 - **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。所有数据库操作用 PreparedStatement 参数绑定。
 - **支付安全：** 支付回调签名校验（HMAC-SHA256 / RSA），回调处理幂等，防止重放攻击。回调端点 `/api/v1/payments/callback` 必须验证请求来源：开发环境使用 IP 白名单（仅允许 Mock 支付网关地址）；生产环境建议使用 mTLS 双向认证或预共享网关 API Key。建议使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。此外，回调请求应校验时间戳（timestamp 参数在服务端当前时间 +/- 5 分钟内），结合可选 nonce 参数形成双层重放防护。HMAC 签名密钥通过环境变量配置，定期轮换（建议 90 天），密钥仅服务端持有，不暴露至客户端。
