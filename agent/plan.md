@@ -150,6 +150,18 @@ T0: 架构师同步文档 + 评估
 | 仓库 | 最新提交 | 说明 |
 |------|---------|------|
 | backend | `e06186f` | fix: CaptchaController + RegisterRequest验证码可选 |
+| backend | `5a6b1f9` | fix: refreshToken返回User信息 + Jackson日期配置 |
 | client | `6b1c447` | fix: 注册页验证码容错 |
+| client | `53a1208` | fix: Flutter API参数全面修复 |
 | mock | `e2e5bd5` | fix: Mock UI优化 — QR保留+删除菜单栏+测试按钮放大 |
 | doc | `ead14b1` | fix: 第24轮 — 全仓库变更 + 文档同步 |
+
+> **Flutter API参数修复详情**（`53a1208`）：
+> - CRITICAL: `_handleResponse` 错误解析 — 后端 `{"error":{"message":"xxx"}}` 是嵌套Map，Flutter `as String?` 强制失败导致所有错误显示"请求失败(xxx)"
+> - HIGH: `refreshToken` 后端返回不带 `user` 字段 → `_currentUser` 被覆盖为空 → `isLoggedIn` 触发登出
+> - HIGH: `ChargeResponse.recordId` 但 `ChargeRecordModel.fromJson` 读 `id` → 充电后找不到记录ID
+> - HIGH: `tryAutoLogin` 中 `_initPrefs()` 异步竞态
+>
+> **Backend参数修复详情**（`5a6b1f9`）：
+> - `refreshToken` 返回值中查询并填充 `user` 字段
+> - `application.yml` 添加 Jackson 日期格式配置：`yyyy-MM-dd HH:mm:ss`、`Asia/Shanghai`、禁止时间戳数组
