@@ -177,3 +177,73 @@ T0: 架构师同步文档 + 评估
 > **架构师文档更新**（`ca76a32`）：
 > - backend/README.md 新增「API文档(Swagger)」章节
 > - Mock描述修正：删除轮询/ChargeSimulator/进度条旧描述
+
+---
+
+## 第25轮 — 多Agent并行: Flutter修复 + Swagger简化 + 配置外部化 + 架构审查
+
+### 本轮问题
+
+| # | 问题 | 仓库 | 根因 | 严重度 |
+|---|------|------|------|:------:|
+| 1 | Flutter安卓编译失败 | Client | Gradle 9.1.0未完全下载(网络隔离), AGP 9.0.1与缓存Gradle 8.3/8.10不兼容 | CRITICAL |
+| 2 | Flutter网页端空白页面 | Client | 后台不可达时AuthGate无限等待无反馈; CORS已配但无错误UI | HIGH |
+| 3 | Swagger JWT验证过于复杂 | Backend | 三组安全分组+JWT方案对课程项目过度设计 | MEDIUM |
+| 4 | 后端配置散落硬编码 | Backend | JWT密钥/数据库URL/支付密钥硬编码在application.yml | MEDIUM |
+| 5 | 文档-代码不一致 | Doc | 密码强度规则、密码历史检查描述与实际不符 | MEDIUM |
+
+### 执行方案
+
+#### Phase 1 — 并行Agent修复（4路并行）
+
+| Agent | 任务 | 仓库 |
+|-------|------|------|
+| Agent A | Gradle降级: 9.1.0→8.10.2(已缓存), AGP 9.0.1→8.7.3, Kotlin 2.3.20→2.0.21 | Client/Android |
+| Agent B | AuthGate添加"无法连接服务器"错误界面; CORS确认已配无无需变更 | Client+Backend |
+| Agent C | Swagger简化: @Profile("dev")控制, 移除JWT安全方案, 添加context-path=/api | Backend |
+| Agent D | 配置外部化: 创建config/目录, application-dev.yml/prod.yml, .env.example | Backend |
+
+#### Phase 2 — 测试验证
+
+| 检查项 | 结果 |
+|--------|:----:|
+| Flutter `flutter analyze` | ✅ 0 error, 6 info (deprecation/style) |
+| Flutter `flutter build web --release` | ✅ BUILD SUCCESS (3MB main.dart.js) |
+| `gradle-wrapper.properties` | ✅ 8.10.2-all (已缓存无需下载) |
+| Swagger仅在dev profile启用 | ✅ @Profile("dev") |
+| 配置外部化结构 | ✅ application.yml(公共)+config/目录(环境覆盖) |
+
+#### Phase 3 — 架构师全面审查
+
+由 tech-architect-coordinator 对全部6大模块评分：
+
+| 模块 | 状态 | 评分 |
+|------|:----:|:----:|
+| 基础信息管理 | ✅ COMPLETE | 完整 |
+| 充电业务与记录 | ✅ COMPLETE | 完整 |
+| 支付与故障报修 | ✅ COMPLETE | 完整 |
+| 数据统计与可视化 | ✅ COMPLETE | 完整 |
+| 视图与便捷功能 | ⚠️ PARTIAL | 缺少数据库VIEW、无自动补全搜索 |
+| 简易交互与扩展 | ✅ COMPLETE | 完整 |
+
+**综合评分: 85/100 (良好, 80-89分段)**
+
+发现的问题：
+1. 🔴 密码强度规则: 文档要求大+小+数字+特殊字符选3类，代码只校验字母+数字
+2. 🔴 密码历史检查: 文档要求禁止使用最近3次密码，代码未实现
+3. 🟡 Mock心跳检测: 文档提30秒心跳，代码未实现
+
+### 各仓库提交
+
+| 仓库 | 提交 | 说明 |
+|------|------|------|
+| backend | `5eace7d` | refactor: Swagger简化+配置外部化(5 files) |
+| backend | `ef61b49` | fix: 回调URL路径对齐context-path /api |
+| client | `4c7f144` | fix: Android Gradle降级+Web空白页修复(3 files) |
+
+### 待办
+
+1. 统一密码强度规则（文档&代码对齐）
+2. 实现密码历史存储（最近3次密码哈希）
+3. Mock添加定时心跳检测
+4. 视图与便捷功能: 数据库VIEW + 搜索自动补全
