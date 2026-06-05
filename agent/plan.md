@@ -278,3 +278,46 @@ T0: 架构师同步文档 + 评估
 | `flutter build apk --debug` | ✅ BUILD SUCCESS (40.6s, AGP已缓存) |
 | bcrypt哈希验证（5个账号） | ✅ 全部匹配 |
 | 文档-种子数据一致性 | ✅ 账号/密码/哈希完全对齐 |
+
+---
+
+## 第27轮 — dwds 26.2.5 序列化 Bug 修复 + 图形环境修复
+
+### 本次问题
+
+| # | 问题 | 根因 | 严重度 |
+|---|------|------|:------:|
+| 1 | `flutter run -d chrome` debug模式白屏崩溃 | dwds 26.2.5 的 `main__closure5.call$2` 中 `A._asString(eventData)` 强制断言字符串类型，但 Chrome CDP 发送的 `eventData` 是 JSON 对象 (`_JsonMap`)，导致 `BuiltJsonSerializers.deserialize` 抛出未捕获异常，Flutter 框架初始化中断 | CRITICAL |
+
+### 修复方案
+
+#### 修改 dwds 源码（系统级补丁）
+
+**文件:** `~/.pub-cache/hosted/pub.dev/dwds-26.2.5/lib/src/injected/client.js`
+
+**变更（第26849行前插入）：**
+```javascript
+// Patch: Chrome DevTools Protocol sometimes sends eventData as a JSON
+// object (e.g. Debugger.scriptParsed params) instead of a String.
+// JSON.stringify handles both cases safely.
+if (typeof eventData !== "string") eventData = JSON.stringify(eventData);
+```
+
+**原理：** `main__closure5` 是 dwds 调试服务器注入到页面的事件转发闭包，`A._asString()` 是 Dart 编译为 JS 后的类型断言。Chrome DevTools Protocol 的 `Debugger.scriptParsed` 等事件通知中，`params`（eventData 字段）是一个 JSON 对象而非字符串。在调用 `_asString` 之前用 `JSON.stringify` 序列化，确保类型断言通过。
+
+#### 图形环境修复
+
+~/.config/fish/config.fish 和 ~/.bashrc 添加 DISPLAY/XAUTHORITY 自动检测。
+
+### 验证结果
+
+| 模式 | 命令 | 状态 |
+|------|------|:----:|
+| Chrome + DDS（原崩溃模式） | `flutter run -d chrome` | ✅ 正常启动 |
+| Web Server + DDS | `flutter run -d web-server` | ✅ 200, 4个"充电" |
+| Release | `flutter build web --release` | ✅ 已验证 |
+
+### 补丁持久化说明
+
+由于 dwds 缓存在 `~/.pub-cache/`，升级 Flutter SDK 后需重新打补丁。
+`scripts/dev_web.sh` 中的 `--no-dds` 方案作为备用，在新版本出现同样问题时使用。
