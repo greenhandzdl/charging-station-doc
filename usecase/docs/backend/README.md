@@ -102,9 +102,7 @@
 
 | 分组 | 访问入口 | 说明 |
 |------|---------|------|
-| 分组 | 访问入口 | 说明 |
-|------|---------|------|
-| 全部 | `http://localhost:8080/api/swagger-ui.html` | 全部 API 分组（仅 dev profile 启用） |
+| 全部 | `http://localhost:8080/swagger-ui.html` | 全部 API 分组（仅 dev profile 启用） |
 
 **安全约束：**
 - Swagger UI 仅在 `spring.profiles.active=dev` 时启用（`@Profile("dev")`）

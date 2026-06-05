@@ -321,3 +321,51 @@ if (typeof eventData !== "string") eventData = JSON.stringify(eventData);
 
 由于 dwds 缓存在 `~/.pub-cache/`，升级 Flutter SDK 后需重新打补丁。
 `scripts/dev_web.sh` 中的 `--no-dds` 方案作为备用，在新版本出现同样问题时使用。
+
+---
+
+## 第28轮 — 文档同步 + 架构评估
+
+### 本轮任务
+
+| # | 任务 | 负责人 | 说明 |
+|---|------|--------|------|
+| 1 | Flutter权限路由 + MAINTAINER支持 | Agent A | UserRole枚举、集中式权限、MAINTAINER维修工作台 |
+| 2 | Spring配置验证 | Agent B | 确认配置外部化、Swagger dev-only |
+| 3 | 文档同步 + 架构评估 | Agent C | 全面review文档一致性、创建架构评估报告 |
+| 4-6 | 代码审查 + 测试验证 + 最终提交 | 各Agent | 全仓库测试 → 修复 → 提交 |
+
+### 本轮发现的问题
+
+| # | 问题 | 仓库 | 严重度 |
+|---|------|------|:------:|
+| 1 | Flutter MAINTAINER角色无独立页面 | Client | MEDIUM |
+| 2 | Flutter无UserRole枚举，路由散落 | Client | MEDIUM |
+| 3 | 密码强度未满足文档要求 | Doc+Backend | MEDIUM |
+| 4 | 密码历史检查未实现 | Doc+Backend | MEDIUM |
+| 5 | 数据库VIEW未创建 | Doc | LOW |
+| 6 | 搜索无自动补全 | Doc+Backend+Client | LOW |
+| 7 | Mock无30秒心跳 | Doc+Mock | LOW |
+
+### 文档更新
+
+| 文件 | 变更 |
+|------|------|
+| `doc/测试方案与结果记录.md` | 版本v1.0→v1.3，日期2026-06-05，新增"未实现功能"章节 |
+| `agent/architecture-assessment.md` | 新建，评分80/100，含差距分析 + 改进建议 |
+| `agent/plan.md` | 追加第28轮摘要 |
+
+### 架构评分
+
+| 维度 | 分数 |
+|------|:----:|
+| 面向对象设计 | 32/40 |
+| Swing/JDBC (Flutter替代) | 32/40 |
+| 完整性与规范性 | 16/20 |
+| **总分** | **80/100** |
+
+### 差距总结
+
+- **已实现**：六大模块全覆盖，前后端CRUD完整，充电业务/支付/报修/统计流程通顺
+- **缺失项**：密码强度&历史、数据库VIEW、搜索自动补全、Mock心跳、Flutter MAINTAINER独立页面
+- **文档过时**：`1.评分标准.md` 描述部分功能（密码强度、历史检查）与实际代码不匹配
