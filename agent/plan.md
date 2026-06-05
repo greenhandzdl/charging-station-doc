@@ -247,3 +247,34 @@ T0: 架构师同步文档 + 评估
 2. 实现密码历史存储（最近3次密码哈希）
 3. Mock添加定时心跳检测
 4. 视图与便捷功能: 数据库VIEW + 搜索自动补全
+---
+
+## 第26轮 — 网络恢复后修复: seed.sql密码哈希 + Web加载UI + 文档对齐
+
+### 本次问题
+
+| # | 问题 | 仓库 | 根因 | 严重度 |
+|---|------|------|------|:------:|
+| 1 | Flutter网页端登录页面空白 | Client | web/index.html 无加载/错误兜底 UI；CanvasKit 加载失败时静默白屏 | HIGH |
+| 2 | 测试账号密码登录失败 | Compose | seed.sql 中5个用户共用同一 bcrypt 哈希，实测只匹配 `mock123` | CRITICAL |
+| 3 | 测试方案文档账号不准确 | Doc | SUPER_ADMIN 手机号写 `super123`、mock_user 手机号写 `13800138004` | MEDIUM |
+
+### 修复方案
+
+| 文件 | 变更 | 说明 |
+|------|------|------|
+| `code/charging-station-client/web/index.html` | 重写 | 添加加载动画、30秒超时兜底、错误详情展示+刷新按钮、全局onerror捕获 |
+| `code/charging-station-client/lib/main.dart` | 增强 | 添加 `_ErrorBoundary` Widget，捕获Flutter框架运行时错误并展示错误UI |
+| `code/charging-station-compose/init/seed.sql` | 修复 | 替换为各密码独立生成的 bcrypt 哈希 |
+| `doc/测试方案与结果记录.md` | 修复 | 修正SUPER_ADMIN/mock_user账号列 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|:----:|
+| `flutter analyze` | ✅ 0 error, 6 info |
+| `flutter test` | ✅ 25/25 all passed |
+| `flutter build web --release` | ✅ BUILD SUCCESS |
+| `flutter build apk --debug` | ✅ BUILD SUCCESS (40.6s, AGP已缓存) |
+| bcrypt哈希验证（5个账号） | ✅ 全部匹配 |
+| 文档-种子数据一致性 | ✅ 账号/密码/哈希完全对齐 |
