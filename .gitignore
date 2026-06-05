@@ -29,3 +29,4 @@ _bmad/
 
 # Generated SVG build artifacts in src/out/
 **/src/out/
+.vscode/
