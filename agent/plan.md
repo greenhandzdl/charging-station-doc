@@ -369,3 +369,36 @@ if (typeof eventData !== "string") eventData = JSON.stringify(eventData);
 - **已实现**：六大模块全覆盖，前后端CRUD完整，充电业务/支付/报修/统计流程通顺
 - **缺失项**：密码强度&历史、数据库VIEW、搜索自动补全、Mock心跳、Flutter MAINTAINER独立页面
 - **文档过时**：`1.评分标准.md` 描述部分功能（密码强度、历史检查）与实际代码不匹配
+
+---
+
+## 第29轮 — 全量API测试 + 业务流验证 + Bug修复 + 文档同步
+
+### 本轮工作
+
+| 阶段 | 内容 | 结果 |
+|------|------|:----:|
+| 后端编译启动 | Docker Maven编译打包，配置修复（删除 context-path） | ✅ |
+| API端到端测试 | 36个API端点逐模块验证 | ✅ 36/36 PASS |
+| 完整业务流程 | 注册→充值→启动→停止→扣费→欠费→补缴→解冻→RBAC | ✅ 22/22 PASS |
+| Flutter/Swing兼容性 | 全部ApiService端点和响应格式校验 | ✅ 无兼容性问题 |
+
+### Bug修复
+
+| # | 问题 | 严重度 | 修复 |
+|---|------|:------:|------|
+| 1 | `context-path: /api` 与 Controller `@RequestMapping("/api/v1")` 冲突，URL实际变为 `/api/api/v1/...` | **HIGH** | 删除 `application.yml` 中 `server.servlet.context-path` |
+| 2 | `audit_logs` 的 action CHECK 约束缺少 `PAY_ARREARS`，欠费支付时500 | **HIGH** | DDL新增 `PAY_ARREARS` + 数据库同步约束 |
+| 3 | `PaymentServiceImpl` 写入 audit_logs 使用小写 `pay_arrears`（违反枚举约定） | **MEDIUM** | 改为 `PAY_ARREARS` |
+| 4 | `payment.callback-url` 路径 `/api/payments/callback` 错误（应为 `/api/v1/payments/callback`） | **MEDIUM** | 修复为正确的完整路径 |
+
+### 提交记录
+
+| 仓库 | 提交 |
+|------|------|
+| **backend** | `3b4c1c4` fix: 移除重复的 context-path（+ 回调URL修复） |
+| **compose** | `init.sql` audit_logs CHECK 增加 PAY_ARREARS |
+| **backend** | `PaymentServiceImpl.java` action 改为 PAY_ARREARS |
+| **client** | `faa6105` feat: 权限路由重构 |
+| **doc** | `b5351e6` docs: 第28轮提交 |
+| **doc** | (本轮) 测试方案v1.4 + plan.md第29轮 |
