@@ -95,7 +95,7 @@ CREATE TABLE payments (
     charge_record_id UUID REFERENCES charge_records(id),
     method VARCHAR(32),
     amount NUMERIC(12,2) NOT NULL,
-    status VARCHAR(32) CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED')),
+    status VARCHAR(32) CHECK (status IN ('PENDING', 'APPROVED', 'SUCCESS', 'FAILED')),
     gateway_tx_id VARCHAR(255) UNIQUE,
     gateway_callback_payload JSONB,
     created_at TIMESTAMP DEFAULT now()
@@ -104,7 +104,7 @@ CREATE TABLE payments (
 CREATE INDEX idx_payments_user_id ON payments(user_id);
 COMMENT ON TABLE payments IS '支付记录表';
 COMMENT ON COLUMN payments.method IS '支付方式: wechat / alipay / card / system / auto_deduct';
-COMMENT ON COLUMN payments.status IS '支付状态: pending / success / failed';
+COMMENT ON COLUMN payments.status IS '支付状态: pending / approved / success / failed';
 COMMENT ON COLUMN payments.charge_record_id IS '关联充电记录，仅扣费时有值';
 COMMENT ON COLUMN payments.gateway_tx_id IS '支付网关交易流水号，UNIQUE 约束用作幂等键';
 
@@ -159,3 +159,66 @@ COMMENT ON COLUMN audit_logs.actor_type IS '操作人类型: user / admin / syst
 COMMENT ON COLUMN audit_logs.action IS '操作类型: start_charge / stop_charge / recharge / resolve_repair 等';
 COMMENT ON COLUMN audit_logs.client_ip IS '客户端 IP 地址，VARCHAR(45) 支持 IPv6';
 COMMENT ON COLUMN audit_logs.user_agent IS '客户端 User-Agent 原始字符串';COMMENT ON COLUMN audit_logs.payload IS 'JSONB 操作详情，禁止存储密码明文、完整银行卡号等敏感信息';
+
+-- 8. password_history（密码历史表）
+CREATE TABLE password_history (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id),
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_password_history_user ON password_history(user_id, created_at DESC);
+COMMENT ON TABLE password_history IS '密码历史表，保留最近3次密码哈希，供密码修改时检查';
+
+-- ===== 视图定义 =====
+
+-- 1. 用户充电记录快捷视图
+CREATE OR REPLACE VIEW v_user_charge_records AS
+SELECT
+  cr.id AS record_id,
+  cr.user_id,
+  u.name AS user_name,
+  u.phone,
+  cr.charger_id,
+  s.name AS station_name,
+  c.charger_code,
+  cr.start_time,
+  cr.end_time,
+  EXTRACT(EPOCH FROM (cr.end_time - cr.start_time)) / 60 AS duration_minutes,
+  cr.energy_kwh AS kwh_used,
+  cr.fee AS total_cost,
+  cr.status
+FROM charge_records cr
+JOIN users u ON cr.user_id = u.id
+JOIN chargers c ON cr.charger_id = c.id
+JOIN stations s ON c.station_id = s.id;
+
+-- 2. 按日统计充电量视图
+CREATE OR REPLACE VIEW v_daily_charge_stats AS
+SELECT
+  DATE(start_time) AS charge_date,
+  COUNT(*) AS total_sessions,
+  SUM(energy_kwh) AS total_kwh,
+  SUM(fee) AS total_revenue,
+  AVG(EXTRACT(EPOCH FROM (end_time - start_time)) / 60) AS avg_duration_minutes
+FROM charge_records
+WHERE status = 'COMPLETED'
+GROUP BY DATE(start_time)
+ORDER BY charge_date DESC;
+
+-- 3. 充电桩使用率视图
+CREATE OR REPLACE VIEW v_charger_usage_rate AS
+SELECT
+  c.id AS charger_id,
+  c.charger_code,
+  s.name AS station_name,
+  COUNT(cr.id) AS total_sessions,
+  SUM(cr.energy_kwh) AS total_kwh,
+  SUM(cr.fee) AS total_revenue,
+  MAX(cr.start_time) AS last_used,
+  c.status
+FROM chargers c
+LEFT JOIN stations s ON c.station_id = s.id
+LEFT JOIN charge_records cr ON c.id = cr.charger_id
+GROUP BY c.id, c.charger_code, s.name, c.status;
