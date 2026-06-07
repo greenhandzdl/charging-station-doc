@@ -39,11 +39,16 @@
 ### 充值支付
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| POST | `/api/v1/payments/recharge` | 创建充值请求 | 已认证用户 |
+| POST | `/api/v1/payments/recharge` | 创建充值请求（状态为 PENDING，等待管理员审批） | 已认证用户 |
+| GET | `/api/v1/payments/pending` | 查询待审核充值列表 | 管理员/最高管理者 |
+| PUT | `/api/v1/payments/{id}/approve` | 批准充值请求（触发系统模拟回调处理 → 加余额） | 管理员/最高管理者 |
+| PUT | `/api/v1/payments/{id}/reject` | 拒绝充值请求 | 管理员/最高管理者 |
 | GET | `/api/v1/users/balance` | 查询当前用户余额 | 已认证用户 |
 | POST | `/api/v1/payments/callback` | 支付网关回调 | 支付网关 |
 | GET | `/api/v1/payments` | 查询支付记录 | 已认证用户（仅自己的） |
 | POST | `/api/v1/payments/pay-arrears` | 支付欠费（选择支付方式后调用） | 已认证用户 |
+
+> **审批流程说明**：用户提交充值申请后，状态为 `PENDING`。管理员在后台查看待审核列表，批准后系统自动执行模拟回调处理（校验HMAC → 标记SUCCESS → 增加余额 → 自动补扣欠费）。拒绝后状态变为 `FAILED`。
 
 ### 基础信息管理
 | 方法 | 路径 | 说明 | 权限 |

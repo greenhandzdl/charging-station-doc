@@ -84,7 +84,7 @@
 | charge_record_id | UUID | FK REFERENCES charge_records(id) | NULLABLE，仅扣费时有值 |
 | method | VARCHAR(32) | | WECHAT / ALIPAY / CARD / SYSTEM / AUTO_DEDUCT |
 | amount | NUMERIC(12,2) | | |
-| status | VARCHAR(32) | CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED')) | PENDING / SUCCESS / FAILED |
+| status | VARCHAR(32) | CHECK (status IN ('PENDING', 'APPROVED', 'SUCCESS', 'FAILED')) | PENDING / APPROVED / SUCCESS / FAILED |
 | gateway_tx_id | VARCHAR(255) | UNIQUE | 支付网关交易流水号，用作幂等键防止重复回调 |
 | gateway_callback_payload | JSONB | NULLABLE | 支付网关回调原始数据 |
 | created_at | TIMESTAMP | DEFAULT now() | |

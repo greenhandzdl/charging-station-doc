@@ -402,3 +402,332 @@ if (typeof eventData !== "string") eventData = JSON.stringify(eventData);
 | **client** | `faa6105` feat: 权限路由重构 |
 | **doc** | `b5351e6` docs: 第28轮提交 |
 | **doc** | (本轮) 测试方案v1.4 + plan.md第29轮 |
+
+---
+
+## 第30轮 — 充值审批流 + 通用扫码 + Mock适配
+
+### 需求
+
+| # | 需求 | 说明 |
+|---|------|------|
+| 1 | 充值审批流 | 用户提交→PENDING→管理员审核→模拟回调→加余额 |
+| 2 | 通用扫码 | Flutter摄像头扫码→解析二维码→操作选择（充电/报修/查信息） |
+| 3 | Mock QR升级 | 二维码格式升级，含完整信息（stationName/chargerCode/type） |
+
+### 架构师文档更新（Phase 0）
+
+| 文件 | 变更 |
+|------|------|
+| `status/src/state_payment.puml` | 状态图增加 APPROVED 状态：PENDING→APPROVED→SUCCESS/FAILED |
+| `time/src/sequence_recharge.puml` | 时序图增加管理员审批环节 + 模拟回调处理 |
+| `usecase/docs/backend/README.md` | 充值支付API表新增 pending/approve/reject 三个管理端点 |
+
+### Phase 1: 并行开发
+
+| Agent | 任务 |
+|-------|------|
+| **Agent A — Backend** | PaymentStatus增加APPROVED、审核API（pending列表/approve/reject）、模拟回调、payments表DDL增加APPROVED约束 |
+| **Agent B — Flutter** | mobile_scanner依赖、扫码界面、扫码后操作Sheet、管理后台充值审核入口 |
+| **Agent C — Mock** | 二维码格式升级（增加stationName/chargerCode/type）、扫码充电联动 |
+
+---
+
+## 第31轮 — 全面修复 + 分支清理 + 文档同步 + Swing权限升级
+
+### 本轮6大任务
+
+| # | 任务 | 严重度 | 仓库 | 说明 |
+|---|------|:------:|------|------|
+| 1 | **Web端启动脚本** | HIGH | Client | Flutter web 需 `flutter run -d web-server` 启动，添加启动脚本+健康检查 |
+| 2 | **配置抽离 + Swagger** | HIGH | Backend | 配置外部化（application-dev.yml/prod.yml）+ springdoc依赖补回+@Profile("dev") |
+| 3 | **文档全面同步** | HIGH | Doc | 架构师review全项目，同步现状到文档，标注未实现项 |
+| 4 | **Swing权限升级** | HIGH | Mock | 普通权限（现有）+ 高级权限（密钥+测试环境+全量查看） |
+| 5 | **Round 30收尾** | HIGH | All | 确认菜单项/扫码/审批流 E2E |
+| 6 | **分支清理** | MEDIUM | Doc | 删除 worktree-agent-* 分支，只留 main |
+
+### Phase 0 — 架构师先行：分支清理 + 状态盘点
+
+**分支清理操作：**
+```
+git branch -D worktree-agent-*  # 删除所有残留分支
+git push origin --delete worktree-agent-*  # 远端清理
+git branch -a  # 确认只剩 main
+```
+
+**状态盘点：**
+- 确认各子仓库当前 commit 和干净状态
+- 记录所有未提交变更
+
+### Phase 1 — 6路并行Agent
+
+#### Agent 1 — Flutter Web启动脚本
+
+**文件：** `scripts/start-flutter-web.sh`
+
+```bash
+#!/bin/bash
+# 启动 Flutter Web Server 并记录 PID
+cd code/charging-station-client
+flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8081 &
+PID=$!
+echo $PID > /tmp/flutter-web.pid
+echo "Flutter Web Server PID: $PID"
+# 健康检查：等待 flutter_bootstrap.js 可访问
+for i in $(seq 1 30); do
+  if curl -s http://localhost:8081 | grep -q "flutter"; then
+    echo "Flutter Web is ready!"
+    exit 0
+  fi
+  sleep 2
+done
+echo "Timeout waiting for Flutter Web"
+exit 1
+```
+
+#### Agent 2 — Backend 配置抽离 + Swagger
+
+**配置抽离方案：**
+```
+application.yml → 只保留公共配置（server.port, spring.profiles.active, mybatis全局）
+  ↓
+application-dev.yml → dev环境覆盖（datasource, redis, JWT dev密钥）
+  ↓
+application-prod.yml → 生产环境覆盖（全部通过环境变量）
+```
+
+**Swagger修复：**
+- pom.xml 添加 `springdoc-openapi-starter-webmvc-ui:2.6.0`（第25轮移除的依赖补回）
+- SwaggerConfig.java 添加 `@Profile("dev")`，仅开发环境启用
+- SecurityConfig.java 保留 `/swagger-ui/**`, `/v3/api-docs/**` 的 `.permitAll()`
+- 移除 JWT 验证要求 → 当前已在SecurityConfig中 permitAll，无需改动
+
+#### Agent 3 — 架构师文档全面Review
+
+**对照清单：**
+
+| 文档 | 检查项 |
+|------|--------|
+| `usecase/docs/backend/README.md` | API列表 vs 实际Controller 7个 |
+| `usecase/docs/frontend/README.md` | 页面列表 vs 实际Flutter screens 17个 |
+| `status/src/state_payment.puml` | APPROVED状态是否加入 |
+| `time/src/sequence_recharge.puml` | 审批流是否加入 |
+| `class/` 所有 puml | PaymentStatus enum 是否含 APPROVED |
+| `doc/测试方案与结果记录.md` | 版本号更新到最新 |
+| 所有 .puml | → 渲染 SVG |
+| 标注未实现项 | 密码强度、密码历史、数据库VIEW、自动补全、Mock心跳 |
+
+#### Agent 4 — Swing充电桩权限升级
+
+**需求分析：**
+- **普通权限**（现有）：mock_user → /auth/login → JWT → /charges/* 端点
+- **高级权限**（新增）：密钥输入 → 测试环境验证 → 查看所有充电桩 → 查看中间件交互密钥
+
+**实现方案：**
+
+1. `AppConfig.java` 增加：
+   - `ADVANCED_SECRET` — 高级权限密钥（env: `ADVANCED_SECRET`, 默认 `charger-admin-secret-2024`）
+   - `IS_TEST_ENV` — 是否测试环境（env: `IS_TEST_ENV`, 默认 `false`），高级模式仅在此为true时可用
+
+2. `ChargerUIPanel.java` 增加：
+   - 权限模式切换按钮/下拉框（普通/高级）
+   - 高级模式需输入密钥弹出对话框
+   - 高级模式 UI 指示器（如标题栏颜色变化或状态文字）
+   - 高级模式额外功能区：查看全部充电桩 + 查看中间件密钥
+
+3. `ApiClient.java` 增加：
+   - `getAllChargers()` — 带管理员token获取全部充电桩
+   - `getMiddlewareKeys()` — 获取中间件交互密钥列表
+   - 高级模式使用专用JWT（admin token而非mock_user token）
+
+4. 权限状态指示器：
+   - 普通模式：绿色 `🔵 普通模式`
+   - 高级模式（已验证）：红色 `🔴 高级模式`
+
+#### Agent 5 — Round 30收尾验证
+
+**检查清单：**
+- [ ] `admin_dashboard_screen.dart` 导入 `recharge_approval_screen.dart` + 菜单项已添加
+- [ ] Flutter 扫码界面可编译（`mobile_scanner` 依赖已添加）
+- [ ] 充值审批流：创建充值 → PENDING → 管理员批准 → 模拟回调 → 余额增加
+- [ ] Mock QR 格式：升级为含 stationName/chargerCode/type 的完整 JSON
+
+**修复项（如检测到未完成）：**
+- 菜单项缺失 → 添加 grid card
+- QR 格式未升级 → 修改 `ChargerUIPanel.generateQrCode()`
+- 审批流未测试 → Test Agent 写 E2E 测试
+
+#### Agent 6 — 分支清理
+
+**命令序列：**
+```bash
+# 列出所有 worktree-agent 分支
+git branch | grep worktree-agent
+
+# 删除本地分支（强制）
+git branch | grep worktree-agent | xargs -r git branch -D
+
+# 删除远端分支
+git branch -r | grep worktree-agent | sed 's/origin\///' | xargs -r -I{} git push origin --delete {}
+
+# 确认只剩 main
+git branch
+```
+
+### Phase 2 — 代码审查（Reviewer Agent）
+
+所有 Agent 完成变更后，Reviewer 逐个审查：
+
+| Repo | 审查项 | 门禁 |
+|------|--------|:----:|
+| Backend | 配置结构、Swagger控制、无密钥泄露 | ✅ |
+| Client | Web启动脚本、扫码界面、管理菜单 | ✅ |
+| Mock | 权限模式设计、密钥安全、UI状态 | ✅ |
+| Doc | 文档一致性、未实现项标注、puml→svg | ✅ |
+
+### Phase 3 — 测试验证（Test Agent）
+
+#### 后端测试
+```bash
+# 启动 PostgreSQL + Redis
+cd code/charging-station-compose && docker compose up -d
+# 启动后端
+cd code/charging-station-backend && nohup mvn spring-boot:run > /tmp/backend.log 2>&1 &
+BACKEND_PID=$!
+echo $BACKEND_PID > /tmp/backend.pid
+
+# 等待后端启动
+for i in $(seq 1 30); do
+  if curl -s http://localhost:8080/actuator/health; then break; fi
+  sleep 2
+done
+
+# 运行 API 测试
+cd /mnt/data/charging-station-doc && bash agent/api_e2e_test.sh
+
+# 运行审批流专项测试
+curl -s -X POST http://localhost:8080/api/v1/payments/recharge \
+  -H "Content-Type: application/json" \
+  -d '{"amount":50,"method":"支付宝充值","userId":"<user-id>"}' | jq '.'
+# 验证 status = "PENDING"
+# 管理员审批
+curl -s -X PUT "http://localhost:8080/api/v1/payments/<id>/approve" \
+  -H "Authorization: Bearer <admin-token>"
+# 验证 status = "SUCCESS", balance 增加
+
+# 完成后 kill
+kill $(cat /tmp/backend.pid)
+```
+
+#### Flutter 测试
+```bash
+flutter analyze
+flutter test
+
+# Web 启动测试
+bash scripts/start-flutter-web.sh
+# 验证 curl http://localhost:8081 返回含 Flutter 框架的 HTML
+```
+
+#### Mock 测试
+```bash
+cd code/charging-station-mock-ser-client
+mvn test
+# 手动测试：权限模式切换（普通→高级→普通）
+```
+
+### Phase 4 — 迭代提交
+
+**退出条件（必须全部满足）：**
+- ✅ 后端 `mvn test` 全部通过
+- ✅ Flutter `flutter analyze` 0 errors
+- ✅ Flutter `flutter test` 全部通过
+- ✅ Mock `mvn test` 全部通过
+- ✅ 审批流 E2E 通过（PENDING→APPROVED→SUCCESS）
+- ✅ Web 端 curl 返回登录页面
+- ✅ Swagger UI dev 环境可访问
+- ✅ 文档已同步项目现状并标注未实现项
+- ✅ 分支清理完毕，只剩 main
+- ✅ 所有变更已提交
+
+**只有 kill 不正常退出才提交。**
+
+### 依赖关系
+
+```
+T0: 架构师先行（分支清理 + 状态盘点 + 文档基线）
+  │
+  ├── T1: Mock权限升级 (Agent 4, 独立)
+  │
+  ├── T2: Backend配置+Swagger (Agent 2, 独立)
+  │
+  ├── T3: Round30收尾 (Agent 5, 独立)
+  │
+  ├── T4: Flutter启动脚本 (Agent 1, 独立)
+  │
+  └── T5: 文档同步 (Agent 3, 依赖 T0, 可并行)
+       │
+       └── T6: 代码审查 (Reviewer, 依赖 T1-T5 全部完成)
+            │
+            └── T7: 测试验证 (Test, 依赖 T6)
+                 │
+                 └── T8: 迭代修复 (循环直到全通过) → 提交
+```
+
+### 当前状态 (2026-06-07)
+
+| 阶段 | 状态 | 备注 |
+|------|:----:|------|
+| **T0: 架构师先行** | ✅ | 分支清理 + 盘点 + 文档基线 |
+| **T0a: 分支清理** | ✅ | 13个 worktree-agent-* 分支已清理 |
+| **T0b: 状态盘点** | ✅ | 已完成全面探索 |
+| **T0c: 文档基线** | ✅ | puml/SVG已同步，标注未实现项 |
+| **T1: Mock权限升级** | ✅ | 普通+高级模式，密钥+测试环境控制 |
+| **T2: Backend配置+Swagger** | ✅ | 3层配置 + springdoc @Profile("dev") |
+| **T3: Round30收尾** | ✅ | 菜单项+扫码+审批流已实现 |
+| **T4: Flutter启动脚本** | ✅ | start-flutter-web.sh + dev-web.sh |
+| **T5: 文档同步** | ✅ | 测试方案v1.5 + 架构评估v2.0 |
+| **T6: 代码审查** | ✅ | 所有Agent变更已审查 |
+| **T7: 测试验证** | ✅ | Backend 26/26, Flutter 25/25, Mock BUILD SUCCESS |
+| **T8: 迭代提交** | ⏳ | 等待第32轮（未实现功能开发）完成后提交 |
+
+---
+
+## 第32轮 — 开放未实现功能
+
+### 本轮目标
+
+从架构评估中提取的6项未实现/待修复功能：
+
+| # | 功能 | 仓库 | 优先级 | 说明 |
+|---|------|------|:------:|------|
+| 1 | **密码强度规则统一** | Backend | HIGH | 文档要求大+小+数字+特殊字符选3，代码仅校验字母+数字 |
+| 2 | **密码历史检查** | Backend+DB | HIGH | 禁止使用最近3次密码，需存储密码哈希历史 |
+| 3 | **Mock 30秒心跳检测** | Mock | MEDIUM | Mock客户端定时向后端发送心跳 |
+| 4 | **数据库VIEW** | Compose | MEDIUM | 充电记录快捷视图（按用户/按桩/按日统计） |
+| 5 | **搜索自动补全** | Backend+Client | LOW | 充电站/充电桩搜索下拉提示 |
+| 6 | **Flutter MAINTAINER独立页面** | Client | LOW | MAINTAINER角色专用维修工作台 |
+
+### Phase 1 — 并行开发（4路Agent）
+
+| Agent | 任务 | 仓库 |
+|-------|------|------|
+| **Agent A — 密码安全** | 密码强度校验升级 + 密码历史存储+检查 | Backend+DB |
+| **Agent B — Mock心跳** | 30秒定时心跳检测 | Mock |
+| **Agent C — 自动补全+VIEW** | 搜索端点模糊匹配 + 数据库VIEW | Backend+Compose |
+| **Agent D — MAINTAINER页面** | 维修工作台页面 + 路由接入 | Client |
+
+### Phase 2 — 测试验证
+
+| 检查项 | 预期 |
+|--------|:----:|
+| Backend `mvn test` | ✅ 全部通过 |
+| Flutter `flutter analyze` | ✅ 0 error |
+| Flutter `flutter test` | ✅ 全部通过 |
+| Mock `mvn compile` | ✅ BUILD SUCCESS |
+| 密码强度规则（>=3类字符） | ✅ 满足要求 |
+| 密码历史（拒绝最近3次） | ✅ |
+| Mock心跳（30秒/次） | ✅ |
+| 数据库VIEW存在 | ✅ |
+| 搜索自动补全返回结果 | ✅ |
+| MAINTAINER页面可访问 | ✅ |

@@ -1,10 +1,11 @@
 @startuml
 skinparam defaultFontName "Noto Sans CJK SC"
 skinparam defaultFontSize 14
-title 账户充值时序图
+title 账户充值时序图（含审批流程）
 
 ' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
 actor 用户 as U
+actor 管理员 as Admin
 participant "Flutter 客户端" as FE
 participant "支付控制器" as Ctrl
 participant "安全过滤器链" as Security
@@ -15,117 +16,85 @@ database 数据库 as DB
 
 U -> FE: 选择充值金额，选择支付方式\n点击"充值"
 FE -> Ctrl: HTTP POST /api/v1/payments/recharge\n{amount: 100.00, method: "wechat", idempotencyKey: "<UUID>"}
-note right FE : ApiService.recharge()\n请求头带 JWT Token\n必须使用 HTTPS 加密传输，防止凭证泄露\nidempotencyKey 由客户端生成 UUID，确保幂等
 
 group 授权检查 [Spring Security Filter Chain]
   Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role)
-
   Security -> Security: @PreAuthorize("isAuthenticated()")
-  note right Security : 验证请求携带有效 JWT Token\n不通过则返回 401 Unauthorized
 end
 
 group 幂等性检查 [防止重复充值]
   Ctrl -> PS: recharge(userId, amount, method, idempotencyKey)
-
-  PS -> DB: SELECT id FROM payments WHERE gateway_tx_id = ? AND user_id = ?
-  note right DB : 通过 idempotencyKey 查询是否已存在相同充值请求\ngateway_tx_id 存储 idempotencyKey 作为幂等键
+  PS -> DB: SELECT id FROM payments WHERE gateway_tx_id = ?
   DB --> PS: 查询结果
 
   alt idempotencyKey 已存在
     PS --> Ctrl: 返回已有支付记录 {paymentId}
-    note right PS : 幂等处理：直接返回已有的支付记录\n不创建重复充值
-    Ctrl --> FE: HTTP 200 {paymentId, redirectUrl}
-    FE --> U: 显示"正在跳转支付..."
-    note right FE : 已有相同充值请求，直接返回\n后续流程继续到支付网关
+    Ctrl --> FE: HTTP 200 {paymentId, redirectUrl, status: "existing"}
+    FE --> U: 显示"该充值请求已提交"
   else idempotencyKey 不存在
-    PS -> DB: INSERT INTO payments (id, user_id, charge_record_id, method,\namount, status, gateway_tx_id)\nVALUES (?, ?, NULL, ?, ?, 'pending', ?)\n-- 使用 PreparedStatement 参数绑定\n-- gateway_tx_id 存储 idempotencyKey，UNIQUE 约束防重
+    PS -> DB: INSERT INTO payments (id, user_id, method,\namount, status, gateway_tx_id)\nVALUES (?, ?, ?, ?, 'pending', ?)
     DB --> PS: 支付记录创建成功 (status: pending)
   end
 end
 
-PS --> Ctrl: 支付单已创建 {paymentId}
-Ctrl --> FE: HTTP 200 {paymentId, redirectUrl}
-FE --> U: 显示"正在跳转支付..."
+PS --> Ctrl: 支付单已创建 {paymentId, status: "pending"}
+Ctrl --> FE: HTTP 200 {paymentId, status: "PENDING"}
+FE --> U: 显示"充值申请已提交，等待管理员审批..."
 
-== 模拟支付网关交互 ==
-PS -> Gateway: HTTP POST 模拟支付请求\n{paymentId, amount, method, callbackUrl}
-Gateway --> PS: 同步返回 (接受成功)
+== 管理员审批环节 ==
+note right Admin : 管理员登录后台查看待审核列表
+Admin -> FE: 进入「充值审核」页面
+FE -> Ctrl: GET /api/v1/payments/pending (ADMIN/SUPER_ADMIN)
+Ctrl --> FE: 待审核充值列表
+FE --> Admin: 显示待审批充值单（用户/金额/时间）
 
-note right Gateway : Mock 支付网关始终返回 success\n回调签名已模拟\n签名载荷 = HmacSHA256(paymentId + amount + status + secret)\n字段按名称排序后拼接再哈希，减少歧义\n\n每个支付通道（微信/支付宝/银联）使用独立 API Key\n单通道密钥泄露不影响其他通道安全
+Admin -> FE: 点击「批准」
+FE -> Ctrl: PUT /api/v1/payments/{id}/approve\n(ADMIN/SUPER_ADMIN)
 
-Gateway -> PS: HTTP POST 异步回调\n{paymentId, txId, status: 'success', signature}\nHeaders: {X-Payment-Gateway-Key: <共享密钥>}
+Ctrl -> PS: approvePayment(paymentId, adminId)
+PS -> DB: UPDATE payments SET status = 'approved'\nWHERE id = ? AND status = 'pending'
+note right DB : 乐观锁：只有 status='pending' 才能审批\n防止并发重复审批
+DB --> PS: 更新成功
 
-note right Gateway : 回调请求需携带 X-Payment-Gateway-Key 头\n共享密钥由系统配置，仅支付网关和后端知晓\n作为第一道防线防止伪造回调
+group 系统模拟回调处理 [atomic]
+  PS -> PS: 校验 HMAC 签名 (内部模拟)
 
-PS -> PS: 校验 X-Payment-Gateway-Key 头\n与配置的共享密钥比对
-note right PS : API 密钥认证先于 HMAC 签名校验\n双重验证确保回调来源可信\n密钥不匹配直接拒绝，返回 403
+  alt 签名验证通过
+    PS -> DB: UPDATE payments SET status = 'success'\nWHERE id = ?
+    DB --> PS: 支付状态更新成功
 
-PS -> PS: 校验回调签名 (HMAC-SHA256)
+    PS -> DB: UPDATE users SET balance = balance + ?\nWHERE id = ?
+    DB --> PS: 余额更新成功
 
-group 幂等性检查 [防止重复回调]
-    PS -> DB: SELECT status FROM payments WHERE id = ?
-    DB --> PS: 支付状态
+    group 欠费自动补扣
+      PS -> DB: SELECT cr.id, cr.fee FROM charge_records cr\nWHERE cr.user_id = ? AND cr.deduction_status = 'arrears'\nFOR UPDATE
+      DB --> PS: 欠费记录列表
 
-    alt status = 'success' （已处理）
-      PS --> Gateway: 直接返回成功（幂等）
-      note right PS : 幂等键机制:\n paymentId 天然幂等,\n重复回调直接跳过
-    else status = 'pending'
-      group 事务 [atomic] 覆盖: 更新支付状态 + 更新余额 + 审计日志
-        alt 签名验证通过
-          PS -> DB: UPDATE payments SET status = 'success',\ngateway_tx_id = ? WHERE id = ? AND status = 'pending'
-          DB --> PS: 支付状态更新成功
-
-          PS -> DB: UPDATE users SET balance = balance + ?\nWHERE id = ? -- 使用 PreparedStatement 参数绑定
-          DB --> PS: 余额更新成功
-
-          group 欠费自动补扣 [检查用户是否有未支付的充电欠费]
-            PS -> DB: SELECT cr.id, cr.fee, cr.deduction_status, u.balance\nFROM charge_records cr\nJOIN users u ON cr.user_id = u.id\nWHERE cr.user_id = ? AND cr.deduction_status = 'arrears'\nFOR UPDATE
-            note right DB : 使用 FOR UPDATE 锁定欠费记录行\n防止并发充值导致重复扣费
-            DB --> PS: 欠费记录列表
-
-            alt 存在欠费记录
-              loop 逐条处理欠费 [按时间顺序]
-                PS -> DB: UPDATE charge_records SET deduction_status = 'paid'\nWHERE id = ? AND deduction_status = 'arrears'
-                DB --> PS: 扣费状态更新
-
-                PS -> DB: UPDATE users SET balance = balance - ?\nWHERE id = ? AND balance >= ?
-                DB --> PS: 余额扣减
-
-                PS -> DB: UPDATE users SET frozen_until = NULL\nWHERE id = ? AND frozen_until IS NOT NULL
-                note right DB : 还清欠费后清除冻结时间\n用户恢复正常使用
-                DB --> PS: 冻结清除
-
-                PS -> DB: INSERT INTO payments (id, user_id, charge_record_id, method,\namount, status)\nVALUES (?, ?, ?, 'auto_deduct', ?, 'success')
-                DB --> PS: 补扣支付记录
-
-                PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload)\nVALUES (?, 'system', 'arrears_auto_deduct', 'charge_record', ?, ?::jsonb)
-                DB --> PS: 补扣审计日志
-              end
-            else 无欠费记录
-              note right PS : 无欠费记录，无需补扣
-            end
-          end
-
-          PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, client_ip)\nVALUES (?, 'user', 'recharge', 'payment', ?, ?)
-          DB --> PS: 审计日志记录成功
-        else 签名验证失败
-	          PS -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id, payload) VALUES (?, 'system', 'callback_signature_failed', 'payment', ?, ?::jsonb) -- 记录签名校验失败审计日志
-	          DB --> PS: 审计日志记录成功
-          PS -> DB: UPDATE payments SET status = 'failed'\nWHERE id = ?
-          DB --> PS: 标记失败
+      alt 存在欠费记录
+        loop 逐条处理欠费
+          PS -> DB: UPDATE charge_records SET deduction_status = 'paid'\nWHERE id = ? AND deduction_status = 'arrears'
+          PS -> DB: UPDATE users SET balance = balance - ?\nWHERE id = ? AND balance >= ?
+          PS -> DB: UPDATE users SET frozen_until = NULL\nWHERE id = ? AND frozen_until IS NOT NULL
+          DB --> PS: 补扣完成
         end
       end
     end
+
+    PS -> DB: INSERT INTO audit_logs\n(actor_type, action, resource, resource_id)\nVALUES ('system', 'recharge', 'payment', ?)
+    DB --> PS: 审计日志
+  else 签名验证失败
+    PS -> DB: UPDATE payments SET status = 'failed'\nWHERE id = ?
+    DB --> PS: 标记失败
+  end
 end
 
-Gateway --> PS: 回调处理完成
+PS --> Ctrl: 审批处理完成
+Ctrl --> FE: HTTP 200 {status: "approved", message: "充值已批准，余额已更新"}
+FE --> Admin: 显示"审批成功，余额已增加"
 
 == 前端刷新余额 ==
-note right FE : 通过 WebSocket 推送或轮询获取最新余额\nWebSocket 连接需通过 JWT 认证（?token= 或 Sec-WebSocket-Protocol 头）\n此处展示主动刷新方式
-
-U -> FE: 手动刷新余额或收到回调通知
-FE -> Ctrl: HTTP GET /api/v1/users/balance
-note right FE : 此路径实际由 UserController 处理\n（时序图中复用支付控制器为入口标识）\n由前端统一 ApiService 分发
+U -> FE: 查看最新余额
+FE -> Ctrl: GET /api/v1/users/balance
 Ctrl -> US: getBalance(userId)
 US -> DB: SELECT balance FROM users WHERE id = ?
 DB --> US: 当前余额
