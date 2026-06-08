@@ -62,8 +62,39 @@
 - repairs 表增加 reject_reason TEXT NULLABLE 字段
 
 ---
+### 2026-06-07: 第34轮 — 修正权限映射：Swing=模拟充电桩（高权限） Flutter=用户端
 
----
+**冲突描述：** 此前文档中权限描述存在系统性错误：
+1. Mock充电机（Swing）被描述为"用户端"或"基础权限"，但实际它是模拟的真实充电桩设备，需要比普通用户更高的权限与 Spring 中间件通讯
+2. Flutter 被描述为"充电桩"端，但 Flutter 实际是用户端（普通用户/管理员/维修人员的操作界面）
+3. 高级权限（ADVANCED_API_KEY）被描述为给 "Flutter 用户"使用的，实际上它仅用于模拟充电桩
+
+**涉及文件：**
+- usecase/docs/overview/usecases.md
+- usecase/docs/backend/README.md
+- usecase/docs/frontend/README.md
+- usecase/docs/containerd/README.md
+- usecase/docs/backend/charging-flow.md
+- doc/测试方案与结果记录.md
+- agent/conflicts.md
+
+**相关模块：** 全局 — 所有文档中的参与者与权限描述
+
+**用户决断：**
+- 统一使用 **正确的权限映射**：
+
+| 角色 | 客户端 | 权限 |
+|------|--------|------|
+| 普通用户 | Flutter | 基础 |
+| 维修人员 | Flutter | 基础+ |
+| 管理员 | Flutter | 中级 |
+| 最高管理者 | Flutter | 最高 |
+| 模拟充电桩（普通模式） | **Swing** | **高（桩专用）** |
+| 模拟充电桩（高级模式） | **Swing** | **最高（桩专用）** |
+
+- Swing 桌面客户端是模拟的真实充电桩设备，不是"用户端"。Flutter 是用户端，不是充电桩
+- 高级权限（ADVANCED_API_KEY）仅用于模拟充电桩，不提供给 Flutter 用户
+- 所有文档中的参与者描述、权限表、流程描述按此映射修正
 
 ### 2026-05-29: 第24轮评估 — ChargerService 缺失 updateStatus、generateReport 权限偏差、前端缺失 FCL 及管理端报修方法
 
