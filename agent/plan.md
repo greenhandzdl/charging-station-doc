@@ -1,4 +1,4 @@
-# 第35轮 — 代码-文档全面对齐 + 桩在线检测 + 缺陷修复
+# 第35轮 — 代码-文档全面对齐 + 桩在线检测 + 缺陷修复 ✅ 已完成
 
 > 基于第34轮审计（18项差异），覆盖 P0-P2 所有未完成任务。
 
@@ -43,7 +43,36 @@
 
 ---
 
-## 三、执行策略 — 5 轮并行
+## 三、执行结果
+
+### ✅ 已完成的提交（5b48558）
+
+| 项 | 状态 | 变更 |
+|----|------|------|
+| A1 Entity+Mapper 在线字段 | ✅ | Charger.java +2 fields, ChargerMapper +2 methods |
+| A2 遥测端点 | ✅ | POST /chargers/heartbeat in ChargingController |
+| A3 离线检测 | ✅ | ChargingScheduler.checkOfflineChargers() 每60s |
+| A4 启动在线校验 | ✅ | startCharge() 检查 ONLINE 状态 |
+| A5 Mock真实心跳 | ✅ | ApiClient.sendHeartbeat, MockChargerClient替换queryCharges |
+| F init.sql CHECK修复 | ✅ | 补 REGISTRATION_FAILED + CAPTCHA_FAILED |
+| C Connector升级 | ✅ | HttpChargerConnector 真实 HTTP POST |
+| K JWT scope生效 | ✅ | SecurityConfig 添加 SCOPE 检查 |
+| I db.md 补password_history | ✅ | 8张表+3个VIEW完整记录 |
+| N/O/P 文档同步 | ✅ | captcha/suggest端点 + AdvancedApiKeyFilter状态更新 |
+| 测试 | ✅ | 49 tests, 0 failures |
+| 分支清理 | ✅ | 仅保留main |
+
+### 📋 技术债务（暂不修复）
+
+| 项 | 原因 |
+|----|------|
+| E: 15.0 kWh 硬编码 | 需要模拟数据集成，当前无实时能量模拟 |
+| G: ChargeSimulator flat 1.5定价 | Mock桩独立定价不影响后端计算，优先级低 |
+| H: Mock queryCharges反序列化 | Mock桩功能以QR+心跳为主，查询非核心路径 |
+
+---
+
+## 四、执行策略 — 5 轮并行（原始计划，已完成）
 
 ### Round 1: 基础设施 + 清理（并行 Agent）
 
