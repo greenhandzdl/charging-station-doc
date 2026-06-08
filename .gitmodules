@@ -1,0 +1,12 @@
+[submodule "code/charging-station-backend"]
+	path = code/charging-station-backend
+	url = https://github.com/greenhandzdl/charging-station-backend.git
+[submodule "code/charging-station-client"]
+	path = code/charging-station-client
+	url = https://github.com/greenhandzdl/charging-station-client.git
+[submodule "code/charging-station-compose"]
+	path = code/charging-station-compose
+	url = https://github.com/greenhandzdl/charging-station-compose.git
+[submodule "code/charging-station-mock-ser-client"]
+	path = code/charging-station-mock-ser-client
+	url = https://github.com/greenhandzdl/charging-station-mock-ser-client.git

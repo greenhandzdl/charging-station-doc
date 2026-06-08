@@ -18,7 +18,7 @@
 
 **权限层级模型：** 系统采用三层权限模型 — 普通权限（Normal：USER/MAINTAINER，scope=user，Flutter 用户端，仅操作自己的充电桩）、管理权限（Admin：ADMIN/SUPER_ADMIN，scope=admin，Flutter 管理端，全部可见/管理）、高级权限（Advanced：桩专用，需 `ADVANCED_API_KEY` 密钥，Swing 模拟充电桩用，可见所有充电桩及中间件交互，仅测试环境开放）。
 
-> **⚠️ 实现状态：** AdvancedApiKeyFilter 代码已添加并集成至 SecurityConfig，模拟充电桩支持普通模式（mock_user/mock123，scope=user）和高级模式（ADVANCED_API_KEY 密钥认证）。但 JWT scope claim（`mock_charger_only`）在 SecurityConfig 中尚未生效。
+> **✅ 实现状态：** AdvancedApiKeyFilter 已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`。模拟充电桩支持普通模式（mock_user/mock123，scope=user）和高级模式（ADVANCED_API_KEY 密钥认证）。但 JWT scope claim（`mock_charger_only`）在 SecurityConfig 中尚未生效。
 
 ## 核心用例
 
@@ -102,7 +102,7 @@
 
 1. **> ⚠️ 未实现** JWT scope claim（mock_charger_only）已定义但未在 SecurityConfig 中生效
 2. **> ⚠️ 未实现** HMAC-SHA256 签名验证未完整实现（PaymentChannel 始终返回 true）
-3. **> ⚠️ 未实现** 高级密钥认证（Advanced API Key）尚未实现
+3. **> ✅ 已实现** 高级密钥认证（Advanced API Key）已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`
 4. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现
 5. **> ⚠️ 未实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现
 

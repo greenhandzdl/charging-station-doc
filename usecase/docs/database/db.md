@@ -1,6 +1,6 @@
 # 数据库设计说明
 
-本系统选用 PostgreSQL 作为核心数据库（可选装 TimescaleDB 扩展用于时序数据分析）。以下列出七张核心表及其字段设计，与功能模块的对应关系见文末映射表。
+本系统选用 PostgreSQL 作为核心数据库（可选装 TimescaleDB 扩展用于时序数据分析）。以下列出八张核心表及其字段设计，与功能模块的对应关系见文末映射表。
 
 ## 表清单
 
@@ -126,11 +126,22 @@
 
 **对应模块：** 全部模块
 
+### 8. password_history（密码历史表）
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | BIGSERIAL | PK | |
+| user_id | UUID | NOT NULL, FK REFERENCES users(id) | 用户 ID |
+| password_hash | VARCHAR(255) | NOT NULL | bcrypt/Argon2 散列，保留最近3次密码哈希 |
+| created_at | TIMESTAMP | DEFAULT now() | 密码变更时间 |
+
+**对应模块：** 认证与账户
+
 ## 模块与数据表映射
 
 | 功能模块 | 涉及表 | 主要操作 |
 |----------|--------|----------|
-| 用户注册/登录 | users | 写入用户，校验密码 |
+| 用户注册/登录 | users, password_history | 写入用户，校验密码，密码历史检查 |
 | 基础信息管理 | stations, chargers, users | CRUD |
 | 充电流程 | chargers, charge_records, users | 状态变更，记录写入，余额扣减（deduction_status 跟踪扣费结果）|
 | 账户充值 | users, payments | 余额更新，支付流水记录 |
@@ -155,6 +166,7 @@
 | repairs | charger_id | chargers(id) | 报修关联充电桩 |
 | repairs | reporter_id | users(id) | 报修提交人 |
 | repairs | handled_by | users(id) | 报修处理人 |
+| password_history | user_id | users(id) | 密码历史归属用户 |
 
 ## 索引设计
 
@@ -171,6 +183,7 @@
 | idx_audit_logs_actor | audit_logs | (actor_id, created_at) | BTREE | 操作审计追溯 |
 | idx_charge_records_deduction | charge_records | deduction_status | BTREE | 欠费查询，配合扣费重试与欠费通知 |
 | idx_users_password_reset_token_hash | users | password_reset_token_hash | BTREE (partial) | 条件索引，仅非空时有效，密码重置令牌查找 |
+| idx_password_history_user | password_history | (user_id, created_at DESC) | BTREE | 按用户查询密码历史，DESC 排序获取最近记录 |
 
 ## DDL 建表脚本
 
@@ -180,6 +193,7 @@
 - 主键、外键、唯一约束
 - 索引创建语句
 - 字段注释
+- 3 个视图定义（`v_user_charge_records`、`v_daily_charge_stats`、`v_charger_usage_rate`）
 
 ## 实施要点
 

@@ -32,6 +32,7 @@
 ### 认证与账户
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
+| GET | `/api/v1/captcha` | 获取图形验证码图片，验证码 ID 与图片字节流一同返回。含 IP 级限流：同一 IP 每分钟最多请求 10 次，超出返回 429 | 公开 |
 | POST | `/api/v1/auth/register` | 用户注册（需验证码，防止机器人注册）。限流策略：同一 IP 每小时最多注册 3 次；同一手机号每日最多注册 1 次 | 公开 |
 | POST | `/api/v1/auth/login` | 用户登录，返回短期凭证。含暴力破解防护：IP 维度 5 分钟内失败 5 次触发验证码，10 次封禁 IP 30 分钟；账户维度连续失败 10 次锁定 30 分钟 | 公开 |
 | POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效）。含 IP 级限流：同一 IP 每分钟最多刷新 5 次，超出返回 429 | 已认证 |
@@ -68,6 +69,7 @@
 |------|------|------|------|
 | GET | `/api/v1/stations` | 查询充电站列表 — `@PreAuthorize("isAuthenticated()")` 任何已认证用户可读 | 已认证用户 |
 | GET | `/api/v1/stations/search?name=xxx` | 按名称查询充电站 | 已认证用户 |
+| GET | `/api/v1/stations/search/suggest?prefix=xxx` | 充电站名称搜索补全提示，根据前缀返回匹配的充电站名称列表 | 已认证用户 |
 | GET | `/api/v1/stations/{id}` | 按 ID 查询充电站 | 已认证用户 |
 | POST | `/api/v1/stations` | 创建充电站 — `@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")` | 管理员/最高管理者 |
 | PUT | `/api/v1/stations/{id}` | 更新充电站信息 | 管理员/最高管理者 |
@@ -75,6 +77,7 @@
 | GET | `/api/v1/chargers` | 查询充电桩列表（可选按 stationId 筛选）— `@PreAuthorize("isAuthenticated()")` | 已认证用户 |
 | GET | `/api/v1/chargers/{id}` | 按 ID 查询充电桩 | 已认证用户 |
 | GET | `/api/v1/chargers/by-code/{code}` | 按充电桩编码查询 | 已认证用户 |
+| GET | `/api/v1/chargers/search/suggest?prefix=xxx` | 充电桩编码搜索补全提示，根据前缀返回匹配的充电桩编码列表 | 已认证用户 |
 | POST | `/api/v1/chargers` | 创建充电桩 — `@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")` | 管理员/最高管理者 |
 | PUT | `/api/v1/chargers/{id}` | 更新充电桩信息 | 管理员/最高管理者/维修人员 |
 | DELETE | `/api/v1/chargers/{id}` | 删除充电桩 | 管理员/最高管理者 |
@@ -176,7 +179,7 @@
 
 1. **> ⚠️ 未实现** JWT scope claim（`mock_charger_only`）已定义但未在 SecurityConfig 中生效
 2. **> ⚠️ 未实现** HMAC-SHA256 签名验证未完整实现（PaymentChannel 始终返回 true）
-3. **> ⚠️ 未实现** 高级密钥认证（Advanced API Key）尚未实现
+3. **> ✅ 已实现** 高级密钥认证（Advanced API Key）已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`
 4. **> ⚠️ 未实现** audit_logs trigger/REVOKE 保护在 compose init.sql 中缺失
 5. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现
 6. **> ⚠️ 未实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现
