@@ -26,7 +26,7 @@ Mock充电机客户端是前后端不分离的 Swing 桌面客户端，用于模
 - **测试场景模拟**：面板内置断网测试、服务器重启、充电桩离线三个测试按钮，用于模拟异常场景验证客户端行为
 - **评分标准满足**：作为 Swing 组件展示载体，满足课程评分标准中 Swing+JDBC（40分）的要求
 
-**重要**：Mock 充电机 **不直接调用** `/api/v1/charges/start` 和 `/api/v1/charges/stop` 执行充电启停操作。充电启停由 Flutter App 扫码后调用后端 API 完成，Mock 客户端不做轮询同步，也不模拟电量增长。
+**重要**：Mock 充电机 **不直接调用** `/api/v1/charges/start` 和 `/api/v1/charges/stop` 执行充电启停操作。充电启停由 Flutter App 扫码后调用后端 API 完成。Mock 客户端后台轮询充电状态（每 30 秒心跳，`GET /api/v1/charges`），ChargeSimulator 模拟电量增长（0.1 kWh/秒）。
 
 Mock 客户端 **不参与** 充值、报修、管理等非充电业务流程。
 
@@ -34,6 +34,22 @@ Mock 客户端 **不参与** 充值、报修、管理等非充电业务流程。
 - 使用专用测试用户账户（不会影响真实用户数据）
 - **不绕过余额校验**（充电启动前由后端校验余额 >= 10元）
 - 面板无管理员操作入口，仅支持充电桩选择与插拔枪
+
+### Flutter 路由权限控制
+
+Flutter 前端已实现集中式权限路由控制：
+
+- **UserRole 枚举**：定义 `USER`、`MAINTAINER`、`ADMIN`、`SUPER_ADMIN` 四个角色，硬编码字符串比较已替换为枚举比较。
+- **ProfileScreen 门禁点**：所有受保护页面通过 ProfileScreen 做统一路由守卫，根据当前用户的 `UserRole` 动态加载可访问页面列表，非授权页面不展示入口。
+- **角色路由映射**：USER 可访问充电/记录/报修页面；MAINTAINER 额外可访问维修工作台；ADMIN/SUPER_ADMIN 可访问全部管理页面。
+
+> **⚠️ 未实现：** Flutter 端 MAINTAINER 角色专用维修工作台页面尚未提供独立 UI，当前与管理员页面合并。
+
+### Web 版注意事项
+
+- Flutter Web 版本使用 Chrome 渲染，Token 存储于内存（App 刷新后需重新登录）。
+- 生产环境建议使用 HttpOnly Cookie 替换内存 Token，防止 XSS 攻击窃取凭证。
+- Web 版本不支持 Mock 充电机交互（Mock 客户端为 Swing 桌面版）。
 
 ## 与后端契约要点
 
@@ -63,6 +79,11 @@ Mock 客户端 **不参与** 充值、报修、管理等非充电业务流程。
 - Flutter 应用包（APK / Windows 安装包 / macOS DMG）
 - 接口契约文档（OpenAPI snippet）
 - 集成测试脚本与说明
+
+## 未完成项
+
+1. **> ⚠️ 未实现** Flutter 端 MAINTAINER 角色专用维修工作台页面尚未提供独立 UI
+2. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现，Flutter 端无法与物理充电机直接交互
 
 ## 交叉索引
 

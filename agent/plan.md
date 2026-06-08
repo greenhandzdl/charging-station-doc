@@ -10,7 +10,7 @@
 
 ### 已知问题
 1. **Flutter Web 空白页** — `curl` 返回 HTML(200) 但 Canvaskit 渲染可能失败
-2. **文档与代码严重不同步** — 测试文档(v1.5)过时、Mock描述不准、权限说明偏离代码
+2. ~~**文档与代码严重不同步** — 测试文档(v1.5)过时、Mock描述不准、权限说明偏离代码~~ ✅ Phase 1 完成
 3. **Mock Swing 权限模型需重做** — 需要普通权限(充电桩验证)和高级权限(密钥+测试环境)
 4. **权限系统整体重设计** — 充电流程需余额校验 + Spring-充电桩通讯
 5. **agent/ 目录膨胀** — 需清理已完成项
@@ -24,10 +24,20 @@
 4. 精简 `agent/` 目录：移除已完成轮次记录，保留当前计划
 5. 记录架构决策 (ADR) 到 conflicts.md
 
-### Phase 1: 文档同步 (架构师主导 + 并行 agent)
-1. **同步所有文档至当前代码状态**
-   - `usecase/docs/backend/README.md` — 更新 PUT /chargers/{id} 权限(MAINTAINER), 补充 claim 端点, 修正峰值定价描述
-   - `usecase/docs/backend/charging-flow.md` — 补充余额校验流程、峰值定价实装、Mock+Flutter QR 交互
+### Phase 1: 文档同步 (架构师主导) — ✅ 已完成
+已完成所有 8 项文档同步任务，具体修改见下方文档修改清单。
+
+#### 修改文件清单
+| 文件 | 修改内容 |
+|------|----------|
+| `usecase/docs/backend/README.md` | charger PUT 权限添加 MAINTAINER；repair 表添加 claim 端点；Mock 描述添加轮询+模拟；密码强度修正；IP封禁5分钟；Swagger 描述修正；添加三层权限模型表和未完成项 |
+| `usecase/docs/backend/charging-flow.md` | PeakPricing 改为已实现(8:00-22:00峰值)；添加余额校验步骤；添加 Mock+Flutter QR 交互；添加结束充电三种场景表；添加自动补扣描述；添加未完成项 |
+| `usecase/docs/frontend/README.md` | Mock 描述同步；添加 Flutter 路由权限控制(UserRole枚举+ProfileScreen门禁)；添加 Web 版注意事项；添加未完成项 |
+| `usecase/docs/overview/usecases.md` | Mock 描述修正；添加 CLAIM_REPAIR 用例标注；添加三层权限模型说明；添加未完成项 |
+| `usecase/docs/containerd/README.md` | Mock 描述同步；补充 Redis 部署说明；补充高级权限(Advanced API Key)说明；添加未完成项 |
+| `usecase/docs/database/README.md` | 添加 audit_logs trigger 未完成项说明 |
+| `code/charging-station-compose/init/init.sql` | 补充 audit_logs 的 REVOKE 和 trigger 保护（与 ddl.sql 同步） |
+| `doc/测试方案与结果记录.md` | 升级至 v1.6；修正 6 项已实现功能；替换已知问题为新的 5 项未实现项 |
    - `usecase/docs/database/ddl.sql` — 同步 audit_logs trigger/REVOKE 缺失, payment status 增加 APPROVED
    - `code/charging-station-compose/init/init.sql` — 同步 trigger/REVOKE (目前缺失)
    - `doc/测试方案与结果记录.md` — 升级至 v1.6, 修正过时结论(password历史/搜索补全/密码强度)

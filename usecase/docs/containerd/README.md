@@ -7,7 +7,7 @@
 | 组件 | 技术栈 | 说明 |
 |------|--------|------|
 | 前端 | Flutter Desktop (Dart) | 用户与管理员界面 |
-| Mock充电机客户端 | Swing 桌面客户端 (Java) | 模拟物理充电机面板交互。使用 Swing 组件（JButton、JComboBox、JLabel 等）提供充电桩选择/插枪/拔枪 UI，选择充电桩后自动生成含充电桩 ID 的二维码供 Flutter 扫码启动充电，面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API（启停由 Flutter 调用后端完成）**，不轮询同步，不模拟电量增长。不参与充值、报修、管理等业务流程。满足评分标准 Swing+JDBC 要求 |
+| Mock充电机客户端 | Swing 桌面客户端 (Java) | 模拟物理充电机面板交互。使用 Swing 组件（JButton、JComboBox、JLabel 等）提供充电桩选择/插枪/拔枪 UI，选择充电桩后自动生成含充电桩 ID 的二维码供 Flutter 扫码启动充电，后台轮询充电状态（每 30 秒心跳），ChargeSimulator 模拟电量增长（0.1 kWh/秒）。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API（启停由 Flutter 调用后端完成）**。不参与充值、报修、管理等业务流程。满足评分标准 Swing+JDBC 要求 |
 | 接入层 | Nginx | SSL 终端、路由分发、限流、静态资源服务 |
 | 后端 | Java Spring Boot | REST API 服务，提供业务接口 |
 | 数据库 | PostgreSQL | 核心业务数据存储 |
@@ -33,6 +33,23 @@
 
 - 包含服务：`app`（后端 Spring Boot）、`db`（PostgreSQL）、`redis`（缓存）、`mock-payments`（支付模拟器）。
 - 用于本地集成测试与开发。
+
+### Redis 部署说明
+
+Redis 是系统的核心依赖，必须与后端一起部署。docker-compose.yml 中包含以下 Redis 配置：
+
+```yaml
+redis:
+  image: redis:7-alpine
+  ports:
+    - "30002:6379"
+  volumes:
+    - redis-data:/data   # 持久化 refresh_token 和 jti 黑名单
+```
+
+- 端口映射：宿主机 `30002` → 容器 `6379`，避免与本地开发环境冲突。
+- 持久化：使用命名卷 `redis-data` 保存数据，容器重启后 token 和黑名单不丢失。
+- 连接配置：后端通过环境变量 `SPRING_REDIS_HOST=redis`、`SPRING_REDIS_PORT=6379` 连接。
 
 ### Redis 安全说明
 
@@ -74,6 +91,18 @@ Mock 支付网关当前阶段实现要点：
 - 回调始终返回 `success`，后端需设计幂等处理。
 - 预留异常扩展：`failed`（支付失败）、`timeout`（回调超时），在后端回调处理逻辑中做好相应分支注释。
 - **注意：Mock 支付网关端口仅限开发环境暴露，生产环境切勿对外暴露支付回调接口。**
+
+### 高级权限（Advanced API Key）部署说明
+
+系统支持三层权限认证，其中高级权限（Advanced）用于测试场景：
+
+| 层级 | 认证方式 | 部署配置 | 说明 |
+|------|----------|---------|------|
+| 普通权限 | JWT (scope=user) | 默认配置 | USER / MAINTAINER 角色 |
+| 管理权限 | JWT (scope=admin) | 默认配置 | ADMIN / SUPER_ADMIN 角色 |
+| 高级权限 | ADVANCED_API_KEY | Spring 环境变量 `ADVANCED_API_KEY` | 测试专用，当前尚未完全实现 |
+
+> **⚠️ 未实现：** 高级密钥认证（Advanced API Key）在 SecurityConfig 中尚未添加对应的 Filter 和配置入口。
 
 ## Kubernetes 生产要点
 

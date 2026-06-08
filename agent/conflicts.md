@@ -179,7 +179,32 @@
 
 ---
 
-### 2026-06-03: 文档评估 — Mock 充电机角色描述对齐 QR+Flutter 模式 + 缺失 API 端点补充
+### 2026-06-07: 第33轮 — 权限系统重设计 + 三层权限模型
+
+**冲突描述：** 现有权限系统为单层 RBAC（4 角色：USER/MAINTAINER/ADMIN/SUPER_ADMIN），不符合以下新需求：
+1. Mock Swing 充电桩需要权限细分：普通权限(充电桩验证+spring通讯) vs 高级权限(密钥+测试环境+可见所有+中间件交互)
+2. 权限系统整体重设计：充电流程需余额校验(≥10元) → Spring通知充电桩 → 桩确认后开通充电
+3. 结束充电三种场景：余额不够/用户主动断开/桩异常无通讯
+4. scope claim (mock_charger_only) 代码中存在但未生效
+
+**涉及文件：**
+- 全局 — SecurityConfig、JwtAuthenticationFilter、JwtTokenProvider、ChargeGuard
+- usecase/docs/backend/README.md、charging-flow.md
+- usecase/docs/backend/所有类图 .puml
+- code/charging-station-mock-ser-client 所有源文件
+- doc/测试方案与结果记录.md
+
+**相关模块：** 全局 — 后端安全、前端路由、Mock客户端、文档
+
+**用户决断：**
+- 三层权限模型：
+  1. **普通权限** (Normal): USER/MAINTAINER → 仅操作自己的充电桩（余额≥10启动→通知桩→开通），JWT scope=user
+  2. **管理权限** (Admin): ADMIN/SUPER_ADMIN → 全部可见/管理，JWT scope=admin
+  3. **高级权限** (Advanced): 测试专用 → 密钥(ADVANCED_API_KEY)验证，可见所有充电桩+中间件交互，仅测试环境开放，JWT scope=advanced
+- 充电流程：Flutter → POST /charges/start(chargerId) → Spring校验余额≥10元 → ChargerConnector通知Mock桩 → 桩ACK → Spring标记CHARGING
+- 结束充电：余额不足(自动停+冻结) / 用户主动(Flutter发stop) / 桩心跳超时(Spring强制停)
+- 新增 AdvancedApiKeyFilter 支持密钥认证
+- 新增 ChargerConnector 接口(HTTP polling先，后续升级WebSocket)
 
 **冲突描述：** 全量文档审查发现以下不一致：
 1. (MAJOR) frontend/README.md、containerd/README.md、overview/usecases.md 中 Mock 充电机描述仍沿用"直接调用 start/stop API"，与实际代码（QR 生成 + 轮询同步）不一致

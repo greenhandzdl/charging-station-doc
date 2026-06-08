@@ -112,6 +112,10 @@
 | 结束扣费 | UPDATE charge_records + UPDATE users + INSERT payments + UPDATE chargers | 多表写操作，事务回滚保证数据一致 |
 | 报修处理 | UPDATE repairs + UPDATE chargers | 两表状态同时变更 |
 
+## 未完成项
+
+1. **> ⚠️ 未实现** audit_logs trigger/REVOKE 保护（已同步至 compose init.sql）
+
 ## 相关文档
 
 - [数据库表结构](db.md) — 完整字段定义、约束与索引

@@ -14,6 +14,18 @@
 | Mock充电机 | 基础（模拟用户） | 模拟物理充电机面板交互：插枪/拔枪、生成含充电桩 ID 的二维码供 Flutter 扫码、后台轮询同步充电状态（`GET /api/v1/charges`）、模拟电量增长。**不直接调用充电启停 API**，不参与充值、报修、管理流程 |
 | 系统 | 系统级 | 定时任务、自动结算、统计汇总 |
 
+### 权限层级模型
+
+系统采用三层权限模型：
+
+| 层级 | 角色 | JWT Scope | 说明 |
+|------|------|-----------|------|
+| **普通权限 (Normal)** | USER、MAINTAINER | `scope=user` | 只能操作自己的充电桩和记录 |
+| **管理权限 (Admin)** | ADMIN、SUPER_ADMIN | `scope=admin` | 全部可见/管理，可管理用户权限 |
+| **高级权限 (Advanced)** | 测试专用 | 需 `ADVANCED_API_KEY` 密钥 | 可见所有充电桩并支持中间件交互，当前尚未实现 |
+
+> **⚠️ 未实现**：JWT scope claim（`mock_charger_only`）已在 JwtTokenProvider 中定义但未在 SecurityConfig 中生效；高级密钥认证（Advanced API Key）尚未实现。
+
 ## 必须支持的 API
 
 ### 认证与账户
@@ -33,7 +45,7 @@
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在注解层进行授权校验：普通用户仅能结束自己的充电记录，管理员可结束任意充电记录。recordId 来自请求体，由 ChargeGuard 查询归属 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，HTML 标签过滤（使用白名单机制，仅允许 `<br/>` 等基本安全标签）。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录列表。Service 层按当前用户 ID 过滤，普通用户仅能看到自己的充电记录，管理员可查看全部 | 已认证用户/管理员/最高管理者 |
-> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。用户选择充电桩后屏幕自动生成含充电桩 ID 的二维码，Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API**，不轮询同步，不模拟电量增长。
+> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。用户选择充电桩后屏幕自动生成含充电桩 ID 的二维码，Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电。后台轮询充电状态（每 30 秒心跳，`GET /api/v1/charges`），ChargeSimulator 模拟电量增长（0.1 kWh/秒）。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API**。
 > **Mock 客户端安全约束：** 面板仅含充电桩选择与插拔枪操作，无管理功能入口。使用隔离测试用户账户，不影响真实用户数据。
 
 ### 充值支付
@@ -63,7 +75,7 @@
 | GET | `/api/v1/chargers/{id}` | 按 ID 查询充电桩 | 已认证用户 |
 | GET | `/api/v1/chargers/by-code/{code}` | 按充电桩编码查询 | 已认证用户 |
 | POST | `/api/v1/chargers` | 创建充电桩 — `@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")` | 管理员/最高管理者 |
-| PUT | `/api/v1/chargers/{id}` | 更新充电桩信息 | 管理员/最高管理者 |
+| PUT | `/api/v1/chargers/{id}` | 更新充电桩信息 | 管理员/最高管理者/维修人员 |
 | DELETE | `/api/v1/chargers/{id}` | 删除充电桩 | 管理员/最高管理者 |
 
 ### 用户管理
@@ -87,6 +99,7 @@
 | GET | `/api/v1/repairs` | 查看报修列表 | 已认证用户（仅自己的）/管理员（全部） |
 | PUT | `/api/v1/repairs/{id}/assign` | 分配维修人员 | 管理员/最高管理者 |
 | PUT | `/api/v1/repairs/{id}/resolve` | 处理完成报修 | 维修人员/管理员 |
+| PUT | `/api/v1/repairs/{id}/claim` | 接单（维修人员自分配） | 维修人员/管理员 |
 | PUT | `/api/v1/repairs/{id}/close` | 管理员审核关闭报修单 | 管理员/最高管理者 |
 | PUT | `/api/v1/repairs/{id}/reject` | 退回报修 | 管理员/最高管理者 |
 
@@ -107,11 +120,10 @@
 
 | 分组 | 访问入口 | 说明 |
 |------|---------|------|
-| 全部 | `http://localhost:8080/swagger-ui.html` | 全部 API 分组（仅 dev profile 启用） |
+| 全部 | `http://localhost:8080/swagger-ui.html` | 全部 API 分组（默认启用，生产环境建议关闭） |
 
 **安全约束：**
-- Swagger UI 仅在 `spring.profiles.active=dev` 时启用（`@Profile("dev")`）
-- 生产环境不加载 Swagger 相关 beans，无安全暴露风险
+- Swagger UI 默认启用，生产环境建议通过 `spring.profiles.active=prod` 关闭
 - API 文档不暴露密钥等敏感配置
 
 ## 关键安全措施
@@ -120,7 +132,7 @@
   - 针对 Flutter 客户端，Token 存储在内存中（应用退出即失效），不持久化到本地存储。生产环境部署到 Web 时，建议使用 HttpOnly Cookie 替换前端内存存储，防止 XSS 攻击窃取 Token。
   - 每个 Token 包含唯一 jti（JWT ID），服务端维护 jti 黑名单用于令牌吊销，登出时将 access_token 和 refresh_token 加入黑名单。
   - **refresh_token 轮换：** 每次使用 refresh_token 换取新 access_token 时，服务端同时颁发新的 refresh_token 并使旧的 refresh_token 失效（替换 Redis 中的记录），防止 refresh_token 泄露后被重放。
-- **密码：** bcrypt 加盐散列，密码强度校验（至少 8 位，必须含字母和数字）
+- **密码：** bcrypt 加盐散列，密码强度校验（至少 8 位，4 类中至少 3 类：大写字母、小写字母、数字、特殊字符）
 - **授权：** 基于 RBAC 的接口级权限控制，未授权请求返回 403。关键接口使用 `@PreAuthorize` 注解进行细粒度授权（如结束充电检查记录所有者、强制结束仅 ADMIN 可用）。
 - **输入校验：** 服务端对所有参数进行类型、长度、格式校验，防止 SQL 注入与 XSS。所有数据库操作用 PreparedStatement 参数绑定。
 - **支付安全：** 支付回调签名校验（HMAC-SHA256 / RSA），回调处理幂等，防止重放攻击。回调端点 `/api/v1/payments/callback` 必须验证请求来源：开发环境使用 IP 白名单（仅允许 Mock 支付网关地址）；生产环境建议使用 mTLS 双向认证或预共享网关 API Key。建议使用 `payment_gateway_tx_id` 作为幂等键，在 payments 表增加 UNIQUE 约束。此外，回调请求应校验时间戳（timestamp 参数在服务端当前时间 +/- 5 分钟内），结合可选 nonce 参数形成双层重放防护。HMAC 签名密钥通过环境变量配置，定期轮换（建议 90 天），密钥仅服务端持有，不暴露至客户端。
@@ -132,7 +144,7 @@
 - **防重放：** Token 设置唯一 jti，服务端维护已作废 Token 黑名单或设置极短有效期。
 - **jti 黑名单 TTL：** 与 access_token 有效期一致（15 分钟），由 Redis TTL 自动清理，避免黑名单无限增长。refresh_token 的 jti 同样加入黑名单，TTL 与 refresh_token 有效期一致（7 天），由 Redis TTL 自动清理，防止已轮换的 refresh_token 被重放。
 - **防暴力破解：** 双重防护机制：
-  - IP 维度：同一 IP 5 分钟内登录失败 5 次触发图形验证码，失败 10 次封禁该 IP 30 分钟。封禁状态记录在 Redis 中，设置 TTL 自动解封。
+  - IP 维度：同一 IP 5 分钟内登录失败 5 次触发图形验证码，失败 10 次封禁该 IP 5 分钟（代码 hardcoded `5, TimeUnit.MINUTES`）。封禁状态记录在 Redis 中，设置 TTL 自动解封。
   - 账户维度：`users.failed_login_attempts` 记录连续失败次数，达到 10 次时设置 `account_locked_until = now() + 30min` 锁定账户。**登录成功后 `failed_login_attempts` 重置为 0**，避免前次失败的遗留计数导致后续误锁定。
 - **密码重置安全：** 密码重置分为两步：第一步 `POST /api/v1/auth/password-reset` 校验图形验证码后生成重置令牌并发送短信验证码；第二步 `POST /api/v1/auth/password-reset/confirm` 校验短信验证码 + 重置令牌后执行密码更新。重置令牌（`passwordResetToken`）绑定用户会话，有效期 15 分钟；短信验证码为 6 位数字，有效期 5 分钟。服务端对同一 IP 实施限流：5 分钟内最多 3 次重置请求，超出返回 429。同时增加手机维度限流：同一手机号每日最多 3 次重置请求，使用 Redis key `password_reset:phone:{phone}`（TTL 86400），与 IP 限流形成双层防御。
 - **验证码安全：** 注册和登录的验证码存储在 Redis，TTL 5 分钟，使用后立即删除防止重放。验证码 ID 由服务端 `/api/v1/captcha` 端点生成，随机不可预测。生成验证码的端点 `/api/v1/captcha` 同样需要限流：同一 IP 每分钟最多请求 10 次，防止 Redis 内存耗尽或验证码泛滥，超出返回 429。验证码校验失败（验证码错误或过期）应记录审计日志（action='CAPTCHA_FAILED'），用于检测自动化攻击。
@@ -156,6 +168,16 @@
 | `charging-flow.md` | 启动/结束充电与结算 | ![充电流程](img/charging_flow.svg) |
 | `account-payment.md` | 注册/登录/充值/支付回调 | ![账户支付](img/account_payment.svg) |
 | `repair.md` | 报修提交与处理 | ![故障报修](img/repair.svg) |
+
+## 未完成项
+
+以下功能已定义但尚未完整实现：
+
+1. **> ⚠️ 未实现** JWT scope claim（`mock_charger_only`）已定义但未在 SecurityConfig 中生效
+2. **> ⚠️ 未实现** HMAC-SHA256 签名验证未完整实现（PaymentChannel 始终返回 true）
+3. **> ⚠️ 未实现** 高级密钥认证（Advanced API Key）尚未实现
+4. **> ⚠️ 未实现** audit_logs trigger/REVOKE 保护在 compose init.sql 中缺失
+5. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现
 
 ## 交叉索引
 
