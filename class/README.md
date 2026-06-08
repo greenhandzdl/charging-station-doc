@@ -83,7 +83,7 @@
 | UserRole | 用户角色 | USER / MAINTAINER / ADMIN / SUPER_ADMIN |
 | RecordStatus | 充电过程状态 | PROCESSING / COMPLETED |
 | DeductionStatus | 扣费状态 | PENDING / PAID / ARREARS |
-| PaymentStatus | 支付状态 | PENDING / SUCCESS / FAILED |
+| PaymentStatus | 支付状态 | PENDING / APPROVED / SUCCESS / FAILED |
 | RepairStatus | 报修单状态 | OPEN / IN_PROGRESS / RESOLVED / CLOSED |
 
 ## 核心关系

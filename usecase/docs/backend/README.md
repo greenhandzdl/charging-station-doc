@@ -11,7 +11,7 @@
 | 维修人员 | 基础+ | 用户全部功能 + 查看和处理报修单（由管理员从用户提升）。**注意：维修人员不可访问统计报表端点** |
 | 管理员 | 中级 | CRUD 充电站/充电桩、管理用户权限、分配和处理报修、部分统计数据 |
 | 最高管理者 | 最高 | 全部管理功能、权限变更、全局统计报表 |
-| Mock充电机 | 基础（模拟用户）+ 高级（测试环境） | **普通模式**（默认）：模拟物理充电机面板交互，使用 `mock_user/mock123` 登录，JWT scope=user，仅可见自己的测试充电桩。**高级模式**（需 `ADVANCED_API_KEY` 环境变量）：使用密钥认证，可见所有充电桩及与 Spring 中间件交互权限，UI 显示[高级模式]标记，仅测试环境开放 |
+| Mock充电机 | 基础（模拟用户）+ 高级（测试环境） | **普通模式**（默认）：模拟物理充电机面板交互，使用 `mock_user/mock123` 登录，JWT scope=user，仅可见自己的测试充电桩。每 30 秒心跳上报遥测数据。**高级模式**（需 `ADVANCED_API_KEY` 环境变量）：使用密钥认证，可见所有充电桩及与 Spring 中间件交互权限，UI 显示[高级模式]标记，仅测试环境开放 |
 | 系统 | 系统级 | 定时任务（`ChargingScheduler` 每 30 秒检查余额不足自动停）、自动结算、统计汇总 |
 
 ### 权限层级模型
@@ -22,9 +22,9 @@
 |------|------|-----------|------|
 | **普通权限 (Normal)** | USER、MAINTAINER | `scope=user` | 只能操作自己的充电桩和记录 |
 | **管理权限 (Admin)** | ADMIN、SUPER_ADMIN | `scope=admin` | 全部可见/管理，可管理用户权限 |
-| **高级权限 (Advanced)** | 测试专用 | 需 `ADVANCED_API_KEY` 密钥 | 可见所有充电桩并支持中间件交互，当前尚未实现 |
+| **高级权限 (Advanced)** | 测试专用 | 需 `ADVANCED_API_KEY` 密钥 | 可见所有充电桩并支持中间件交互 |
 
-> **⚠️ 未实现**：JWT scope claim（`mock_charger_only`）已在 JwtTokenProvider 中定义但未在 SecurityConfig 中生效；高级密钥认证（Advanced API Key）尚未实现。
+> **⚠️ 未实现**：JWT scope claim（`mock_charger_only`）已在 JwtTokenProvider 中定义但未在 SecurityConfig 中生效；充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现。
 
 ## 必须支持的 API
 
@@ -45,7 +45,7 @@
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在注解层进行授权校验：普通用户仅能结束自己的充电记录，管理员可结束任意充电记录。recordId 来自请求体，由 ChargeGuard 查询归属 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，HTML 标签过滤（使用白名单机制，仅允许 `<br/>` 等基本安全标签）。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录列表。Service 层按当前用户 ID 过滤，普通用户仅能看到自己的充电记录，管理员可查看全部 | 已认证用户/管理员/最高管理者 |
-> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。用户选择充电桩后屏幕自动生成含充电桩 ID 的二维码，Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电。后台轮询充电状态（每 30 秒心跳，`GET /api/v1/charges`），ChargeSimulator 模拟电量增长（0.1 kWh/秒）。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API**。
+> **Mock充电机客户端** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。用户选择充电桩后屏幕自动生成含充电桩 ID 的二维码，Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电。后台轮询充电状态（每 30 秒心跳，`GET /api/v1/charges`），同时每 30 秒发送遥测数据（heartbeat）到 Spring 上报在线状态。ChargeSimulator 模拟电量增长（0.1 kWh/秒）。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API**。
 > **Mock 客户端安全约束：** 面板仅含充电桩选择与插拔枪操作，无管理功能入口。使用隔离测试用户账户，不影响真实用户数据。
 
 ### 充值支付
@@ -178,6 +178,7 @@
 3. **> ⚠️ 未实现** 高级密钥认证（Advanced API Key）尚未实现
 4. **> ⚠️ 未实现** audit_logs trigger/REVOKE 保护在 compose init.sql 中缺失
 5. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现
+6. **> ⚠️ 未实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现
 
 ## 交叉索引
 

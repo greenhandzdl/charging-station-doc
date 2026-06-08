@@ -9,13 +9,16 @@
 | 维修人员 | 由管理员从用户提升获得维修权限，拥有用户全部功能，并可处理报修单 |
 | 管理员 | 维护充电站与充电桩信息，管理报修单与用户权限 |
 | 最高管理者 | 具有全部管理权限，可提升用户权限、查看全局统计 |
-| Mock充电机 | Swing 桌面客户端，模拟物理充电机面板交互（插枪、拔枪），选择充电桩后自动生成含充电桩 ID 的二维码供 Flutter App 扫码启动充电，后台轮询充电状态（每 30 秒心跳），ChargeSimulator 模拟电量增长（0.1 kWh/秒）。内置断网/服务器重启/桩离线三种测试场景按钮。**不直接调用充电启停 API** |
+| Mock充电机（普通模式） | Swing 桌面客户端，使用 `mock_user/mock123` 登录，JWT scope=user。模拟物理充电机面板交互（插枪、拔枪），选择充电桩后自动生成含充电桩 ID 的二维码供 Flutter App 扫码启动充电，后台轮询充电状态（每 30 秒心跳），ChargeSimulator 模拟电量增长（0.1 kWh/秒）。内置断网/服务器重启/桩离线三种测试场景按钮。**不直接调用充电启停 API** |
+| Mock充电机（高级模式） | Swing 桌面客户端，使用 `ADVANCED_API_KEY` 环境变量密钥认证。可见所有充电桩及与 Spring 中间件交互权限，UI 显示[高级模式]标记。**仅测试环境开放** |
 | 支付网关 | 处理充值与扣费回调（可用模拟器） |
 | 系统 | 后台统计、报表导出、定时任务、自动扣费等 |
 
 **权限说明：** 注册获得基础用户权限；权限提升仅由管理员及以上角色操作，可提升用户为维修人员或降级（降级由管理员在后台操作，系统不提供自助降级）。最高管理者拥有系统全部功能访问权。
 
-**权限层级模型：** 系统采用三层权限模型 — 普通权限（Normal：USER/MAINTAINER，scope=user，仅操作自己的充电桩）、管理权限（Admin：ADMIN/SUPER_ADMIN，scope=admin，全部可见/管理）、高级权限（Advanced：测试专用，需 `ADVANCED_API_KEY` 密钥，当前尚未实现）。
+**权限层级模型：** 系统采用三层权限模型 — 普通权限（Normal：USER/MAINTAINER，scope=user，仅操作自己的充电桩）、管理权限（Admin：ADMIN/SUPER_ADMIN，scope=admin，全部可见/管理）、高级权限（Advanced：测试专用，需 `ADVANCED_API_KEY` 密钥，可见所有充电桩及中间件交互，仅测试环境开放）。
+
+> **⚠️ 实现状态：** AdvancedApiKeyFilter 代码已添加并集成至 SecurityConfig，Mock 充电机支持普通模式（mock_user/mock123，scope=user）和高级模式（ADVANCED_API_KEY 密钥认证）。但 JWT scope claim（`mock_charger_only`）在 SecurityConfig 中尚未生效。
 
 ## 核心用例
 
@@ -29,6 +32,23 @@
 - 生成统计报表
 - 充电记录快捷视图
 - 充电桩状态快捷查询
+
+## 充电启动前置条件
+
+充电启动必须同时满足以下四个条件：
+
+1. **充电桩插入**：用户在 Mock 充电桩上选择充电桩并插枪，生成含充电桩 ID 的二维码
+2. **客户端点击充电**：Flutter 扫码二维码后点击"启动充电"
+3. **余额满足**：Spring 校验当前用户余额 >= 10 元
+4. **充电桩在线**：充电桩通过定期遥测（heartbeat）向 Spring 上报在线状态，超过 60 秒未收到遥测则标记离线，离线桩不允许启动充电
+
+## 充电桩在线检测机制
+
+- Mock 充电桩每 30 秒发送遥测数据（heartbeat）到 Spring
+- Spring 记录最后一次遥测时间（`chargers.last_heartbeat_at`）
+- 超过 60 秒未收到遥测，标记充电桩为离线（OFFLINE）
+- 离线充电桩不允许启动充电
+- 正在充电的桩失去通讯超过 60 秒，Spring 强制停止充电
 
 ## 总体用例图
 
@@ -84,6 +104,7 @@
 2. **> ⚠️ 未实现** HMAC-SHA256 签名验证未完整实现（PaymentChannel 始终返回 true）
 3. **> ⚠️ 未实现** 高级密钥认证（Advanced API Key）尚未实现
 4. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现
+5. **> ⚠️ 未实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现
 
 ## 安全要点
 

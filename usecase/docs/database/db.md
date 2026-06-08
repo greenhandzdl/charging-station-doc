@@ -53,6 +53,8 @@
 | charger_code | VARCHAR(64) | NOT NULL, UNIQUE | 充电桩编号 |
 | type | VARCHAR(32) | | FAST / SLOW |
 | status | VARCHAR(32) | CHECK (status IN ('IDLE', 'CHARGING', 'FAULT')) | IDLE / CHARGING / FAULT |
+| online_status | VARCHAR(16) | DEFAULT 'ONLINE' CHECK (online_status IN ('ONLINE', 'OFFLINE')) | ONLINE / OFFLINE，基于 last_heartbeat_at 定时更新 |
+| last_heartbeat_at | TIMESTAMP | | 最后一次遥测心跳时间，超过 60 秒未更新视为离线 |
 | created_at | TIMESTAMP | DEFAULT now() | |
 | updated_at | TIMESTAMP | | |
 
@@ -206,3 +208,12 @@
 - [后端 API 与权限映射](../backend/README.md) — 后端接口定义、权限控制、安全措施
 - [前端用例](../frontend/README.md) — 前端界面与交互契约
 - [容器化与部署](../containerd/README.md) — Docker/K8s/CI 配置COMMENT ON COLUMN audit_logs.payload IS 'JSONB 操作详情，禁止存储密码明文、完整银行卡号等敏感信息';
+
+## 充电桩在线检测字段说明
+
+chargers 表的 `online_status` 和 `last_heartbeat_at` 字段用于实现充电桩在线检测：
+
+- Mock 充电桩每 30 秒发送遥测数据（heartbeat）到 Spring，更新 `last_heartbeat_at` 为当前时间
+- Spring 定时任务（或查询时实时计算）检查 `last_heartbeat_at`，若超过 60 秒未更新则设置 `online_status = 'OFFLINE'`
+- 已恢复通讯的充电桩重新发送心跳，`online_status` 自动恢复为 `ONLINE`
+- 离线充电桩不允许启动充电，正在充电的桩失去通讯超过 60 秒由 Spring 强制停止充电

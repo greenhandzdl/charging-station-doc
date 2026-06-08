@@ -57,6 +57,8 @@ CREATE TABLE chargers (
     charger_code VARCHAR(64) NOT NULL,
     type VARCHAR(32),
     status VARCHAR(32) CHECK (status IN ('IDLE', 'CHARGING', 'FAULT')),
+    online_status VARCHAR(16) DEFAULT 'ONLINE' CHECK (online_status IN ('ONLINE', 'OFFLINE')),
+    last_heartbeat_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP
 );
@@ -66,6 +68,8 @@ CREATE INDEX idx_chargers_station_id ON chargers(station_id);
 COMMENT ON TABLE chargers IS '充电桩表，关联充电站';
 COMMENT ON COLUMN chargers.type IS '充电类型: fast / slow';
 COMMENT ON COLUMN chargers.status IS '桩状态: idle / charging / fault';
+COMMENT ON COLUMN chargers.online_status IS '在线状态: online / offline，基于 last_heartbeat_at 定时更新';
+COMMENT ON COLUMN chargers.last_heartbeat_at IS '最后一次遥测心跳时间，超过 60 秒未更新视为离线';
 
 -- 4. charge_records（充电记录表）
 CREATE TABLE charge_records (
