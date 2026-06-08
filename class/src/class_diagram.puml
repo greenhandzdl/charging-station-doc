@@ -96,6 +96,8 @@ package "后端层 (Spring Boot Java)" as BE #F0E68C {
     class "事务管理器" as TX
     class "RedisTemplate" as Redis
     class "PageHelper" as Page
+    class "ChargerConnector" as Connector
+    class "AdvancedApiKeyFilter" as ApiKeyFilter
   }
 }
 

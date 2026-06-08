@@ -98,14 +98,21 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} recharge(amount, method, idempotencyKey): Future<PaymentModel>
     + {static} submitRepair(chargerId, description): Future<RepairModel>
     + {static} assignRepair(repairId, maintainerId): Future<void>
+    + {static} claimRepair(repairId): Future<void>
     + {static} resolveRepair(repairId): Future<void>
     + {static} closeRepair(repairId): Future<void>
     + {static} rejectRepair(repairId, reason): Future<void>
     + {static} getStations(): Future<List<StationModel>>
+    + {static} searchStations(name): Future<List<StationModel>>
     + {static} getChargers(stationId): Future<List<ChargerModel>>
+    + {static} getChargerByCode(code): Future<ChargerModel>
     + {static} getChargeRecords(): Future<List<ChargeRecordModel>>
     + {static} getRepairs(): Future<List<RepairModel>>
     + {static} getPayments(): Future<List<PaymentModel>>
+    + {static} getPendingPayments(): Future<List<PaymentModel>>
+    + {static} approvePayment(paymentId): Future<void>
+    + {static} rejectPayment(paymentId, reason): Future<void>
+    + {static} payArrears(recordId, method): Future<void>
     + {static} getUserChargeStats(): Future<List<Map>>
     + {static} getStationAnalysis(): Future<List<Map>>
     + {static} getChargerUtilization(): Future<Map>
@@ -121,11 +128,14 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     - accessToken: String?
     - refreshToken: String?
     - currentUser: UserModel?
-    + login(phone, password): Future<void>
-    + register(name, phone, password): Future<void>
+    + login(phone, password, captchaId, captchaCode): Future<void>
+    + register(name, phone, password, plateNumber, captchaId, captchaCode): Future<void>
     + logout(): void
     + refreshAccessToken(): Future<bool>
+    + tryAutoLogin(): Future<bool>
+    + refreshBalance(): Future<void>
     + isLoggedIn: bool
+    + userRole: UserRole
   }
   note right of Auth : ChangeNotifier/Provider 实现\n状态管理驱动 UI 重建\nToken 过期自动刷新\nrefresh_token 轮换：每次刷新时服务端使旧 refresh_token 失效并颁发新 token
 

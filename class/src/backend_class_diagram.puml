@@ -20,7 +20,7 @@ package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
     - testUserId: String
     - isTestMode: boolean
   }
-  note right of MockChargerClient : Swing 桌面客户端\n模拟物理充电机交互\n包含插枪/拔枪按钮、充电进度条\n电量模拟增长(0.1kWh/秒)\n调用后端充电 API\n\n安全约束：\n- authToken scope = mock_charger_only\n- 仅允许调用 /api/v1/charges/* 端点\n- 不参与充值/报修/管理流程\n- 使用隔离测试用户，不影响真实数据
+  note right of MockChargerClient : Swing 桌面客户端\n模拟物理充电机交互\n包含插枪/拔枪按钮、充电进度条\n电量模拟增长(0.1kWh/秒)\n调用后端充电 API\n\n双权限模式：\n- 普通模式: mock_user + JWT 认证\n  仅可见自己的测试充电桩\n- 高级模式: ADVANCED_API_KEY 密钥\n  可见所有充电桩+中间件交互\n  仅测试环境开放
 
   class ChargerUIPanel {
     - plugButton: JButton
@@ -183,6 +183,7 @@ package "枚举 (Enum)" as ENUM #F0E68C {
 
   enum PaymentStatus {
     PENDING
+    APPROVED
     SUCCESS
     FAILED
   }
@@ -224,6 +225,18 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + queryPayments(@RequestParam params): ResponseEntity
     note right of PaymentController : queryPayments 在 Service 层\n按当前用户 ID 过滤，非管理员\n仅能查看自己的支付记录
+    @GetMapping("/payments/pending")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + listPendingPayments(): ResponseEntity
+    @PutMapping("/payments/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + approvePayment(@PathVariable id): ResponseEntity
+    @PutMapping("/payments/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + rejectPayment(@PathVariable id): ResponseEntity
+    @PostMapping("/payments/pay-arrears")
+    @PreAuthorize("isAuthenticated()")
+    + payArrears(@RequestBody req): ResponseEntity
   }
 
   class UserController {
@@ -277,6 +290,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PutMapping("/repairs/{id}/assign")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + assignRepair(@PathVariable id, @RequestBody req): ResponseEntity
+    @PutMapping("/repairs/{id}/claim")
+    @PreAuthorize("hasAnyRole('MAINTAINER', 'ADMIN')")
+    + claimRepair(@PathVariable id): ResponseEntity
     @PutMapping("/repairs/{id}/resolve")
     @PreAuthorize("hasRole('MAINTAINER') or hasRole('ADMIN')")
     + resolveRepair(@PathVariable id): ResponseEntity
@@ -289,12 +305,42 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
   }
 
   class StationController {
-    @RequestMapping("/stations")
+    @GetMapping("/stations")
+    @PreAuthorize("isAuthenticated()")
+    + listStations(): ResponseEntity
+    @GetMapping("/stations/search")
+    @PreAuthorize("isAuthenticated()")
+    + searchStations(@RequestParam name): ResponseEntity
+    @GetMapping("/stations/{id}")
+    @PreAuthorize("isAuthenticated()")
+    + getStation(@PathVariable id): ResponseEntity
+    @PostMapping("/stations")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    + crudOperations(): ResponseEntity
-    @RequestMapping("/chargers")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
-    + chargerOperations(): ResponseEntity
+    + createStation(@RequestBody req): ResponseEntity
+    @PutMapping("/stations/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + updateStation(@PathVariable id, @RequestBody req): ResponseEntity
+    @DeleteMapping("/stations/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + deleteStation(@PathVariable id): ResponseEntity
+    @GetMapping("/chargers")
+    @PreAuthorize("isAuthenticated()")
+    + listChargers(@RequestParam params): ResponseEntity
+    @GetMapping("/chargers/{id}")
+    @PreAuthorize("isAuthenticated()")
+    + getCharger(@PathVariable id): ResponseEntity
+    @GetMapping("/chargers/by-code/{code}")
+    @PreAuthorize("isAuthenticated()")
+    + getChargerByCode(@PathVariable code): ResponseEntity
+    @PostMapping("/chargers")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + createCharger(@RequestBody req): ResponseEntity
+    @PutMapping("/chargers/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'MAINTAINER')")
+    + updateCharger(@PathVariable id, @RequestBody req): ResponseEntity
+    @DeleteMapping("/chargers/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + deleteCharger(@PathVariable id): ResponseEntity
   }
 
   class StatisticsController {
@@ -338,7 +384,7 @@ package "服务 (Service)" as SVC #F0E68C {
     + forceStop()
     + queryCharges(params: Map): List
   }
-  note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查
+  note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查\n\n充电流程：\n1. 校验余额 >= 10 元\n2. ChargerConnector 通知充电桩\n3. 桩 ACK 后标记 CHARGING\n4. 结束: 余额不足/用户主动/桩异常
 
   interface PaymentService {
     + recharge()
@@ -548,6 +594,11 @@ package "基础设施 (Infrastructure)" as INF #DDA0DD {
   }
   note right of HikariDataSource : HikariCP 连接池\nSpring Boot 默认\nmax-active: 20\nmin-idle: 5
 
+  class AdvancedApiKeyFilter {
+    + doFilterInternal(request, response, filterChain)
+  }
+  note right of AdvancedApiKeyFilter : 高级权限密钥过滤器\n@Order(0) 在 JWT Filter 之前执行\n校验 X-Advanced-Api-Key header\n匹配配置密钥后授予 SUPER_ADMIN 权限\nscope=advanced，用于测试环境
+
   class SqlSessionFactoryBean {
     + setDataSource(dataSource: DataSource)
     + setMapperLocations(locations: Resource[])
@@ -567,6 +618,20 @@ package "基础设施 (Infrastructure)" as INF #DDA0DD {
     + doCommit(status: DefaultTransactionStatus)
     + doRollback(status: DefaultTransactionStatus)
   }
+
+  interface ChargerConnector {
+    + notifyStart(chargerCode: String, recordId: UUID): boolean
+    + notifyStop(chargerCode: String, recordId: UUID): boolean
+    + isOnline(chargerCode: String): boolean
+  }
+  note right of ChargerConnector : 充电桩通讯中间件接口\nHTTP polling 实现（后续升级 WebSocket）\nSpring 通知充电桩启动/停止\n检测充电桩在线状态\n当前为 stub 实现
+
+  class HttpChargerConnector implements ChargerConnector {
+    + notifyStart(chargerCode: String, recordId: UUID): boolean
+    + notifyStop(chargerCode: String, recordId: UUID): boolean
+    + isOnline(chargerCode: String): boolean
+  }
+  note right of HttpChargerConnector : HTTP 方式通知充电桩\n通过 OkHttp 发送 POST 请求\n超时 5 秒\n连接失败 = 充电桩离线
 
   class RedisTemplate {
     + opsForValue(): ValueOperations
@@ -598,6 +663,7 @@ ChargingServiceImpl --> ChargeRecordMapper : 注入
 ChargingServiceImpl --> UserMapper : 注入
 ChargingServiceImpl --> AuditLogMapper : 注入
 ChargingServiceImpl --> PaymentService : 注入（autoDeduct）
+ChargingServiceImpl --> ChargerConnector : 注入（通知充电桩）
 PaymentServiceImpl --> PaymentMapper : 注入
 PaymentServiceImpl --> ChargeRecordMapper : 注入
 PaymentServiceImpl --> UserMapper : 注入
