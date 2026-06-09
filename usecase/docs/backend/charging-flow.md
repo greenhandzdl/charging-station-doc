@@ -93,9 +93,9 @@
 
 ## 未完成项
 
-1. **> ⚠️ 未实现** HMAC-SHA256 签名验证未完整实现（PaymentChannel 始终返回 true）
-2. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现，当前为 stub 实现（仅打印日志）
-3. **> ⚠️ 未实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现
+1. **> ✅ 已实现** HMAC-SHA256 签名验证已实现（WeChatPayChannel hex + AliPayChannel base64），13 项单元测试验证通过
+2. **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已升级为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
+3. **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity 补充字段 + Mapper 更新方法 + 心跳接收端点 `POST /api/v1/chargers/heartbeat` + 60s离线Scheduler）
 
 ## 后置条件
 

@@ -52,7 +52,7 @@
 | 类 | 层 | 职责 |
 |----|----|------|
 | Station | 实体 | 充电站信息与运营状态 |
-| Charger | 实体 | 充电桩信息与运行状态 |
+| Charger | 实体 | 充电桩信息与运行状态（含 onlineStatus/lastHeartbeatAt 在线检测字段） |
 | User | 实体 | 用户信息、角色、余额（含 passwordHash） |
 | ChargeRecord | 实体 | 充电记录与扣费状态 |
 | Payment | 实体 | 支付流水与回调数据 |
@@ -80,7 +80,7 @@
 | StationStatus | 充电站运营状态 | NORMAL / MAINTENANCE |
 | ChargerType | 充电桩类型 | FAST / SLOW |
 | ChargerStatus | 充电桩运行状态 | IDLE / CHARGING / FAULT |
-| UserRole | 用户角色 | USER / MAINTAINER / ADMIN / SUPER_ADMIN |
+| UserRole | 用户角色 | USER / MAINTAINER / ADMIN / SUPER_ADMIN / CHARGER |
 | RecordStatus | 充电过程状态 | PROCESSING / COMPLETED |
 | DeductionStatus | 扣费状态 | PENDING / PAID / ARREARS |
 | PaymentStatus | 支付状态 | PENDING / APPROVED / SUCCESS / FAILED |

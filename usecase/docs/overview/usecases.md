@@ -9,7 +9,7 @@
 | 维修人员 | Flutter | 由管理员从用户提升获得维修权限，拥有用户全部功能，并可处理报修单 | 基础+ |
 | 管理员 | Flutter | 维护充电站与充电桩信息，管理报修单与用户权限 | 中级 |
 | 最高管理者 | Flutter | 具有全部管理权限，可提升用户权限、查看全局统计 | 最高 |
-| 模拟充电桩（普通模式） | **Swing 桌面客户端** | 模拟物理充电机面板交互（插枪、拔枪）。使用专用测试账户 `mock_user/mock123` 登录，JWT scope=user，仅可见自己的测试充电桩。选择充电桩后自动生成含充电桩 ID 的二维码供 Flutter App 扫码启动充电，后台轮询充电状态（每 30 秒心跳），ChargeSimulator 模拟电量增长（0.1 kWh/秒）。内置断网/服务器重启/桩离线三种测试场景按钮。**不直接调用充电启停 API**。**注：模拟充电桩不是"用户端"，而是模拟的真实充电桩设备，需要比普通用户更高的权限与 Spring 中间件通讯、获取所有充电桩的信息** | **高（桩专用）** |
+| 模拟充电桩（普通模式） | **Swing 桌面客户端** | 模拟物理充电机面板交互（插枪、拔枪）。使用专用测试账户 `mock_charger/charger123` 登录，JWT scope=user，仅可见自己的测试充电桩。选择充电桩后自动生成含充电桩 ID 的二维码供 Flutter App 扫码启动充电，后台轮询充电状态（每 30 秒心跳），ChargeSimulator 模拟电量增长（0.1 kWh/秒）。内置断网/服务器重启/桩离线三种测试场景按钮。**不直接调用充电启停 API**。**注：模拟充电桩不是"用户端"，而是模拟的真实充电桩设备，需要比普通用户更高的权限与 Spring 中间件通讯、获取所有充电桩的信息** | **高（桩专用）** |
 | 模拟充电桩（高级模式） | **Swing 桌面客户端** | 使用 `ADVANCED_API_KEY` 环境变量密钥认证。可见所有充电桩及与 Spring 中间件交互权限，UI 显示[高级模式]标记。**仅测试环境开放**。**注：高级权限仅用于模拟充电桩，不提供给 Flutter 用户** | **最高（桩专用）** |
 | 支付网关 | — | 处理充值与扣费回调（可用模拟器） | 外部系统 |
 | 系统 | — | 后台统计、报表导出、定时任务、自动扣费等 | 系统级 |
@@ -18,7 +18,7 @@
 
 **权限层级模型：** 系统采用三层权限模型 — 普通权限（Normal：USER/MAINTAINER，scope=user，Flutter 用户端，仅操作自己的充电桩）、管理权限（Admin：ADMIN/SUPER_ADMIN，scope=admin，Flutter 管理端，全部可见/管理）、高级权限（Advanced：桩专用，需 `ADVANCED_API_KEY` 密钥，Swing 模拟充电桩用，可见所有充电桩及中间件交互，仅测试环境开放）。
 
-> **✅ 实现状态：** AdvancedApiKeyFilter 已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`。模拟充电桩支持普通模式（mock_user/mock123，scope=user）和高级模式（ADVANCED_API_KEY 密钥认证）。但 JWT scope claim（`mock_charger_only`）在 SecurityConfig 中尚未生效。
+> **✅ 实现状态：** AdvancedApiKeyFilter 已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`。模拟充电桩支持普通模式（mock_charger/charger123，scope=user）和高级模式（ADVANCED_API_KEY 密钥认证）。JWT scope claim（`SCOPE_admin`/`SCOPE_advanced`）已在 SecurityConfig 中生效。
 
 ## 核心用例
 
@@ -100,11 +100,11 @@
 
 ## 未完成项
 
-1. **> ⚠️ 未实现** JWT scope claim（mock_charger_only）已定义但未在 SecurityConfig 中生效
-2. **> ⚠️ 未实现** HMAC-SHA256 签名验证未完整实现（PaymentChannel 始终返回 true）
+1. **> ✅ 已实现** JWT scope claim（`SCOPE_admin`/`SCOPE_advanced`）已在 SecurityConfig 中生效
+2. **> ✅ 已实现** HMAC-SHA256 签名验证已实现（WeChatPayChannel hex + AliPayChannel base64），13 项单元测试验证通过
 3. **> ✅ 已实现** 高级密钥认证（Advanced API Key）已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`
-4. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现
-5. **> ⚠️ 未实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现
+4. **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
+5. **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity 补充字段 + Mapper 更新方法 + 心跳接收端点 + 60s离线Scheduler）
 
 ## 安全要点
 

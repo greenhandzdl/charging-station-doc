@@ -15,7 +15,7 @@
 | 维修人员 | Flutter | 充电操作、充值、个人记录查看、报修提交与处理 |
 | 管理员 | Flutter | 充电站/充电桩管理、用户管理、报修管理、权限管理 |
 | 最高管理者 | Flutter | 全部管理界面、统计报表、权限管理 |
-| 模拟充电桩（普通模式） | **Swing 桌面客户端** | 模拟充电交互（插枪/拔枪/生成二维码），使用 mock_user/mock123 登录，测试场景模拟。**模拟充电桩不是用户端，而是模拟的真实充电桩设备** |
+| 模拟充电桩（普通模式） | **Swing 桌面客户端** | 模拟充电交互（插枪/拔枪/生成二维码），使用 mock_charger/charger123 登录，测试场景模拟。**模拟充电桩不是用户端，而是模拟的真实充电桩设备** |
 | 模拟充电桩（高级模式） | **Swing 桌面客户端** | 使用 ADVANCED_API_KEY 密钥认证，可见所有充电桩及中间件交互，UI 显示[高级模式]，仅测试环境开放 |
 
 ### 模拟充电桩客户端说明
@@ -23,7 +23,7 @@
 模拟充电桩客户端是前后端不分离的 Swing 桌面客户端，用于**模拟物理充电机的面板显示与交互**。它不是"用户端"（用户端是 Flutter），而是模拟的真实充电桩设备。支持**两种运行模式**：
 
 #### 普通模式（默认）
-- **认证方式**：使用 `mock_user/mock123` 登录，JWT scope=user
+- **认证方式**：使用 `mock_charger/charger123` 登录，JWT scope=user
 - **功能**：模拟物理操作（插枪/拔枪），选择充电桩后自动生成含充电桩 ID 的 QR Code，供 Flutter App 扫码启动充电
 - **遥测上报**：每 30 秒发送遥测数据（heartbeat）到 Spring
 - **测试场景模拟**：面板内置断网测试、服务器重启、充电桩离线三个测试按钮
@@ -92,8 +92,8 @@ Flutter 前端已实现集中式权限路由控制：
 ## 未完成项
 
 1. **> ⚠️ 未实现** Flutter 端 MAINTAINER 角色专用维修工作台页面尚未提供独立 UI
-2. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现，Flutter 端无法与物理充电机直接交互
-3. **> ⚠️ 未实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现
+2. **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
+3. **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现：Flutter 端 ChargerModel 已含 onlineStatus 字段，3 个充电桩页面已显示在线/离线状态指示器
 
 ## 交叉索引
 

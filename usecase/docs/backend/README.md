@@ -11,7 +11,7 @@
 | 维修人员 | Flutter | 基础+ | 用户全部功能 + 查看和处理报修单（由管理员从用户提升）。**注意：维修人员不可访问统计报表端点** |
 | 管理员 | Flutter | 中级 | CRUD 充电站/充电桩、管理用户权限、分配和处理报修、部分统计数据 |
 | 最高管理者 | Flutter | 最高 | 全部管理功能、权限变更、全局统计报表 |
-| 模拟充电桩（普通模式） | **Swing 桌面客户端** | **高（桩专用）** | 模拟物理充电机面板交互。使用专用测试账户 `mock_user/mock123` 登录，JWT scope=user，仅可见自己的测试充电桩。每 30 秒心跳上报遥测数据。**模拟充电桩不是"用户端"，而是模拟的真实充电桩设备，需要比普通用户更高的权限与 Spring 中间件通讯、获取所有充电桩的信息** |
+| 模拟充电桩（普通模式） | **Swing 桌面客户端** | **高（桩专用）** | 模拟物理充电机面板交互。使用专用测试账户 `mock_charger/charger123` 登录，JWT scope=user，仅可见自己的测试充电桩。每 30 秒心跳上报遥测数据。**模拟充电桩不是"用户端"，而是模拟的真实充电桩设备，需要比普通用户更高的权限与 Spring 中间件通讯、获取所有充电桩的信息** |
 | 模拟充电桩（高级模式） | **Swing 桌面客户端** | **最高（桩专用）** | 需 `ADVANCED_API_KEY` 环境变量，使用密钥认证。可见所有充电桩及与 Spring 中间件交互权限，UI 显示[高级模式]标记。**高级权限仅用于模拟充电桩，不提供给 Flutter 用户**。仅测试环境开放 |
 | 系统 | — | 系统级 | 定时任务（`ChargingScheduler` 每 30 秒检查余额不足自动停）、自动结算、统计汇总 |
 
@@ -25,7 +25,7 @@
 | **管理权限 (Admin)** | ADMIN、SUPER_ADMIN | Flutter 管理端 | `scope=admin` | 全部可见/管理，可管理用户权限 |
 | **高级权限 (Advanced)** | 模拟充电桩专用 | Swing 充电桩端 | 需 `ADVANCED_API_KEY` 密钥 | 可见所有充电桩并支持中间件交互，仅测试环境开放 |
 
-> **⚠️ 未实现**：JWT scope claim（`mock_charger_only`）已在 JwtTokenProvider 中定义但未在 SecurityConfig 中生效；充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现。
+> **✅ 已实现**：JWT scope claim（`SCOPE_admin`/`SCOPE_advanced`）已在 SecurityConfig 中生效；充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity + Mapper + 端点 + Scheduler + Mock客户端心跳）。
 
 ## 必须支持的 API
 
@@ -177,12 +177,12 @@
 
 以下功能已定义但尚未完整实现：
 
-1. **> ⚠️ 未实现** JWT scope claim（`mock_charger_only`）已定义但未在 SecurityConfig 中生效
-2. **> ⚠️ 未实现** HMAC-SHA256 签名验证未完整实现（PaymentChannel 始终返回 true）
+1. **> ✅ 已实现** JWT scope claim（`SCOPE_admin`/`SCOPE_advanced`）已在 SecurityConfig 中生效
+2. **> ✅ 已实现** HMAC-SHA256 签名验证已实现（WeChatPayChannel hex + AliPayChannel base64），13 项单元测试验证通过
 3. **> ✅ 已实现** 高级密钥认证（Advanced API Key）已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`
-4. **> ⚠️ 未实现** audit_logs trigger/REVOKE 保护在 compose init.sql 中缺失
-5. **> ⚠️ 未实现** 充电桩通讯中间件（ChargerConnector）尚未实现
-6. **> ⚠️ 未实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现
+4. **> ✅ 已实现** audit_logs trigger/REVOKE 保护已同步至 compose init.sql（`REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC` + 触发器强制约束）
+5. **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
+6. **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity 补充字段 + Mapper 更新方法 + 心跳接收端点 + 60s离线Scheduler）
 
 ## 交叉索引
 

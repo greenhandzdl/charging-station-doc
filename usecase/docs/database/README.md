@@ -114,7 +114,7 @@
 
 ## 未完成项
 
-1. **> ⚠️ 未实现** audit_logs trigger/REVOKE 保护（已同步至 compose init.sql）
+1. **> ✅ 已实现** audit_logs trigger/REVOKE 保护已同步至 compose init.sql（`REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC` + 触发器强制约束）
 
 ## 相关文档
 

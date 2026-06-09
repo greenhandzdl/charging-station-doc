@@ -33,6 +33,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     - chargerCode: String
     - type: String
     - status: String
+    - onlineStatus: String
     - stationName: String
   }
   note right of FCharger : 充电桩状态及所属站

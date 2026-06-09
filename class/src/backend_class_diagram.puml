@@ -20,7 +20,7 @@ package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
     - testUserId: String
     - isTestMode: boolean
   }
-  note right of MockChargerClient : Swing 桌面客户端\n模拟物理充电机交互\n包含插枪/拔枪按钮、充电进度条\n电量模拟增长(0.1kWh/秒)\n调用后端充电 API\n\n双权限模式：\n- 普通模式: mock_user + JWT 认证\n  仅可见自己的测试充电桩\n- 高级模式: ADVANCED_API_KEY 密钥\n  可见所有充电桩+中间件交互\n  仅测试环境开放
+  note right of MockChargerClient : Swing 桌面客户端\n模拟物理充电机交互\n包含插枪/拔枪按钮、充电进度条\n电量模拟增长(0.1kWh/秒)\n调用后端充电 API\n\n双权限模式：\n- 普通模式: mock_charger + JWT 认证\n  仅可见自己的测试充电桩\n- 高级模式: ADVANCED_API_KEY 密钥\n  可见所有充电桩+中间件交互\n  仅测试环境开放
 
   class ChargerUIPanel {
     - plugButton: JButton
@@ -68,6 +68,8 @@ package "实体 (Entity)" as ENT #F0E68C {
     - chargerCode: String
     - type: ChargerType
     - status: ChargerStatus
+    - onlineStatus: String
+    - lastHeartbeatAt: LocalDateTime
     - createdAt: LocalDateTime
     - updatedAt: LocalDateTime
   }
@@ -168,6 +170,7 @@ package "枚举 (Enum)" as ENUM #F0E68C {
     MAINTAINER
     ADMIN
     SUPER_ADMIN
+    CHARGER
   }
 
   enum RecordStatus {

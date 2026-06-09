@@ -7,7 +7,7 @@
 | 组件 | 技术栈 | 说明 |
 |------|--------|------|
 | 前端 | Flutter Desktop (Dart) | 用户端界面（普通用户、管理员、维修人员通过 Flutter 操作）。**Flutter 不是充电桩，Flutter 是用户的操作界面** |
-| 模拟充电桩客户端 | Swing 桌面客户端 (Java) | 模拟物理充电机面板交互。**模拟充电桩不是用户端，而是模拟的真实充电桩设备，需要比普通用户更高的权限与 Spring 中间件通讯、获取所有充电桩信息**。使用 Swing 组件（JButton、JComboBox、JLabel 等）提供充电桩选择/插枪/拔枪 UI，选择充电桩后自动生成含充电桩 ID 的二维码供 Flutter 扫码启动充电。支持两种模式：**普通模式**（mock_user/mock123 登录，JWT scope=user）和**高级模式**（ADVANCED_API_KEY 密钥认证，可见所有充电桩，仅测试环境开放）。后台轮询充电状态（每 30 秒心跳），每 30 秒发送遥测数据（heartbeat）上报在线状态，ChargeSimulator 模拟电量增长（0.1 kWh/秒）。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API（启停由 Flutter 调用后端完成）**。不参与充值、报修、管理等业务流程。满足评分标准 Swing+JDBC 要求 |
+| 模拟充电桩客户端 | Swing 桌面客户端 (Java) | 模拟物理充电机面板交互。**模拟充电桩不是用户端，而是模拟的真实充电桩设备，需要比普通用户更高的权限与 Spring 中间件通讯、获取所有充电桩信息**。使用 Swing 组件（JButton、JComboBox、JLabel 等）提供充电桩选择/插枪/拔枪 UI，选择充电桩后自动生成含充电桩 ID 的二维码供 Flutter 扫码启动充电。支持两种模式：**普通模式**（mock_charger/charger123 登录，JWT scope=user）和**高级模式**（ADVANCED_API_KEY 密钥认证，可见所有充电桩，仅测试环境开放）。后台轮询充电状态（每 30 秒心跳），每 30 秒发送遥测数据（heartbeat）上报在线状态，ChargeSimulator 模拟电量增长（0.1 kWh/秒）。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API（启停由 Flutter 调用后端完成）**。不参与充值、报修、管理等业务流程。满足评分标准 Swing+JDBC 要求 |
 | 接入层 | Nginx | SSL 终端、路由分发、限流、静态资源服务 |
 | 后端 | Java Spring Boot | REST API 服务，提供业务接口 |
 | 数据库 | PostgreSQL | 核心业务数据存储 |
@@ -102,7 +102,7 @@ Mock 支付网关当前阶段实现要点：
 | 管理权限 | JWT (scope=admin) | 默认配置 | ADMIN / SUPER_ADMIN 角色 |
 | 高级权限 | ADVANCED_API_KEY | Spring 环境变量 `ADVANCED_API_KEY` | 测试专用，Mock 充电机高级模式使用 |
 
-> **⚠️ 未实现：** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）尚未实现。
+> **✅ 已实现：** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现。Mock 充电桩每 30 秒发送心跳，Spring 记录遥测时间（last_heartbeat_at），超过 60 秒无遥测自动标记 OFFLINE。
 
 ## Kubernetes 生产要点
 
