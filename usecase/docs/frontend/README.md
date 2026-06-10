@@ -52,7 +52,7 @@ Flutter 前端已实现集中式权限路由控制：
 - **ProfileScreen 门禁点**：所有受保护页面通过 ProfileScreen 做统一路由守卫，根据当前用户的 `UserRole` 动态加载可访问页面列表，非授权页面不展示入口。
 - **角色路由映射**：USER 可访问充电/记录/报修页面；MAINTAINER 额外可访问维修工作台；ADMIN/SUPER_ADMIN 可访问全部管理页面。
 
-> **⚠️ 未实现：** Flutter 端 MAINTAINER 角色专用维修工作台页面尚未提供独立 UI，当前与管理员页面合并。
+> **✅ 已实现：** Flutter 端 MAINTAINER 角色专用维修工作台页面（`MaintainerWorkspaceScreen`）已实现，包含「待处理」「进行中」「已完成」三个标签页，支持接单、完成维修、故障详情展示。
 
 ### Web 版注意事项
 
@@ -91,7 +91,7 @@ Flutter 前端已实现集中式权限路由控制：
 
 ## 实现状态
 
-- **> ⚠️ 待实现** Flutter 端 MAINTAINER 角色专用维修工作台页面尚未提供独立 UI
+- **> ✅ 已实现** Flutter 端 MAINTAINER 角色专用维修工作台页面 MainterWorkspaceScreen 已提供独立 UI
 - **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现
 - **> ✅ 已实现** 充电桩遥测/心跳检测（Flutter 端 ChargerModel 含 onlineStatus，3 个充电桩页面显示在线/离线状态）
 - **> ✅ 已实现** 充电中轮询（每 5 秒通过 GET /charges 查询最新电量/费用）
