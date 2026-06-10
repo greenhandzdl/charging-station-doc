@@ -8,13 +8,13 @@
 
 ![启动充电时序图](img/sequence_charging.svg)
 
-**流程：** 用户通过 Flutter 选择充电桩 → Mock充电机客户端显示插枪界面 → 用户模拟插枪并生成 QR→ Flutter 扫码后发起充电请求 → 后端校验用户身份、余额（>= 10元）、桩状态（空闲）、桩在线状态（ONLINE）→ 乐观锁锁定桩 → 创建充电记录 → AuditLog → 充电成功 → Mock客户端启动电量模拟（0.1kWh/秒）并每 30 秒发送遥测心跳 → Flutter 显示"充电中"。
+**流程：** 用户通过 Flutter 选择充电桩 → Mock充电机客户端显示插枪界面 → 用户模拟插枪并生成 QR→ Flutter 扫码后发起充电请求 → 后端校验用户身份、余额（>= 10元）、桩状态（空闲）、桩在线状态（ONLINE）→ 乐观锁锁定桩 → 创建充电记录 → AuditLog → Spring 通过 ChargerConnector 通知 Swing ChargerHttpServer(8081) → Swing 收到 notifyStart 后启动 ChargeSimulator，每秒 tick 更新 UI（进度条/电量/费用）→ 每 30 秒发送遥测心跳 → Flutter 每 5 秒轮询后端获取最新电量/费用。
 
 ### 结束充电与自动扣费
 
 ![结束充电时序图](img/sequence_stop_charge.svg)
 
-**流程：** 用户通过 Mock充电机模拟拔枪 → Mock客户端停止模拟并获取电量数据 → Flutter 确认弹窗 → 用户确认 → 后端事务内（计算费用 + 扣减余额 + 记录支付 + 释放桩）→ 结果推送到 Mock客户端显示。结束充电由四种场景触发：余额不足自动停（ChargingScheduler 30 秒扫描）、用户主动断开、桩无通讯超时 60 秒、管理员强制结束。
+**流程：** 结束充电由四种场景触发：① 用户通过 Mock充电机模拟拔枪 → Swing 检测到 currentChargeRecordId 非空 → 自动调用 POST /charges/stop → 后端事务内（计算费用 + 扣减余额 + 记录支付 + 释放桩）→ ChargerConnector 通知 notifyStop → Swing 收到通知停止模拟，显示结算结果。② Flutter 用户点击"结束充电"。③ 余额不足自动停（ChargingScheduler 30 秒扫描）。④ 充电桩无通讯超过 60 秒 → Scheduler 标记 OFFLINE → 自动 forceStopByChargerId 停止充电记录。
 
 ### 登录
 

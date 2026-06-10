@@ -89,11 +89,13 @@ Flutter 前端已实现集中式权限路由控制：
 - 接口契约文档（OpenAPI snippet）
 - 集成测试脚本与说明
 
-## 未完成项
+## 实现状态
 
-1. **> ⚠️ 未实现** Flutter 端 MAINTAINER 角色专用维修工作台页面尚未提供独立 UI
-2. **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
-3. **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现：Flutter 端 ChargerModel 已含 onlineStatus 字段，3 个充电桩页面已显示在线/离线状态指示器
+- **> ⚠️ 待实现** Flutter 端 MAINTAINER 角色专用维修工作台页面尚未提供独立 UI
+- **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现
+- **> ✅ 已实现** 充电桩遥测/心跳检测（Flutter 端 ChargerModel 含 onlineStatus，3 个充电桩页面显示在线/离线状态）
+- **> ✅ 已实现** 充电中轮询（每 5 秒通过 GET /charges 查询最新电量/费用）
+- **> ✅ 已实现** 验证码必填校验（注册时始终显示 captcha 输入框）
 
 ## 交叉索引
 

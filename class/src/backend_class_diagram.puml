@@ -12,25 +12,29 @@ package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
     - frame: JFrame
     - chargerCode: String
     - stationId: String
-    - currentRecordId: String
-    - chargingTimer: Timer
+    - currentChargeRecordId: String
     - simulatedEnergy: double
     - authToken: String
     - tokenScope: String
     - testUserId: String
     - isTestMode: boolean
+    - chargeSimulator: ChargeSimulator
+    - httpServer: ChargerHttpServer
+    - uiUpdateTimer: Timer
   }
-  note right of MockChargerClient : Swing 桌面客户端\n模拟物理充电机交互\n包含插枪/拔枪按钮、充电进度条\n电量模拟增长(0.1kWh/秒)\n调用后端充电 API\n\n双权限模式：\n- 普通模式: mock_charger + JWT 认证\n  仅可见自己的测试充电桩\n- 高级模式: ADVANCED_API_KEY 密钥\n  可见所有充电桩+中间件交互\n  仅测试环境开放
+  note right of MockChargerClient : Swing 桌面客户端\n模拟物理充电机交互\n包含插枪/拔枪按钮、充电进度条\n电量模拟增长(0.1kWh/秒)\n调用后端充电 API\n内嵌 HTTP 服务(端口 8081)\n接收 notifyStart/notifyStop\n\n双权限模式：\n- 普通模式: mock_charger + JWT 认证\n  仅可见自己的测试充电桩\n- 高级模式: ADVANCED_API_KEY 密钥\n  可见所有充电桩+中间件交互\n  仅测试环境开放
 
   class ChargerUIPanel {
     - plugButton: JButton
     - unplugButton: JButton
-    - progressBar: JProgressBar
+    - chargeProgress: JProgressBar
     - statusLabel: JLabel
     - energyLabel: JLabel
+    - feeLabel: JLabel
+    - durationLabel: JLabel
     - qrCodeDisplay: JLabel
   }
-  note right of ChargerUIPanel : Swing 组件面板\n模拟充电机显示屏\n显示当前状态/电量/费用
+  note right of ChargerUIPanel : Swing 组件面板\n模拟充电机显示屏\n显示当前状态/电量/费用/时长\n充电中实时更新 UI\n接收后端通知自动启动 ChargeSimulator
 
   class ChargeSimulator {
     - startTime: LocalDateTime
@@ -40,11 +44,22 @@ package "Mock充电机客户端 (Swing)" as MOCK #FFB6C1 {
     + startSimulation(): void
     + stopSimulation(): SimulationResult
     + getCurrentEnergy(): double
+    + tick(): void
   }
-  note right of ChargeSimulator : 模拟电量生成\n每 tick 增加 0.1kWh\n记录充电时长\n电量范围 1.0-50.0 kWh\n模拟合理范围，防止溢出异常
+  note right of ChargeSimulator : 模拟电量生成\n每 tick 增加 0.1kWh\n记录充电时长\n电量范围 1.0-50.0 kWh\n模拟合理范围，防止溢出异常\n支持峰谷定价 (1.2x/0.8x)
+
+  class ChargerHttpServer {
+    + start(): void
+    + stop(): void
+    + setOnStartCallback(callback): void
+    + setOnStopCallback(callback): void
+  }
+  note right of ChargerHttpServer : 嵌入式 HTTP 服务器\n监听 localhost:8081\n接收 notifyStart/notifyStop\n使用 JDK 内置 HttpServer
 
   MockChargerClient --> ChargerUIPanel : 包含
   MockChargerClient --> ChargeSimulator : 模拟引擎
+  MockChargerClient --> ChargerHttpServer : 内嵌 HTTP 服务
+  ChargerHttpServer ..> ChargerUIPanel : 回调更新 UI
   MockChargerClient ..> Nginx : HTTPS 请求（依赖）
   Nginx --> ChargingController : 路由 /api/v1/charges/*
   note on link #red : Nginx 层: location /api/v1/charges/ (前缀匹配)\n转发至后端，其他路径拒绝\nJWT scope = mock_charger_only 做二次校验\n双层安全隔离：网络层 + 认证层
@@ -487,6 +502,17 @@ package "服务 (Service)" as SVC #F0E68C {
   class BillingServiceImpl implements BillingService {
     + calculateFee(chargerType, energyKwh): BigDecimal
   }
+
+  interface CaptchaService {
+    + generateCaptcha(): CaptchaResult
+    + validateCaptcha(captchaId, captchaCode): boolean
+  }
+
+  class RedisCaptchaService implements CaptchaService {
+    + generateCaptcha(): CaptchaResult
+    + validateCaptcha(captchaId, captchaCode): boolean
+  }
+  note right of RedisCaptchaService : 验证码 Redis 存储\n5 分钟 TTL\nAWT BufferedImage 生成\nMOCK 实现(同时返回明文)
 }
 
 package "策略/工厂 (Design Pattern)" as DP #E6E6FA {
@@ -627,7 +653,7 @@ package "基础设施 (Infrastructure)" as INF #DDA0DD {
     + notifyStop(chargerCode: String, recordId: UUID): boolean
     + isOnline(chargerCode: String): boolean
   }
-  note right of ChargerConnector : 充电桩通讯中间件接口\nHTTP polling 实现（后续升级 WebSocket）\nSpring 通知充电桩启动/停止\n检测充电桩在线状态\n当前为 stub 实现
+  note right of ChargerConnector : 充电桩通讯中间件接口\nHTTP POST 实现\nSpring 通知充电桩启动/停止\n检测充电桩在线状态\n\n通知 Swing 内嵌 ChargerHttpServer(8081)
 
   class HttpChargerConnector implements ChargerConnector {
     + notifyStart(chargerCode: String, recordId: UUID): boolean
@@ -642,7 +668,7 @@ package "基础设施 (Infrastructure)" as INF #DDA0DD {
     + expire(key: String, timeout: long, unit: TimeUnit): boolean
     + delete(key: String): boolean
   }
-  note right of RedisTemplate : 缓存 Token/验证码/封禁状态\nrefresh_token 存储\njti 黑名单\n登录失败计数
+  note right of RedisTemplate : 缓存 Token/验证码/封禁状态\nrefresh_token 存储\njti 黑名单\n登录失败计数\n短信验证码存储
 
   class PageHelper {
     + startPage(pageNum: int, pageSize: int)

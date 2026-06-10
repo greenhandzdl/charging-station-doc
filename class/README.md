@@ -36,16 +36,17 @@
 | RepairModel | 前端层 | 报修单展示 |
 | ApiService | 服务层 | HTTP REST 封装，JWT 自动附加 |
 | AuthProvider | 状态管理 | 认证状态，ChangeNotifier 实现 |
-| ChargingProvider | 状态管理 | 充电业务状态 |
+| ChargingProvider | 状态管理 | 充电业务状态（含充电中轮询，每5秒更新电量/费用） |
 | RepairProvider | 状态管理 | 报修业务状态 |
 
 ### Mock充电机客户端（Swing）
 
 | 类 | 层 | 职责 |
 |----|----|------|
-| MockChargerClient | 客户端主类 | Swing 桌面客户端主入口，包含 JFrame 主窗口，管理 ChargerUIPanel 和 ChargeSimulator |
-| ChargerUIPanel | Swing 面板 | 提供插枪/拔枪按钮 (JButton)、充电进度条 (JProgressBar)、状态标签 (JLabel) 等 UI 组件，模拟充电机显示屏 |
-| ChargeSimulator | 模拟引擎 | 模拟电量增长（0.1kWh/秒），记录充电时长，提供启动/停止/查询接口 |
+| MockChargerClient | 客户端主类 | Swing 桌面客户端主入口，包含 JFrame 主窗口，管理 ChargerUIPanel、ChargeSimulator 和 ChargerHttpServer |
+| ChargerUIPanel | Swing 面板 | 提供插枪/拔枪按钮 (JButton)、充电进度条 (JProgressBar)、状态标签 (JLabel)、电量/费用/时长显示标签等 UI 组件，模拟充电机显示屏 |
+| ChargeSimulator | 模拟引擎 | 模拟电量增长（0.1kWh/秒），记录充电时长，提供启动/停止/查询接口，支持峰谷定价 |
+| ChargerHttpServer | 嵌入式 HTTP 服务 | 监听 localhost:8081，接收 Spring 后端推送的 notifyStart/notifyStop 通知 |
 
 ### 后端层（Spring Boot Java）
 
@@ -72,6 +73,10 @@
 | StandardPricing | 策略 | 标准计费（1.5元/度） |
 | PaymentFactory | 工厂 | 支付方式工厂 |
 | PaymentChannel | 工厂 | 支付通道接口 |
+| CaptchaService | 服务接口 | 验证码生成与校验接口 |
+| RedisCaptchaService | 服务实现 | Redis 存储的验证码服务实现（含 AWT 图片生成） |
+| SmsService | 服务接口 | 短信验证码服务接口 |
+| RedisSmsService | 服务实现 | Redis 存储的短信验证码服务实现 |
 
 ## 枚举
 
@@ -97,11 +102,15 @@
 - User 1:N AuditLog（用户操作记录）
 - MockChargerClient --> ChargerUIPanel（包含 Swing 面板）
 - MockChargerClient --> ChargeSimulator（模拟引擎）
+- MockChargerClient --> ChargerHttpServer（内嵌 HTTP 服务接收通知）
+- ChargerHttpServer ..> ChargerUIPanel（回调更新 UI：电量/费用/进度条）
 - MockChargerClient --> ChargingController（HTTP调用后端 API）
+- 后端 ChargerConnector -- POST/通知 --> Swing ChargerHttpServer（充电启停推送）
 - 前端 Model ←→ API 后端通过 HTTP REST JSON 传输
 - Service 类 ..> 实体类（服务依赖实体）
 - ChargingService --> PricingStrategy（策略模式）
 - PaymentFactory ..> PaymentChannel（工厂模式）
+- CaptchaService ..> RedisTemplate（验证码 Redis 存储校验）
 
 ## 设计模式
 

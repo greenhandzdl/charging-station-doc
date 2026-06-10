@@ -46,9 +46,15 @@
 2. Flutter App（已登录用户）扫描 QR 码，解析出充电桩 ID。
 3. Flutter 调用 `POST /api/v1/charges/start`（携带充电桩 ID）发起充电请求。
 4. 后端校验余额 >= 10 元、账户冻结状态、充电桩空闲、充电桩在线等前置条件后创建充电记录，返回 recordId。
-5. Spring 通过 ChargerConnector 通知模拟充电桩充电已启动。
-6. 模拟充电桩收到 ACK 确认后，ChargeSimulator 模拟电量增长（0.1 kWh/秒），通过后台轮询（每 30 秒心跳，`GET /api/v1/charges`）获取充电状态。
-7. 用户在 Flutter App 或模拟充电桩端发起结束充电。
+5. Spring 通过 HttpChargerConnector POST 通知 Swing 内嵌 ChargerHttpServer（localhost:8081）充电已启动。
+6. Swing 收到 notifyStart 后启动 ChargeSimulator，每秒 tick 更新 UI（JProgressBar + 电量/费用/时长标签）。
+7. Flutter 每 5 秒轮询 `GET /api/v1/charges?recordId=xxx` 获取最新电量/费用。
+8. 结束充电四种场景：
+   - ① Flutter 用户点击"结束充电"
+   - ② Swing 拔枪自动调用 `POST /api/v1/charges/stop`
+   - ③ ChargingScheduler 检测余额不足自动停止
+   - ④ 充电桩 60 秒无心跳 → Scheduler 标记 OFFLINE → 自动 forceStopByChargerId
+9. Spring 事务内结算（计算费用 + 扣减余额 + 记录支付 + 释放桩）→ ChargerConnector 通知 Swing → Swing 停止模拟显示结算结果。
 
 > **测试场景按钮：** 模拟充电桩面板内置断网测试、服务器重启、充电桩离线三个按钮，用于模拟异常场景验证客户端行为。
 

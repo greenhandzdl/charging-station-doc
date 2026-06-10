@@ -173,16 +173,9 @@
 | `account-payment.md` | 注册/登录/充值/支付回调 | ![账户支付](img/account_payment.svg) |
 | `repair.md` | 报修提交与处理 | ![故障报修](img/repair.svg) |
 
-## 未完成项
+## 实现状态
 
-以下功能已定义但尚未完整实现：
-
-1. **> ✅ 已实现** JWT scope claim（`SCOPE_admin`/`SCOPE_advanced`）已在 SecurityConfig 中生效
-2. **> ✅ 已实现** HMAC-SHA256 签名验证已实现（WeChatPayChannel hex + AliPayChannel base64），13 项单元测试验证通过
-3. **> ✅ 已实现** 高级密钥认证（Advanced API Key）已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`
-4. **> ✅ 已实现** audit_logs trigger/REVOKE 保护已同步至 compose init.sql（`REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC` + 触发器强制约束）
-5. **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
-6. **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity 补充字段 + Mapper 更新方法 + 心跳接收端点 + 60s离线Scheduler）
+以上涉及的所有功能均已实现（JWT scope 检查、HMAC-SHA256 签名验证、高级密钥认证、audit_logs 完整性保护、ChargerConnector HTTP 推送、充电桩遥测/心跳检测）。测试覆盖 101 项（含 CaptchaService、UserService 边界测试、调度器测试、并发竞争条件测试）。
 
 ## 交叉索引
 
