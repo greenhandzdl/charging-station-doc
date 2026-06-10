@@ -1,91 +1,88 @@
-# 第37轮 — 交互逻辑完善 + Captcha Service抽取 + 测试闭环
+# 第38轮 — 边界测试全面覆盖 + 文档同步
 
 ---
 
-## 第一阶段：基础设施抽取（并行）
+## 一、后端边界测试（新增 20+ 项）
 
-### 1.1 验证码 Service 抽取 + 必填校验
+### 1.1 CaptchaService 测试（新建 `CaptchaServiceTest.java`）
+| # | 测试用例 | 预期 |
+|---|---------|------|
+| T1 | generateCaptcha 返回有效 captchaId 和 image | captchaId 非空，image 是 base64 或空 |
+| T2 | validateCaptcha 正确验证码返回 true | 正确 code → true |
+| T3 | validateCaptcha 错误验证码返回 false | 错误 code → false |
+| T4 | validateCaptcha 过期验证码返回 false | 等待 TTL 后验证 → false |
+| T5 | validateCaptcha 空参数返回 false | null/空字符串 → false |
 
-**文件：** `CaptchaService.java`, `RedisCaptchaService.java`, `CaptchaController.java`, `UserServiceImpl.java`
+### 1.2 UserService 边界测试（在 UserServiceTest 新建或补充）
+| # | 测试用例 | 预期 |
+|---|---------|------|
+| T6 | register 空验证码抛异常 | captchaId=null → BusinessException "验证码不能为空" |
+| T7 | register IP 限流超过 3 次 | 第4次 → tooManyRequests |
+| T8 | register 手机号每日限流 | 第2次同手机号 → tooManyRequests |
+| T9 | register 密码强度不足 | 8位纯数字 → badRequest |
+| T10 | register 手机号已注册 | 重复 phone → conflict |
+| T11 | login 连续失败 5 次触发验证码 | 5 次失败后需要 captcha |
+| T12 | login 连续失败 10 次锁账户 | 10 次 → accountLocked |
+| T13 | login 成功后重置失败计数 | 成功后 failedLoginAttempts = 0 |
+| T14 | balance 恰好为 10.00 元启动充电 | 允许启动 |
+| T15 | balance 为 9.99 元启动充电 | 拒绝 |
+| T16 | changeRole ADMIN 不可修改 SUPER_ADMIN | 抛 forbidden |
+| T17 | changeRole SUPER_ADMIN 不可修改自身 | 抛 forbidden |
 
-- `CaptchaService` 接口：`generateCaptcha(): CaptchaResult`, `validateCaptcha(captchaId, captchaCode): boolean`
-- `RedisCaptchaService` 实现：Redis 存储/校验逻辑从 Controller 剥离
-- `CaptchaController` 注入 Service，精简
-- `UserServiceImpl.register()`：`validateCaptcha` 改为必填（空值抛 BusinessException）
-- 文档标注 captcha 为 mock 实现
+### 1.3 充电调度测试（新建 `ChargingSchedulerTest.java`）
+| # | 测试用例 | 预期 |
+|---|---------|------|
+| T18 | checkOfflineChargers 标记过期心跳为 OFFLINE | lastHeartbeatAt > 60s → OFFLINE |
+| T19 | checkOfflineChargers 跳过活跃桩 | lastHeartbeatAt < 60s → 仍 ONLINE |
+| T20 | checkOfflineChargers 自动停止离线桩的充电记录 | OFFLINE 且有 PROCESSING 记录 → auto-stop |
+| T21 | checkInsufficientBalance 余额不足自动停 | balance < 10 → auto-stop |
 
-### 1.2 Swing HTTP Server 接收通知
-
-**文件：** `ChargerHttpServer.java`（新建）, `MockChargerClient.java`, `ChargerUIPanel.java`
-
-- 嵌入式 `HttpServer`，监听 `localhost:8081`
-- `POST /api/notify/start`：连接 ChargeSimulator + 更新 UI 进度条/电量/费用
-- `POST /api/notify/stop`：停止模拟 + 显示结算结果
-- Swing 标题栏显示 HTTP Server 状态
-- `ChargeSimulator` 接入 UI（每秒 tick 更新）
-
-### 1.3 Flutter 验证码必填
-
-**文件：** `register_screen.dart`, `login_screen.dart`
-
-- 验证码输入框始终显示（移除条件判断）
-- `(mock)` 标签保留
-
----
-
-## 第二阶段：交互逻辑核心（并行）
-
-### 2.1 Swing 拔枪 → 自动结束充电
-
-**文件：** `MockChargerClient.java`, `ChargerUIPanel.java`, `ApiClient.java`
-
-- 拔枪时检查是否有 PROCESSING 充电记录
-- 有则调用 `POST /charges/stop` 通知 Spring
-- 显示结算结果（电量、费用）
-
-### 2.2 Flutter 充电中轮询
-
-**文件：** `charging_screen.dart`, `charging_provider.dart`
-
-- 充电中每 5 秒 `GET /charges?recordId=xxx`
-- 更新 energyKwh/fee 显示
-- COMPLETED 停止轮询，显示结果
-
-### 2.3 Spring 离线自动停
-
-**文件：** `ChargingScheduler.java`, `ChargingServiceImpl.java`
-
-- `checkOfflineChargers()`：标记 OFFLINE 前检查是否有 PROCESSING 记录
-- 有则调用 `forceStop()`（actor_type=SYSTEM）
+### 1.4 并发测试（新建 `ConcurrentChargingTest.java`）
+| # | 测试用例 | 预期 |
+|---|---------|------|
+| T22 | 同一桩被两个用户同时启动 | 只有一个成功，另一个收到冲突 |
+| T23 | 同一用户不能同时启动两笔充电 | 第二笔抛 BusinessException |
 
 ---
 
-## 第三阶段：验证 + 文档
+## 二、Flutter 测试补充
 
-### 3.1 测试验证
-- `mvn test`（后端 62+ 项）
-- `flutter build web`
-- Swing `mvn package`
+### 2.1 Provider 测试
+| # | 测试用例 | 文件 |
+|---|---------|------|
+| F1 | ChargingProvider 启动充电时开始轮询 | `charging_provider_test.dart` |
+| F2 | ChargingProvider 停止充电时停止轮询 | `charging_provider_test.dart` |
+| F3 | ChargingProvider 轮询到 COMPLETED 自动停止 | `charging_provider_test.dart` |
 
-### 3.2 文档更新
-- 类图补 Swing HttpServer
-- 时序图补拔枪结束 + 离线自动停
-- 文档标注 captcha mock
-
-### 3.3 清理 + 提交
+### 2.2 Screen 测试（补充）
+| # | 测试用例 | 文件 |
+|---|---------|------|
+| F4 | register_screen 验证码始终显示 | `register_screen_test.dart` |
+| F5 | charging_screen 充电中显示实时状态 | `charging_screen_test.dart` |
 
 ---
 
-## 验证标准
+## 三、Swing 测试补充
 
-| 场景 | 预期 |
-|------|------|
-| Swing 选桩 → 插枪 → 生成 QR | QR 含 chargerId JSON |
-| Flutter 扫码 → 启动充电 | Spring 创建记录，Swing 收到 notifyStart |
-| Swing 充电中显示 | 进度条 + 电量 + 费用实时更新 |
-| Flutter 充电中轮询 | 每 5 秒更新电量/费用 |
-| Swing 拔枪 | 自动调用 stopCharge，显示结算 |
-| 充电桩断连 > 60s | Spring 自动停止充电 + 标记 OFFLINE |
-| 注册验证码为空 | 返回 400，不静默通过 |
-| mvn test | 全部通过 |
-| flutter build web | 构建成功 |
+| # | 测试用例 | 文件 |
+|---|---------|------|
+| S1 | ChargeSimulator 每秒增加 0.1kWh | `ChargeSimulatorTest.java` |
+| S2 | ChargeSimulator 不超过 50.0 kWh 上限 | `ChargeSimulatorTest.java` |
+| S3 | ChargerHttpServer 接收通知后触发 callback | `ChargerHttpServerTest.java`（新建） |
+
+---
+
+## 四、文档同步（如有实现变更）
+
+- 时序图：补充离线自动停 + 拔枪结束场景
+- 状态图：确认与充电桩状态流转一致
+
+---
+
+## 五、执行策略
+
+1. **Round 1**（并行）：后端所有新增测试 + Flutter 补充测试 + Swing 补充测试
+2. **Round 2**：`mvn test` 全部通过 + `flutter build web`
+3. **Round 3**：文档同步 + 渲染
+4. **Round 4**：失败修复循环
+5. **提交**
