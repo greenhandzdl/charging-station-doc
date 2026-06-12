@@ -57,19 +57,55 @@ CREATE TABLE chargers (
     charger_code VARCHAR(64) NOT NULL,
     type VARCHAR(32),
     status VARCHAR(32) CHECK (status IN ('IDLE', 'CHARGING', 'FAULT')),
-    online_status VARCHAR(16) DEFAULT 'ONLINE' CHECK (online_status IN ('ONLINE', 'OFFLINE')),
+    online_status VARCHAR(16) DEFAULT 'OFFLINE' CHECK (online_status IN ('ONLINE', 'OFFLINE')),
     last_heartbeat_at TIMESTAMP,
+    device_type VARCHAR(32) NOT NULL DEFAULT 'SIMULATED' CHECK (device_type IN ('SIMULATED', 'REAL')),
+    rated_power_kw NUMERIC(6,2),
+    manufacturer VARCHAR(128),
+    model VARCHAR(64),
+    occupied_by UUID REFERENCES users(id),
+    occupied_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP
 );
 
 CREATE UNIQUE INDEX idx_chargers_charger_code ON chargers(charger_code);
 CREATE INDEX idx_chargers_station_id ON chargers(station_id);
+CREATE INDEX idx_chargers_occupied_by ON chargers(occupied_by) WHERE occupied_by IS NOT NULL;
 COMMENT ON TABLE chargers IS '充电桩表，关联充电站';
 COMMENT ON COLUMN chargers.type IS '充电类型: fast / slow';
 COMMENT ON COLUMN chargers.status IS '桩状态: idle / charging / fault';
 COMMENT ON COLUMN chargers.online_status IS '在线状态: online / offline，基于 last_heartbeat_at 定时更新';
 COMMENT ON COLUMN chargers.last_heartbeat_at IS '最后一次遥测心跳时间，超过 60 秒未更新视为离线';
+COMMENT ON COLUMN chargers.device_type IS '设备类型: SIMULATED（模拟/测试环境）/ REAL（真实环境）';
+COMMENT ON COLUMN chargers.rated_power_kw IS '额定功率（kW）';
+COMMENT ON COLUMN chargers.manufacturer IS '设备制造商';
+COMMENT ON COLUMN chargers.model IS '设备型号';
+COMMENT ON COLUMN chargers.occupied_by IS '当前占用用户 ID（插枪后设置，启动充电时验证，拔枪/结束充电后释放）';
+COMMENT ON COLUMN chargers.occupied_at IS '占用开始时间（插枪时间戳）';
+
+-- 3b. charger_devices（充电桩设备身份表）
+CREATE TABLE charger_devices (
+    id UUID PRIMARY KEY,
+    charger_id UUID NOT NULL UNIQUE REFERENCES chargers(id),
+    device_name VARCHAR(100) NOT NULL,
+    device_type VARCHAR(32) NOT NULL DEFAULT 'SIMULATED'
+        CHECK (device_type IN ('SIMULATED', 'REAL')),
+    auth_token VARCHAR(255),
+    serial_number VARCHAR(128),
+    firmware_version VARCHAR(64),
+    last_online_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP
+);
+
+CREATE INDEX idx_charger_devices_charger_id ON charger_devices(charger_id);
+COMMENT ON TABLE charger_devices IS '充电桩设备身份表，存储充电桩认证信息，与 users 表解耦';
+COMMENT ON COLUMN charger_devices.device_type IS '设备类型: SIMULATED（模拟充电桩）/ REAL（真实物理桩）';
+COMMENT ON COLUMN charger_devices.auth_token IS '设备认证令牌，用于桩到后端的 HTTP 请求认证';
+COMMENT ON COLUMN charger_devices.serial_number IS '设备序列号';
+COMMENT ON COLUMN charger_devices.firmware_version IS '固件版本号';
+COMMENT ON COLUMN charger_devices.last_online_at IS '最后在线时间';
 
 -- 4. charge_records（充电记录表）
 CREATE TABLE charge_records (
