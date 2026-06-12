@@ -63,7 +63,7 @@ CREATE TABLE chargers (
     rated_power_kw NUMERIC(6,2),
     manufacturer VARCHAR(128),
     model VARCHAR(64),
-    occupied_by UUID REFERENCES users(id),
+    occupied_by UUID,
     occupied_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP
@@ -84,28 +84,28 @@ COMMENT ON COLUMN chargers.model IS '设备型号';
 COMMENT ON COLUMN chargers.occupied_by IS '当前占用用户 ID（插枪后设置，启动充电时验证，拔枪/结束充电后释放）';
 COMMENT ON COLUMN chargers.occupied_at IS '占用开始时间（插枪时间戳）';
 
--- 3b. charger_devices（充电桩设备身份表）
-CREATE TABLE charger_devices (
+-- 3b. charger_users（充电桩设备身份表，与 users 表完全分离）
+CREATE TABLE charger_users (
     id UUID PRIMARY KEY,
-    charger_id UUID NOT NULL UNIQUE REFERENCES chargers(id),
-    device_name VARCHAR(100) NOT NULL,
-    device_type VARCHAR(32) NOT NULL DEFAULT 'SIMULATED'
-        CHECK (device_type IN ('SIMULATED', 'REAL')),
-    auth_token VARCHAR(255),
-    serial_number VARCHAR(128),
-    firmware_version VARCHAR(64),
-    last_online_at TIMESTAMP,
+    charger_id UUID REFERENCES chargers(id),           -- NULL 表示 GLOBAL 身份
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(32) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    identity_type VARCHAR(32) NOT NULL DEFAULT 'SINGLE'
+        CHECK (identity_type IN ('SINGLE', 'GLOBAL')),
+    is_active BOOLEAN DEFAULT true,
+    allowed_charger_ids TEXT,                         -- GLOBAL 身份可操作的充电桩 ID 列表(JSON 数组)，为空则全部可操作
+    last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP
 );
 
-CREATE INDEX idx_charger_devices_charger_id ON charger_devices(charger_id);
-COMMENT ON TABLE charger_devices IS '充电桩设备身份表，存储充电桩认证信息，与 users 表解耦';
-COMMENT ON COLUMN charger_devices.device_type IS '设备类型: SIMULATED（模拟充电桩）/ REAL（真实物理桩）';
-COMMENT ON COLUMN charger_devices.auth_token IS '设备认证令牌，用于桩到后端的 HTTP 请求认证';
-COMMENT ON COLUMN charger_devices.serial_number IS '设备序列号';
-COMMENT ON COLUMN charger_devices.firmware_version IS '固件版本号';
-COMMENT ON COLUMN charger_devices.last_online_at IS '最后在线时间';
+CREATE INDEX idx_charger_users_charger_id ON charger_users(charger_id) WHERE charger_id IS NOT NULL;
+CREATE INDEX idx_charger_users_identity_type ON charger_users(identity_type);
+COMMENT ON TABLE charger_users IS '充电桩设备身份表，存储充电桩认证信息，与 users 表解耦';
+COMMENT ON COLUMN charger_users.charger_id IS '关联充电桩 ID，NULL 表示全局身份(GLOBAL)';
+COMMENT ON COLUMN charger_users.identity_type IS '身份类型: SINGLE（只能操作指定桩）/ GLOBAL（可操作任意桩）';
+COMMENT ON COLUMN charger_users.allowed_charger_ids IS 'GLOBAL 身份可操作的充电桩 ID 列表（为空则全部可操作）';
 
 -- 4. charge_records（充电记录表）
 CREATE TABLE charge_records (
