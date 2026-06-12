@@ -84,28 +84,32 @@ COMMENT ON COLUMN chargers.model IS '设备型号';
 COMMENT ON COLUMN chargers.occupied_by IS '当前占用用户 ID（插枪后设置，启动充电时验证，拔枪/结束充电后释放）';
 COMMENT ON COLUMN chargers.occupied_at IS '占用开始时间（插枪时间戳）';
 
--- 3b. charger_users（充电桩设备身份表，与 users 表完全分离）
+-- 3b. charger_users（充电桩站设备身份表，与 users 表完全分离）
+-- 三级权限体系: CHARGER(单桩) < STATION(站级) < STATION_GLOBAL(全局)
 CREATE TABLE charger_users (
     id UUID PRIMARY KEY,
-    charger_id UUID REFERENCES chargers(id),           -- NULL 表示 GLOBAL 身份
+    login_id VARCHAR(64) NOT NULL UNIQUE,
     name VARCHAR(100) NOT NULL,
-    phone VARCHAR(32) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    identity_type VARCHAR(32) NOT NULL DEFAULT 'SINGLE'
-        CHECK (identity_type IN ('SINGLE', 'GLOBAL')),
+    permission_level VARCHAR(32) NOT NULL DEFAULT 'CHARGER'
+        CHECK (permission_level IN ('CHARGER', 'STATION', 'STATION_GLOBAL')),
+    charger_id UUID REFERENCES chargers(id),
+    station_id UUID REFERENCES stations(id),
+    parent_id UUID REFERENCES charger_users(id),
+    token_version INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
-    allowed_charger_ids TEXT,                         -- GLOBAL 身份可操作的充电桩 ID 列表(JSON 数组)，为空则全部可操作
     last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP
 );
 
-CREATE INDEX idx_charger_users_charger_id ON charger_users(charger_id) WHERE charger_id IS NOT NULL;
-CREATE INDEX idx_charger_users_identity_type ON charger_users(identity_type);
-COMMENT ON TABLE charger_users IS '充电桩设备身份表，存储充电桩认证信息，与 users 表解耦';
-COMMENT ON COLUMN charger_users.charger_id IS '关联充电桩 ID，NULL 表示全局身份(GLOBAL)';
-COMMENT ON COLUMN charger_users.identity_type IS '身份类型: SINGLE（只能操作指定桩）/ GLOBAL（可操作任意桩）';
-COMMENT ON COLUMN charger_users.allowed_charger_ids IS 'GLOBAL 身份可操作的充电桩 ID 列表（为空则全部可操作）';
+CREATE INDEX idx_charger_users_login_id ON charger_users(login_id);
+CREATE INDEX idx_charger_users_permission_level ON charger_users(permission_level);
+CREATE INDEX idx_charger_users_parent_id ON charger_users(parent_id) WHERE parent_id IS NOT NULL;
+COMMENT ON TABLE charger_users IS '充电桩站设备身份表，三级权限体系，与 users 表解耦';
+COMMENT ON COLUMN charger_users.permission_level IS '权限等级: CHARGER（单桩）/ STATION（站级）/ STATION_GLOBAL（全局）';
+COMMENT ON COLUMN charger_users.token_version IS 'token 版本号，上级重置后递增，旧 token 立即失效';
+COMMENT ON COLUMN charger_users.parent_id IS '上级身份 ID，用于权限链和 token 重置';
 
 -- 4. charge_records（充电记录表）
 CREATE TABLE charge_records (
