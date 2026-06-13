@@ -1,519 +1,264 @@
-# Round 43 — 8项修复 + 离线即结算 + 报修工作流 + 注册测试 + Swing全桩模拟
+# Round 45 — 5项修复 + DDL调整
 
-> **日期**: 2026-06-12  
-> **状态**: ✅ 已完成（2026-06-12）  
+> **日期**: 2026-06-13
+> **状态**: 待实施
 > **项目**: 新能源汽车充电站管理与数据分析系统
-
----
-
-## 设计澄清（重要）
-
-| 概念 | 正确设计 | 说明 |
-|------|----------|------|
-| `users` 表的 `phone` | ✅ 保留不变 | Flutter 用户注册/登录用手机号 |
-| `charger_users` 的 `login_id` | ✅ 正确设计 | 充电站/充电桩没有手机号，用 login_id 登录 |
-| 三级权限 | ✅ 已实现 | CHARGER < STATION < STATION_GLOBAL |
-
----
-
-## 已知问题列表（8项）
-
-| # | 问题 | 模块 | 优先级 | 详细描述 |
-|---|------|------|--------|----------|
-| 1 | **离线桩停止充电扣费为0元** | Backend | P0 | `forceStopByChargerId` 检测到桩断线时应立即结算，但 `startTime` 可能为 NULL 导致 energy=0/fee=0，且未通知 Flutter 用户 |
-| 2 | **Flutter 切换账号仍显示充电状态** | Flutter | P0 | 充电状态应跟账号走，切换后 `_currentRecord` 要清空 |
-| 3 | **本地实时功率/费用模拟(含多车)** | Flutter+Backend | P0 | 本地模拟充电过程，服务器只做截止时计算。登录后先查是否有 PROCESSING 记录→拉 startTime/ratedPowerKw 本地恢复计算 |
-| 4 | **充电桩列表重复显示** | Flutter | P0 | 点站时充电桩列表重复2次 |
-| 5 | **报修工作流不完整** | Backend+Flutter | P0 | 维修人员可修改状态/删除(软删)，管理后台审批/打回/关闭 |
-| 6 | **编辑资料500** | Backend+Flutter | P0 | Flutter 多传了 phone 字段导致冲突 |
-| 7 | **注册验证提示 + 确保能注册** | Backend+Flutter | P0 | 验证消息改为中文，**必须做端到端注册测试** |
-| 8 | **移除 seed.sql 中的 mock_user** | DDL | P1 | mock_user 功能已被 charger_users.STATION_GLOBAL 替代 |
 
 ---
 
 ## 当前项目状态
 
 - **架构**: Flutter(112t) + Spring Boot(231t) + PostgreSQL + Redis + Swing(compile ✅)
-- **后端已运行**: localhost:8080 (新代码)
-- **数据库**: 已重建(charger_users 三级权限 11 行)
-- **权限**: CHARGER(7) < STATION(3) < STATION_GLOBAL(1)
-- **Git**: 5仓库全 main，worktrees 已清理，无 detach
+- **后端已运行**: localhost:8080
+- **Git**: 5仓库全 main，无 detach，worktrees 已清理
 
-### 三级权限登录凭据（密码均为 `dev123`）
+---
 
-| login_id | 权限 | 登录方式 | 说明 |
-|----------|------|----------|------|
-| `station_global` | **STATION_GLOBAL** | `POST /charger-login` → `X-Charger-Token` | Swing 默认身份，可重置任意下级 token，模拟所有充电桩 |
-| `station_chaoyang` | **STATION** | `POST /charger-login` | 可重置旗下 CHARGER 的 token |
-| `station_haidian` | **STATION** | `POST /charger-login` | 同上 |
-| `station_pudong` | **STATION** | `POST /charger-login` | 同上 |
-| `charger_cy_a01` ~ `pd_b01` | **CHARGER** | `POST /charger-login` | 只能操作绑定的单个充电桩 |
-| `13800138002` | **ADMIN** | `POST /auth/login` (Flutter) | Flutter 用户用 phone+password |
-| `13800138001` | **USER** | `POST /auth/login` (Flutter) | Flutter 普通用户 |
+## 问题分析
 
-### 测试数据准备
+| # | 问题 | 根因 | 修复方案 |
+|---|------|------|----------|
+| 1 | **编辑资料500** + **管理员不能修改自己资料** | `updateUser` 服务层禁止 ADMIN/SUPER_ADMIN 编辑自身；`updateProfile` 可能因其他原因返回500 | 修改服务层允许自身编辑（仅禁用role变更）；增加日志以便排查500 |
+| 2 | **离线充电桩仍显示"充电中"** | `checkOfflineChargers` 第一次扫描将桩标记OFFLINE+forceStop，但后续扫描跳过已OFFLINE的桩；`updateStatusConditionally` 返回值未检查 | 修改扫描条件：即使已OFFLINE但status=CHARGING也做forceStop；检查并记录条件更新结果 |
+| 3 | **进入充电站列表多次刷新** + **show menu未实现Token重置** | `getChargerUsers` 返回类型错误（_handleResponse返回Map但方法声明List），导致`_chargerUsersMap`始终为空，Token重置永不生效 | 修复 `getChargerUsers` 正确解析JSON数组；添加loading guard防止并发加载 |
+| 4 | **注册提示请求参数校验失败** | 后端返回大写status但admin screen用大写比较（后端实际用小写）→ 按钮全隐藏；**这是Issue 5的根因，与注册无关** | 修复admin screen状态比较为小写 |
+| 5 | **报修管理-管理员不能打回/删除** | `reject` 仅从RESOLVED状态可调用；IN_PROGRESS无打回路径；admin screen缺"删除"按钮 | `close`扩展支持IN_PROGRESS；admin screen增加"拒绝"+"删除"按钮 |
+| 6 | **DDL调整** | 项目中无SQL DDL文件，表结构由MyBatis注解隐式定义 | 检查现有schema定义，生成DDL脚本 |
+
+---
+
+## 详细修复方案
+
+### Fix 1: 编辑资料500 + 管理员自身编辑限制
+
+#### 1A. 后端: `UserServiceImpl.updateUser()` — 允许自身编辑
+
+**当前代码** (lines 456-466):
+```java
+if (currentUserRole.equals("ADMIN")) {
+    UserRole targetRole = target.getRole();
+    if (targetRole == UserRole.ADMIN || targetRole == UserRole.SUPER_ADMIN) {
+        throw BusinessException.forbidden("ADMIN不可修改其他ADMIN或SUPER_ADMIN");
+    }
+}
+if (currentUserRole.equals("SUPER_ADMIN") && currentUserId.equals(id)) {
+    throw BusinessException.forbidden("SUPER_ADMIN不可修改自身");
+}
+```
+
+**修改后**:
+```java
+// ADMIN cannot modify other ADMIN or SUPER_ADMIN (but can modify self)
+if (currentUserRole.equals("ADMIN") && !currentUserId.equals(id)) {
+    UserRole targetRole = target.getRole();
+    if (targetRole == UserRole.ADMIN || targetRole == UserRole.SUPER_ADMIN) {
+        throw BusinessException.forbidden("ADMIN不可修改其他ADMIN或SUPER_ADMIN");
+    }
+}
+// SUPER_ADMIN cannot modify other SUPER_ADMIN (but can modify self)
+if (currentUserRole.equals("SUPER_ADMIN") && !currentUserId.equals(id)) {
+    // Same check for other SUPER_ADMIN accounts
+}
+// Self-editing is allowed regardless of role
+```
+
+**注意**: 自身编辑时仍不可修改role，`UpdateUserRequest` 不包含role字段，所以天然安全。
+
+#### 1B. 排查updateProfile的500
+
+**方案**: 在 `updateProfile` 增加 try-catch 和详细日志；用 curl 测试定位具体错误。
 
 ```bash
-# 用于编辑资料测试的用户 JWT
-TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"phone":"13800138001","password":"zhang123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
-
-# 用于注册测试
-curl -s -X POST http://localhost:8080/api/v1/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"测试用户","phone":"13999999999","password":"test123456","plateNumber":"京C·12345"}'
-```
-
----
-
-## 实施步骤（按依赖顺序）
-
----
-
-### Step 1: 离线桩停止充电 → 立即结算 + 通知 Flutter + Swing 断线检测
-
-#### 1A. 后端 `forceStopByChargerId` → 立即结算（扣费不为0）
-
-**文件**: `ChargingServiceImpl.java:606` (forceStopByChargerId)
-
-**修复**：当 `startTime == null` 时用默认值估算：
-```java
-// 在 forceStopByChargerId 中，计算 energy 前增加兜底逻辑
-if (record.getStartTime() == null) {
-    // 没有 startTime（早期流程缺陷），按30分钟估算
-    // 快充 60kW/h → 30kWh, 慢充 7kW/h → 3.5kWh
-    BigDecimal defaultKwh = charger.getType() == ChargerType.FAST 
-        ? BigDecimal.valueOf(30.0) : BigDecimal.valueOf(3.5);
-    energyKwh = defaultKwh;
-} else {
-    energyKwh = estimateEnergyKwh(charger.getType(), record.getStartTime());
-}
-```
-
-#### 1B. 后端 → WebSocket 通知 Flutter（可选：先用轮询兜底）
-
-**文件**: `ChargingScheduler.java` 的 `checkOfflineChargers()`
-
-当前已有定时任务每60秒扫描离线桩 → 调用 `forceStopByChargerId`。但 Flutter 端需要实时感知。
-
-**方案（简化）**: 
-- 后端 `forceStopByChargerId` 结束时，将"被停止的 userId 列表"暂存到 Redis（`offline:notify:{userId} = true`，TTL=5min）
-- Flutter 轮询 `GET /api/v1/charges/active` 时返回 `offlineStopped: true/false`
-- 如果 `offlineStopped == true`，Flutter 弹出通知"充电桩已离线，充电已自动停止，扣费 xx 元"
-
-**具体后端修改**:
-- 在 `forceStopByChargerId` 末尾写 Redis key
-- 新增 `GET /api/v1/charges/active` 端点（同时用于 Step 3）:
-```java
-// 返回用户当前进行中的充电记录 + 充电桩信息 + 离线通知标记
-@GetMapping("/charges/active")
-public ResponseEntity<Map<String, Object>> getActiveCharges(
-        @AuthenticationPrincipal JwtUserPrincipal principal) {
-    UUID userId = UUID.fromString(principal.getUserId());
-    List<ChargeRecord> activeRecords = chargeRecordMapper.findByUserIdAndStatus(userId, "PROCESSING");
-    // 如果没 active records，检查是否有离线通知
-    boolean offlineStopped = redisTemplate.hasKey("offline:notify:" + userId) == Boolean.TRUE;
-    return ResponseEntity.ok(Map.of(
-        "activeRecords", activeRecords,
-        "offlineStopped", offlineStopped
-    ));
-}
-```
-
-#### 1C. Swing 断线检测 + 自动结束充电状态
-
-**文件**: `MockChargerClient.java`
-
-- `onHeartbeatTick()` 中如果 `NetworkSimulator.isOffline()`:
-  - 设置状态文字 "⚠ 离线中 — 充电已停止"
-  - 如果 `chargeSimulator.isCharging()`，调用 `chargeSimulator.stopSimulation()` 并重置
-  - 设置 `selectedChargerId = null`, `pluggedIn = false`
-  - 显示最终费用结果
-
----
-
-### Step 2: Flutter 充电状态跟随账号
-
-**文件**: `charging_provider.dart`
-
-```dart
-void clear() {
-  _currentRecord = null;
-  _chargers = [];
-  _stations = [];
-  stopPolling();
-  notifyListeners();
-}
-```
-
-**文件**: `auth_provider.dart` → `logout()` 方法中调用 `chargingProvider.clear()`:
-```dart
-// 在 auth_provider 中注入 ChargingProvider
-final chargingProvider = ref.read(chargingProvider);
-chargingProvider.clear();
-```
-
----
-
-### Step 3: 本地实时功率/费用模拟（支持多车充电）
-
-#### 3A. 后端：`GET /api/v1/charges/active` — 返回当前用户所有 PROCESSING 记录
-
-**文件**: `ChargingController.java` / `ChargingService.java`
-
-```java
-// ChargingController 新增
-@GetMapping("/charges/active")
-@PreAuthorize("isAuthenticated()")
-public ResponseEntity<List<Map<String, Object>>> getActiveCharges(
-        @AuthenticationPrincipal JwtUserPrincipal principal) {
-    UUID userId = UUID.fromString(principal.getUserId());
-    List<Map<String, Object>> activeCharges = chargingService.getActiveChargesWithChargerInfo(userId);
-    return ResponseEntity.ok(activeCharges);
-}
-```
-
-返回格式：
-```json
-[
-  {
-    "recordId": "...",
-    "chargerId": "...",
-    "chargerCode": "CY-A01",
-    "type": "FAST",
-    "ratedPowerKw": 60.00,
-    "startTime": "2026-06-12T10:00:00",
-    "status": "PROCESSING"
-  },
-  ...
-]
-```
-
-#### 3B. Flutter `charging_provider.dart` — 本地模拟引擎
-
-```dart
-class LocalChargeSimulation {
-  String recordId;
-  String chargerId;
-  String chargerCode;
-  String type;          // FAST or SLOW
-  double ratedPowerKw;
-  DateTime startTime;
-  double energyKwh;     // 本地累计
-  double fee;           // 本地累计
-  Timer? _tickTimer;
-}
-```
-
-- `startLocalSimulation(...)` → 启动每5秒的 Timer，`energy += (ratedPowerKw / 3600) * 5`
-- `resumeFromBackend(...)` — 登录后检查是否有 PROCESSING 记录：
-  - 如果有，用 `startTime` 计算已充电时长，`energy = (ratedPowerKw / 3600) * elapsedSeconds`
-  - 恢复本地模拟
-- 支持多个 LocalChargeSimulation 实例（多车充电）
-
-#### 3C. Flutter `charging_screen.dart` — 实时显示
-
-- 用 ListView 显示多条充电记录
-- 每条显示：充电桩编号、实时功率(kW)、已用电量(kWh)、当前费用(元)、已充时长
-- 结束充电调用 `POST /charges/stop`（后端算最终费用）
-
----
-
-### Step 4: 充电桩列表重复
-
-**文件**: `charging_screen.dart`
-
-**问题分析**：`_loadChargers(station.id)` 中 `setState` 选择站时没有立即清空旧的 `_chargers` 列表。虽然 provider 里 `fetchChargers` 是替换，但在异步加载完成前 Widget 重新构建时可能同时展示新旧数据。
-
-**修复**：
-```dart
-onTap: () {
-  setState(() {
-    _selectedStation = station;
-    _selectedCharger = null;
-  });
-  // 立即清空 provider 的 chargers 列表
-  context.read<ChargingProvider>().clearChargers();
-  _loadChargers(station.id);
-}
-```
-
-在 `charging_provider.dart` 新增：
-```dart
-void clearChargers() {
-  _chargers = [];
-  notifyListeners();
-}
-```
-
----
-
-### Step 5: 报修工作流完整设计
-
-当前状态流: `OPEN → IN_PROGRESS → RESOLVED → CLOSED`
-
-#### 5A. 维修人员（MAINTAINER）能力
-
-| 操作 | 端点 | 状态变化 | 说明 |
-|------|------|----------|------|
-| 接单 | `PUT /repairs/{id}/claim` | OPEN → IN_PROGRESS | 维修工认领报修单 |
-| 标记完成 | `PUT /repairs/{id}/resolve` | IN_PROGRESS → RESOLVED | 维修完成等待审核 |
-| 删除 | `PUT /repairs/{id}/delete` | 任何状态 → DELETED | 软删除（修改 status='DELETED'），**需管理后台审批** |
-| 修改说明 | `PUT /repairs/{id}/description` | 任何状态 | 更新描述 |
-
-#### 5B. 管理员（ADMIN/SUPER_ADMIN）能力
-
-| 操作 | 端点 | 状态变化 | 说明 |
-|------|------|----------|------|
-| 分配 | `PUT /repairs/{id}/assign` | OPEN → IN_PROGRESS | 指派给指定维修工 |
-| 打回 | `PUT /repairs/{id}/reject` | RESOLVED → OPEN | 维修不达标打回重做 |
-| 关闭 | `PUT /repairs/{id}/close` | RESOLVED → CLOSED | 维修达标，关闭工单 |
-| 审核删除 | `PUT /repairs/{id}/approve-delete` | DELETED → 永久删除 | 审批通过后物理删除 |
-| 直接关闭 | `PUT /repairs/{id}/close` | OPEN → CLOSED | 无需维修直接关 |
-
-#### 5C. 后端修改
-
-1. **枚举添加 `DELETED`**（RepairStatus.java）:
-```java
-public enum RepairStatus {
-    OPEN, IN_PROGRESS, RESOLVED, CLOSED, DELETED
-}
-```
-
-2. **新增端点** `PUT /repairs/{id}/delete`（维修人员软删除）:
-```java
-@PutMapping("/repairs/{id}/delete")
-@PreAuthorize("hasAnyRole('MAINTAINER', 'ADMIN')")
-public ResponseEntity<Map<String, String>> deleteRepair(@PathVariable UUID id,
-        @AuthenticationPrincipal JwtUserPrincipal principal) {
-    repairService.softDelete(id, UUID.fromString(principal.getUserId()), principal.getRole());
-    return ResponseEntity.ok(Map.of("message", "已申请删除"));
-}
-```
-
-3. **新增端点** `PUT /repairs/{id}/approve-delete`（管理员审批删除）:
-```java
-@PutMapping("/repairs/{id}/approve-delete")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-public ResponseEntity<Map<String, String>> approveDelete(@PathVariable UUID id) {
-    repairService.approveDelete(id);
-    return ResponseEntity.ok(Map.of("message", "已永久删除"));
-}
-```
-
-#### 5D. Flutter 修改
-
-- `maintainer_workspace_screen.dart`: 增加"删除"按钮（弹出确认+输入原因）
-- `admin_screens/repair_management_screen.dart`: 
-  - RESOLVED → 显示"打回"和"关闭"按钮
-  - DELETED → 显示"审批删除"按钮（仅管理员可见）
-  - 增加"维修记录归档"标签页
-
----
-
-### Step 6: 编辑资料500修复
-
-**问题根因**: 
-- Flutter `profile_screen.dart` 的 `updateProfile` 调用传了 `phone` 字段
-- 后端 `UpdateUserRequest` 只有 `name` 和 `plateNumber`，没有 `phone`
-- 后端 `UserServiceImpl.updateProfile()` 只更新 name/plateNumber，但 Flutter 传来的 phone 字段可能被 Jackson 忽略或触发某种错误
-
-**后端修复**: `UpdateUserRequest.java` 不需要改（它本来就不含 phone）。检查 `UserServiceImpl.updateProfile` 中的 `userMapper.update()` 是否正确处理。
-
-**Flutter修复**:
-```dart
-// profile_screen.dart — 确认传给 API 的 body：
-await ApiService.updateProfile({
-  'name': name,
-  'plateNumber': plate,  // 不要传 phone！
-});
-```
-
-**验证**:
-```bash
-# 获取用户 token
-TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"phone":"13800138001","password":"zhang123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
-
-# 测试编辑资料（不带 phone）
-curl -s -X PUT http://localhost:8080/api/v1/users/profile \
+# 测试命令
+curl -v -X PUT http://localhost:8080/api/v1/users/profile \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"张三","plateNumber":"京B·99999"}' | python3 -m json.tool
+  -d '{"name":"测试","plateNumber":"京B·99999"}'
 ```
 
 ---
 
-### Step 7: 注册验证提示优化 + 注册测试
+### Fix 2: 离线充电桩状态显示"充电中"
 
-#### 7A. 后端验证消息改为中文
+#### 2A. ChargingScheduler.checkOfflineChargers()
 
-**文件**: `RegisterRequest.java`
+**当前代码** (line 56):
 ```java
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class RegisterRequest {
-
-    @NotBlank(message = "姓名不能为空")
-    private String name;
-
-    @NotBlank(message = "手机号不能为空")
-    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
-    private String phone;
-
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 6, message = "密码长度至少6位")
-    private String password;
-
-    private String plateNumber;
-
-    private String captchaId;
-
-    private String captchaCode;
-}
+if ("ONLINE".equals(charger.getOnlineStatus()) || charger.getOnlineStatus() == null) {
 ```
 
-#### 7B. Flutter 错误展示优化
-
-**文件**: `api_service.dart` 的 `_handleResponse()` 和 `register()` 调用处
-
-确保 `_handleResponse` 返回的 message 直接展示给用户（不要包装成 "请求参数校验失败"）。
-
-```dart
-// 在 register 调用处，用中文提示
-try {
-  await ApiService.register(name, phone, password, plateNumber,
-      captchaId: captchaId!, captchaCode: captchaCode!);
-} on ApiException catch (e) {
-  // e.message 已经是后端返回的中文错误
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(e.message)),
-  );
-}
+**修改后**:
+```java
+if ("ONLINE".equals(charger.getOnlineStatus()) || charger.getOnlineStatus() == null
+    || "CHARGING".equals(charger.getStatus())) {
+    // 即使已OFFLINE但状态仍为CHARGING，也需要做forceStop
 ```
 
-#### 7C. 注册端到端测试步骤
+这样即使第一次forceStop失败，后续扫描仍会尝试。
 
-```bash
-# 1. 获取验证码（如果没有绕过的话）
-# 当前验证码是 mock 模式（固定 0000），直接注册即可
+#### 2B. ChargingServiceImpl.forceStopByChargerId()
 
-# 2. 注册测试
-curl -v -X POST http://localhost:8080/api/v1/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "name": "测试用户",
-    "phone": "13900000001",
-    "password": "test123456",
-    "plateNumber": "京Z·99999"
-  }'
+**当前代码** (line 630):
+```java
+chargerMapper.updateStatusConditionally(charger.getId(), "IDLE", "CHARGING");
+```
 
-# 期望: 201 Created + {"message":"注册成功"}
-
-# 3. 测试重复手机号 → 应返回错误提示
-curl -s -X POST http://localhost:8080/api/v1/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"重复","phone":"13900000001","password":"test123456"}' | python3 -m json.tool
-
-# 4. Flutter 模拟器中实际测试注册流程
+**修改后**:
+```java
+int updated = chargerMapper.updateStatusConditionally(charger.getId(), "IDLE", "CHARGING");
+if (updated == 0) {
+    log.warn("forceStop: charger {} status was not CHARGING (already IDLE or FAULT)", charger.getId());
+}
 ```
 
 ---
 
-### Step 8: 移除 seed.sql 中的 mock_user + Swing 完善
+### Fix 3: 充电桩列表刷新 + Token重置
 
-#### 8A. 删除 seed.sql 中的 mock_user
+#### 3A. ApiService.getChargerUsers() — 修复返回类型
 
-```sql
--- 删除这一行（line 13-15）:
--- ('a0000000-0000-4000-8000-000000000001', 'Mock充电机', 'mock_user', '模拟-00001',
---  '$2a$10$o8zYr4NJFAo555ZiBPRRj.mKaDJkCQ0.NW.BVzl0sAlVmoE.sZZb6',
---  'USER', 100.00),
+**当前代码** (api_service.dart lines 757-764):
+```dart
+static Future<List<Map<String, dynamic>>> getChargerUsers(String? stationId) async {
+    final query = stationId != null ? '?stationId=$stationId' : '';
+    final response = await _get(
+      Uri.parse('$baseUrl/auth/charger-users$query'),
+      headers: _headers(),
+    );
+    return await _handleResponse(response);  // BUG: _handleResponse returns Map, not List
+}
 ```
 
-减少为4个用户（张三 + 管理员 + 维修工 + 超级管理员）。
+**修改后**: 与 `getChargers` 同样的模式，从 `data['data']` 提取列表。
 
-#### 8B. Swing — 全局充电站身份，选择充电桩 → 应用模式
+#### 3B. StationChargerManagementScreen — 添加loading guard
 
-**Swing 当前状态**：已使用 `station_global` 登录（STATION_GLOBAL），但充点桩选择逻辑不够完善。
+**新增** `_loadingStations` Set，防止快速点击导致并发加载：
+```dart
+Set<String> _loadingStations = {};
 
-**改进**：
-1. `ChargerUIPanel` / `MockChargerClient`：充电桩下拉框 → 勾选 + "应用"按钮
-   - 勾选要模拟的充电桩（多选）
-   - 点击"应用"保存选择状态
-   - 心跳/插枪/拔枪只对已"应用"的充电桩执行
+Future<void> _loadChargers(String stationId) async {
+    if (_loadingStations.contains(stationId)) return;
+    _loadingStations.add(stationId);
+    try { ... } finally { _loadingStations.remove(stationId); }
+}
+```
 
-2. 当 STATION_GLOBAL 身份时，可以调用 `POST /api/v1/auth/charger-reset-token/{id}` 重置下级 token（例如重置 station_chaoyang 或 charger_cy_a01 的 token）
-   - 新增"重置 Token"按钮
-   - 选择下级身份 → 点击重置 → 返回新 token → 显示在界面
+---
 
-3. **Swing 离线断线处理**:
-   - `onHeartbeatTick()` 中检测到断线 → 立即停止所有模拟充电
-   - 状态文字更新: "⚠ 离线 — 已停止所有充电"
-   - 调用 `chargeSimulator.stopSimulation()` 显示最终结果
+### Fix 4: 注册提示"请求参数校验失败"
+
+**这是一个误解** — 这个问题实际上是 Issue 5 的一部分（状态大小写不匹配导致的全部按钮不可见）。
+
+#### 4A. 修复注册的captcha传递逻辑
+
+**当前代码**: 即使 `_captchaId` 为空字符串，仍发送 `captchaId: ''` 到后端。
+
+**修改后**: 当captcha未加载完成时，不发送captcha字段。
+
+---
+
+### Fix 5: 报修管理 — 管理员不能打回/删除
+
+#### 5A. 修复状态比较（最关键的Bug）
+
+**根因**: `RepairServiceImpl.listRepairs()` 返回 lowercase status (`r.getStatus().name().toLowerCase()`)，
+但 `repair_management_screen.dart` 全部用 uppercase 比较（`r.status == 'OPEN'`）。
+
+**所有比较改为 lowercase**:
+```dart
+r.status == 'open'
+r.status == 'in_progress'
+r.status == 'resolved'
+r.status == 'deleted'
+```
+
+#### 5B. 扩展 `close` 支持从 IN_PROGRESS 关闭
+
+**当前 SQL**:
+```java
+@Update("UPDATE repairs SET status = 'CLOSED', handled_at = now() WHERE id = #{id} AND status IN ('OPEN', 'RESOLVED')")
+int close(UUID id);
+```
+
+**修改后**:
+```java
+@Update("UPDATE repairs SET status = 'CLOSED', handled_at = now() WHERE id = #{id} AND status IN ('OPEN', 'IN_PROGRESS', 'RESOLVED')")
+int close(UUID id);
+```
+
+#### 5C. Admin screen 增加"拒绝/直接关闭"和"删除"按钮
+
+- **OPEN status**: 已有"直接关闭"按钮 → 保留
+- **IN_PROGRESS status**: 新增"打回"按钮（使用 close）
+- **DELETED status**: 已有"审批删除"按钮 → 保留
+- **All non-DELETED statuses**: 新增"删除"按钮（调用 softDelete）
+
+---
+
+### Fix 6: DDL调整
+
+**方案**: 检查 MyBatis 注解中定义的表结构，生成 DDL 脚本存入 `doc/database/schema.sql`。
+
+---
+
+## 实施步骤
+
+### Step 1: 修复管理员自身编辑限制
+- 文件: `UserServiceImpl.java` (lines 455-466)
+- 修改 `updateUser` 方法中的权限校验逻辑
+
+### Step 2: 修复离线充电桩状态滞留
+- 文件: `ChargingScheduler.java` (line 56)
+- 文件: `ChargingServiceImpl.java` (line 630)
+
+### Step 3: 修复Token重置 + 充电桩列表刷新
+- 文件: `api_service.dart` (lines 757-764, getChargerUsers)
+- 文件: `station_charger_management_screen.dart` (新增loading guard)
+
+### Step 4: 修复报修管理按钮不可见 + 增加打回/删除
+- 文件: `repair_management_screen.dart` (all status comparisons)
+- 文件: `RepairMapper.java` (close 支持 IN_PROGRESS)
+
+### Step 5: 修复注册captcha逻辑
+- 文件: `register_screen.dart` (仅在有有效captchaId时发送captcha字段)
+
+### Step 6: DDL生成
+- 分析mapper文件中定义的表结构
+- 生成 `doc/database/schema.sql`
+
+### Step 7: 验证
+- 后端: `mvn test`
+- Flutter: `flutter test`
+- Swagger: 手动测试各端点
 
 ---
 
 ## 验证方法
 
-### Step 1 — 离线扣费验证
 ```bash
-# 1. STATION_GLOBAL 登录
-TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/charger-login \
-  -H 'Content-Type: application/json' \
-  -d '{"loginId":"station_global","password":"dev123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
+# 后端测试
+cd /mnt/data/charging-station-doc/code/charging-station-backend && mvn test
 
-# 2. 查看离线桩上的充电记录
-# forceStopByChargerId 在 ChargingScheduler 每60秒自动触发
-# 检查扣费金额不为0
-curl -s http://localhost:8080/api/v1/charges \
-  -H "Authorization: Bearer $TOKEN" | python3 -c "import sys,json; records=json.load(sys.stdin); [print(r.get('fee'), r.get('energyKwh'), r.get('status')) for r in records[:5]]"
-```
+# Flutter测试
+cd /mnt/data/charging-station-doc/code/charging-station-client && flutter test
 
-### Step 6 — 编辑资料验证
-```bash
-USER_TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"phone":"13800138001","password":"zhang123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
-curl -s -X PUT http://localhost:8080/api/v1/users/profile \
+# 编辑资料测试
+curl -X PUT http://localhost:8080/api/v1/users/profile \
   -H "Authorization: Bearer $USER_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"张三测试","plateNumber":"京B·99999"}' | python3 -m json.tool
-```
+  -d '{"name":"测试","plateNumber":"京B·99999"}'
 
-### Step 7 — 注册测试
-```bash
-curl -v -X POST http://localhost:8080/api/v1/auth/register \
+# 管理员编辑自己资料测试
+curl -X PUT http://localhost:8080/api/v1/users/{id} \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"注册测试","phone":"13988880001","password":"pass123456","plateNumber":"京N·88888"}'
-```
-
-### 全量测试
-```bash
-cd charging-station-backend && mvn test
-cd charging-station-client && flutter test
-cd charging-station-mock-ser-client && mvn compile
-```
-
-### DB 重置
-```bash
-PGPASSWORD=dev_password_123 psql -h localhost -p 30001 -U cs_user -d charging_station \
-  -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-PGPASSWORD=dev_password_123 psql -h localhost -p 30001 -U cs_user -d charging_station \
-  -f code/charging-station-compose/init/init.sql
-PGPASSWORD=dev_password_123 psql -h localhost -p 30001 -U cs_user -d charging_station \
-  -f code/charging-station-compose/init/seed.sql
+  -d '{"name":"管理员自己修改","plateNumber":"京B·88888"}'
 ```
 
 ---
 
 ## Git 提交要求
 
-- 最小化增量 commit（每个 Step 一个 commit，如果关联性强可合并）
-- 每个 commit 末尾加 `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
+- 一个 commit，末尾加 `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 - 5 仓库全部提交，确保子模块指针同步
-- 所有 worktrees/detach 清理干净（当前已清理）
