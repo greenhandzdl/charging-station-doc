@@ -10,3 +10,6 @@
 [submodule "code/charging-station-mock-ser-client"]
 	path = code/charging-station-mock-ser-client
 	url = https://github.com/greenhandzdl/charging-station-mock-ser-client.git
+[submodule "code/charging-station-security"]
+	path = code/charging-station-security
+	url = git@github.com:greenhandzdl/charging-station-security.git
