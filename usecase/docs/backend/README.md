@@ -38,7 +38,14 @@
 | POST | `/api/v1/auth/refresh` | Token 刷新（refresh_token 轮换机制，旧 token 立即失效）。含 IP 级限流：同一 IP 每分钟最多刷新 5 次，超出返回 429 | 已认证 |
 | POST | `/api/v1/auth/password-reset` | 密码重置请求（第一步）。需图形验证码 + 短信验证码双重校验，重置令牌绑定用户会话，令牌有效期 15 分钟。含 IP 级限流：同一 IP 5 分钟内最多发起 3 次重置请求；手机维度限流：同一手机号每日最多 3 次 | 公开 |
 | POST | `/api/v1/auth/password-reset/confirm` | 密码重置确认（第二步）。提交短信验证码、重置令牌和新密码，校验通过后更新密码并清除旧会话。含 IP 级限流：同一 IP 每分钟最多尝试 5 次确认操作，防止验证码暴力破解，超出返回 429 | 公开 |
-| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401） | 已认证 |
+| PUT | `/api/v1/auth/password` | 修改密码（需旧密码校验，校验失败返回 401） | 已认认证 |
+
+### 充电桩设备认证
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| POST | `/api/v1/auth/charger-login` | 充电桩设备登录，获取 JWT Token（scope=charger） | 公开 |
+| POST | `/api/v1/auth/charger-reset-token/{targetUserId}` | 上级重置下级设备 Token（token_version 递增） | SCOPE_charger（STATION/STATION_GLOBAL 级） |
+| GET | `/api/v1/auth/charger-users` | 查询充电桩站设备身份列表 | 管理员/最高管理者 |
 
 ### 充电流程
 | 方法 | 路径 | 说明 | 权限 |
@@ -47,6 +54,11 @@
 | POST | `/api/v1/charges/stop` | 结束充电并结算。`@PreAuthorize("@chargeGuard.canStop(authentication, #req.recordId)")` — 使用 ChargeGuard bean 在注解层进行授权校验：普通用户仅能结束自己的充电记录，管理员可结束任意充电记录。recordId 来自请求体，由 ChargeGuard 查询归属 | 已认证用户/管理员/系统 |
 | POST | `/api/v1/charges/{id}/force-stop` | 管理员强制结束指定充电记录，需在请求体中携带强制终止原因，系统将该原因写入 audit_log。服务端校验 reason 参数：长度 ≤ 200 字符，HTML 标签过滤（使用白名单机制，仅允许 `<br/>` 等基本安全标签）。`@PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")` — 仅管理员和最高管理者可操作 | 管理员/最高管理者 |
 | GET | `/api/v1/charges` | 查询充电记录列表。Service 层按当前用户 ID 过滤，普通用户仅能看到自己的充电记录，管理员可查看全部 | 已认证用户/管理员/最高管理者 |
+| GET | `/api/v1/charges/active` | 查询当前用户活跃充电记录（含离线通知） | 已认证用户 |
+| POST | `/api/v1/chargers/heartbeat` | 接收充电桩遥测心跳，更新 last_heartbeat_at 和 online_status | 公开（按 chargerCode 匹配） |
+| POST | `/api/v1/chargers/{id}/plug-in` | 设备插枪，设置占用锁并生成 sessionId（二维码绑定） | SCOPE_charger |
+| POST | `/api/v1/chargers/{id}/unplug` | 设备拔枪，自动结束该桩上进行中的充电记录 | SCOPE_charger |
+| POST | `/api/v1/chargers/{id}/select` | 用户扫码选择充电桩，校验 sessionId 有效性 | 已认证用户 |
 > **模拟充电桩客户端（Swing）** 使用 Swing 桌面客户端模拟物理充电机的面板显示与交互。模拟充电桩是模拟的真实充电桩设备，不是"用户端"。用户选择充电桩后屏幕自动生成含充电桩 ID 的二维码，Flutter App 扫码调用 `POST /api/v1/charges/start` 启动充电。后台轮询充电状态（每 30 秒心跳，`GET /api/v1/charges`），同时每 30 秒发送遥测数据（heartbeat）到 Spring 上报在线状态。ChargeSimulator 模拟电量增长（0.1 kWh/秒）。面板内置断网测试/服务器重启/桩离线三个测试场景按钮。**不直接调用充电启停 API**。
 > **模拟充电桩安全约束：** 面板仅含充电桩选择与插拔枪操作，无管理功能入口。使用隔离测试用户账户，不影响真实用户数据。模拟充电桩需要比普通用户更高的权限才能与 Spring 中间件通讯、获取所有充电桩的信息。
 
@@ -59,7 +71,8 @@
 | PUT | `/api/v1/payments/{id}/reject` | 拒绝充值请求 | 管理员/最高管理者 |
 | GET | `/api/v1/users/balance` | 查询当前用户余额 | 已认证用户 |
 | POST | `/api/v1/payments/callback` | 支付网关回调 | 支付网关 |
-| GET | `/api/v1/payments` | 查询支付记录 | 已认证用户（仅自己的） |
+| GET | `/api/v1/payments` | 查询支付记录（充值记录） | 已认证用户（仅自己的） |
+| GET | `/api/v1/payments/deductions` | 查询扣费记录（充电自动扣费） | 已认证用户（仅自己的） |
 | POST | `/api/v1/payments/pay-arrears` | 支付欠费（选择支付方式后调用） | 已认证用户 |
 
 > **审批流程说明**：用户提交充值申请后，状态为 `PENDING`。管理员在后台查看待审核列表，批准后系统自动执行模拟回调处理（校验HMAC → 标记SUCCESS → 增加余额 → 自动补扣欠费）。拒绝后状态变为 `FAILED`。
@@ -86,9 +99,11 @@
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
 | GET | `/api/v1/users` | 查看用户列表 | 管理员/最高管理者 |
+| GET | `/api/v1/users/search?keyword=xxx` | 搜索用户（按姓名/手机号/车牌号模糊匹配） | 管理员/最高管理者 |
 | PUT | `/api/v1/users/{id}/role` | 变更用户角色 | 管理员/最高管理者 |
-| PUT | `/api/v1/users/{id}` | 编辑用户信息 | 管理员/最高管理者 |
+| PUT | `/api/v1/users/{id}` | 编辑用户信息（管理员编辑他人） | 管理员/最高管理者 |
 | DELETE | `/api/v1/users/{id}` | 删除用户 | 管理员/最高管理者 |
+| PUT | `/api/v1/users/profile` | 当前用户编辑个人资料（name, plateNumber） | 已认证用户 |
 
 **用户管理安全约束：**
 - ADMIN 不得删除或修改其他 ADMIN 用户（同级保护），也不得删除或修改 SUPER_ADMIN 用户（越级保护）
@@ -106,6 +121,8 @@
 | PUT | `/api/v1/repairs/{id}/claim` | 接单（维修人员自分配） | 维修人员/管理员 |
 | PUT | `/api/v1/repairs/{id}/close` | 管理员审核关闭报修单 | 管理员/最高管理者 |
 | PUT | `/api/v1/repairs/{id}/reject` | 退回报修 | 管理员/最高管理者 |
+| PUT | `/api/v1/repairs/{id}/delete` | 申请删除报修单（软删除） | 维修人员/管理员/最高管理者 |
+| PUT | `/api/v1/repairs/{id}/approve-delete` | 审批删除报修单（硬删除） | 管理员/最高管理者 |
 
 ### 统计
 | 方法 | 路径 | 说明 | 权限 |

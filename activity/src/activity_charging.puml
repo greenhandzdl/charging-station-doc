@@ -18,20 +18,27 @@ partition "用户" {
 partition "Mock充电机客户端" {
   :显示"模拟插枪"界面;
   :用户模拟插枪;
-  :调用后端启动充电 API;
-  :显示充电进度条;
+  :调用后端插枪 API (plug-in);
+  :显示二维码供扫码;
   note right
     Swing 面板展示:
     插枪/拔枪按钮
-    充电进度条
-    电量/费用实时更新
+    二维码显示
+    等待用户扫码启动
   end note
+}
+
+partition "用户" {
+  :扫描二维码 (Flutter App);
+  :点击"启动充电";
 }
 
 partition "系统" {
   :校验用户身份 (JWT);
   :校验余额 >= 10元;
   :校验充电桩状态 = 空闲;
+  :校验充电桩在线 = ONLINE;
+  :校验 sessionId 有效性 (selectCharger);
   :锁定充电桩 (status → charging);
   :创建充电记录 (status: processing);
   :记录审计日志;
@@ -42,6 +49,7 @@ partition "充电桩服务" {
 }
 
 partition "Mock充电机客户端" {
+  :接收启动通知 (notifyStart);
   :启动电量模拟 (0.1kWh/tick);
   :实时更新充电面板;
 }

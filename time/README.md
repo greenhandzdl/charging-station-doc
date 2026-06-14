@@ -58,6 +58,12 @@
 
 **流程：** 管理员选择强制结束 → 填写终止原因 → 角色权限校验 → 事务内释放桩 → 审计日志记录终止原因 → 强制结束通知推送至 Mock充电机客户端显示。
 
+### 充电桩插枪/拔枪/选择充电桩
+
+![插枪拔枪选择充电桩时序图](img/sequence_plug_select.svg)
+
+**流程：** Mock充电机客户端用户选择充电桩 → 点击模拟插枪 → 后端校验桩在线/空闲 → 设置占用锁(plug-in) → 生成 sessionId → Mock客户端显示二维码 → Flutter扫码 → 用户点击启动充电 → 后端校验 sessionId(selectCharger) → 启动充电 → 结束充电时Mock客户端点击拔枪 → 后端自动结束充电记录(unplug) → 释放占用锁。
+
 ## 源文件
 
 - `src/sequence_charging.puml` — 启动充电时序图源文件
@@ -69,6 +75,7 @@
 - `src/sequence_repair_process.puml` — 报修处理时序图源文件
 - `src/sequence_recharge.puml` — 充值时序图源文件
 - `src/sequence_force_stop.puml` — 强制结束充电时序图源文件
+- `src/sequence_plug_select.puml` — 充电桩插枪/拔枪/选择充电桩时序图源文件（待创建）
 
 ## 相关文档
 

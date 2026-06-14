@@ -58,9 +58,9 @@
 │
 ├── agent/                            # 工作跟踪
 │   ├── plan.md                       # 项目计划与进度
-│   ├── verification-results.md       # API 端到端验证日志
 │   ├── conflicts.md                  # 冲突决断记录
-│   └── prompts.md                    # 可复用提示词模板
+│   ├── audit-code-doc-sync.md        # 代码-文档同步审计报告
+│   └── prompts.md                    # 可复用提示词模板（可选，待创建）
 │
 ├── CLAUDE.md                         # AI 协作指导
 └── README.md                         # 本文件
@@ -74,7 +74,7 @@
 | 后端 | [usecase/docs/backend/README.md](usecase/docs/backend/README.md) | 基础信息、充电流程、账户支付、故障报修 |
 | 前端 | [usecase/docs/frontend/README.md](usecase/docs/frontend/README.md) | 前端用例与交互契约 |
 | 部署 | [usecase/docs/containerd/README.md](usecase/docs/containerd/README.md) | 容器化与部署架构 |
-| 数据库 | [usecase/docs/database/db.md](usecase/docs/database/db.md) | 七张核心表、ER 图、索引、DDL |
+| 数据库 | [usecase/docs/database/db.md](usecase/docs/database/db.md) | 九张核心表、ER 图、索引、DDL |
 | 类图 | [class/README.md](class/README.md) | 系统核心类及其关系 |
 | 时序图 | [time/README.md](time/README.md) | 启动充电、结束扣费、登录、注册、报修、充值、强制结束充电对象交互 |
 | 状态图 | [status/README.md](status/README.md) | 充电桩状态流转 |
@@ -85,7 +85,7 @@
 | 图类型 | 数量 | 文件 |
 |--------|:----:|------|
 | 用例图 | 15 | overview(6) + backend(4) + frontend(2) + containerd(2) + database(1) |
-| ER 图 | 1 | 7 张表实体关系 |
+| ER 图 | 1 | 9 张表实体关系 |
 | 类图 | 3 | 总览 + 前端 Flutter 模型 + 后端 Spring Boot 实体 |
 | 时序图 | 9 | 启动充电、结束扣费、登录、注册、密码重置、报修提交、报修处理、充值、强制结束充电 |
 | 状态图 | 3 | 充电桩 3 种状态流转 + 报修单 4 种状态流转 + 支付单 3 种状态流转 |

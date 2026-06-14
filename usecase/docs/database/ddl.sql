@@ -223,6 +223,7 @@ SELECT
   cr.id AS record_id,
   cr.user_id,
   u.name AS user_name,
+  u.plate_number,
   u.phone,
   cr.charger_id,
   s.name AS station_name,

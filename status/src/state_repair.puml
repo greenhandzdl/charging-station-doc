@@ -7,6 +7,7 @@ state "待处理" as OPEN
 state "处理中" as IN_PROGRESS
 state "已解决" as RESOLVED
 state "已关闭" as CLOSED
+state "已删除" as DELETED
 
 [*] --> OPEN : 提交报修单
 OPEN --> IN_PROGRESS : 管理员分配维修人员
@@ -14,8 +15,14 @@ IN_PROGRESS --> RESOLVED : 维修完成
 RESOLVED --> CLOSED : 管理员审核通过
 OPEN --> CLOSED : 管理员直接关闭
 RESOLVED --> IN_PROGRESS : 审核不通过，退回返工
+OPEN --> DELETED : 申请删除（维修人员/管理员）
+IN_PROGRESS --> DELETED : 申请删除
+RESOLVED --> DELETED : 申请删除
+DELETED --> CLOSED : 管理员审批删除（硬删除）
+CLOSED --> DELETED : 不可再变更（终态）
 
 note bottom of OPEN : 报修单初始状态
 note bottom of CLOSED : 终态，不可再变更
 note right of CLOSED : 子场景:\n (1) 审核通过 -> 桩恢复为 idle\n (2) 直接关闭 -> 桩状态不变
+note right of DELETED : 软删除状态，数据保留\n仅管理员可审批硬删除\n硬删除后记录彻底移除
 @enduml

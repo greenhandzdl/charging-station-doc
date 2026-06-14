@@ -97,11 +97,13 @@
 - 余额不足自动停+冻结：系统在结束充电扣费检测到余额不足时，标记扣费状态为欠费（arrears），冻结用户启动充电权限（frozen_until），充值后自动解冻并补扣。
 - 充电桩无通讯：60 秒未收到遥测心跳，Spring 强制停止充电，标记桩为故障。
 
-## 未完成项
+## 实现状态
 
-1. **> ✅ 已实现** HMAC-SHA256 签名验证已实现（WeChatPayChannel hex + AliPayChannel base64），13 项单元测试验证通过
-2. **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已升级为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
-3. **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity 补充字段 + Mapper 更新方法 + 心跳接收端点 `POST /api/v1/chargers/heartbeat` + 60s离线Scheduler）
+- **> ✅ 已实现** HMAC-SHA256 签名验证已实现（WeChatPayChannel hex + AliPayChannel base64），13 项单元测试验证通过
+- **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已升级为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
+- **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity 补充字段 + Mapper 更新方法 + 心跳接收端点 `POST /api/v1/chargers/heartbeat` + 60s离线Scheduler）
+- **> ✅ 已实现** 充电桩插枪/拔枪/选择充电桩完整交互流程（plugIn/unplug/selectCharger 端点）
+- **> ✅ 已实现** 离线充电桩强制停止充电（forceStopByChargerId + ChargingScheduler）
 
 ## 后置条件
 

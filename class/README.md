@@ -59,6 +59,7 @@
 | Payment | 实体 | 支付流水与回调数据 |
 | Repair | 实体 | 报修单流转 |
 | AuditLog | 实体 | 关键操作审计记录 |
+| ChargerUser | 实体 | 充电桩站设备身份，三级权限体系（CHARGER/STATION/STATION_GLOBAL） |
 | ChargingService | 服务接口 | 充电业务逻辑（启动/结束/计费/强制结束） |
 | ChargingServiceImpl | 服务实现 | ChargingService 实现类 |
 | PaymentService | 服务接口 | 支付业务逻辑（充值/回调/自动扣费） |
@@ -77,6 +78,8 @@
 | RedisCaptchaService | 服务实现 | Redis 存储的验证码服务实现（含 AWT 图片生成） |
 | SmsService | 服务接口 | 短信验证码服务接口 |
 | RedisSmsService | 服务实现 | Redis 存储的短信验证码服务实现 |
+| ChargerUserService | 服务接口 | 充电桩站设备身份业务逻辑（登录/Token重置/列表查询） |
+| ChargerUserServiceImpl | 服务实现 | ChargerUserService 实现类 |
 
 ## 枚举
 
@@ -85,11 +88,11 @@
 | StationStatus | 充电站运营状态 | NORMAL / MAINTENANCE |
 | ChargerType | 充电桩类型 | FAST / SLOW |
 | ChargerStatus | 充电桩运行状态 | IDLE / CHARGING / FAULT |
-| UserRole | 用户角色 | USER / MAINTAINER / ADMIN / SUPER_ADMIN / CHARGER |
+| UserRole | 用户角色 | USER / MAINTAINER / ADMIN / SUPER_ADMIN |
 | RecordStatus | 充电过程状态 | PROCESSING / COMPLETED |
 | DeductionStatus | 扣费状态 | PENDING / PAID / ARREARS |
 | PaymentStatus | 支付状态 | PENDING / APPROVED / SUCCESS / FAILED |
-| RepairStatus | 报修单状态 | OPEN / IN_PROGRESS / RESOLVED / CLOSED |
+| RepairStatus | 报修单状态 | OPEN / IN_PROGRESS / RESOLVED / CLOSED / DELETED |
 
 ## 核心关系
 
@@ -100,6 +103,9 @@
 - User 1:N Repair（用户报修/处理）
 - ChargeRecord 1:0..1 Payment（充电产生支付）
 - User 1:N AuditLog（用户操作记录）
+- ChargerUser --> Charger（设备身份绑定充电桩）
+- ChargerUser --> Station（站级权限管理充电站）
+- ChargerUser 1:0..1 ChargerUser（上级权限链 parent_id）
 - MockChargerClient --> ChargerUIPanel（包含 Swing 面板）
 - MockChargerClient --> ChargeSimulator（模拟引擎）
 - MockChargerClient --> ChargerHttpServer（内嵌 HTTP 服务接收通知）
@@ -111,11 +117,13 @@
 - ChargingService --> PricingStrategy（策略模式）
 - PaymentFactory ..> PaymentChannel（工厂模式）
 - CaptchaService ..> RedisTemplate（验证码 Redis 存储校验）
+- SmsService ..> RedisTemplate（短信验证码 Redis 存储校验）
 
 ## 设计模式
 
-- **策略模式**：PricingStrategy 接口与 StandardPricing 实现，用于灵活切换计费策略
-- **工厂模式**：PaymentFactory 根据支付方式类型创建不同的支付通道
+- **策略模式**：PricingStrategy 接口与 StandardPricing/PeakPricing 实现，用于灵活切换计费策略（标准/峰谷定价）
+- **工厂模式**：PaymentFactory 根据支付方式类型创建不同的支付通道（微信/支付宝/系统自动扣费）
+- **三级权限链**：ChargerUser 通过 parent_id 和 token_version 实现设备身份的层级授权与 Token 失效传播
 
 ## 设计要点
 

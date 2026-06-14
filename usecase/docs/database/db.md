@@ -1,6 +1,6 @@
 # 数据库设计说明
 
-本系统选用 PostgreSQL 作为核心数据库（可选装 TimescaleDB 扩展用于时序数据分析）。以下列出八张核心表及其字段设计，与功能模块的对应关系见文末映射表。
+本系统选用 PostgreSQL 作为核心数据库（可选装 TimescaleDB 扩展用于时序数据分析）。以下列出九张核心表及其字段设计，与功能模块的对应关系见文末映射表。
 
 ## 表清单
 
@@ -116,7 +116,7 @@
 | id | UUID | PK | |
 | actor_id | UUID | NULLABLE | 操作人 ID |
 | actor_type | VARCHAR(32) | | USER / ADMIN / SYSTEM |
-| action | VARCHAR(128) | NOT NULL CHECK (action IN ('START_CHARGE', 'STOP_CHARGE', 'STOP_CHARGE_DEDUCTED', 'FORCE_STOP', 'FORCE_STOP_ARREARS', 'RECHARGE', 'ARREARS_AUTO_DEDUCT', 'DEDUCT', 'SUBMIT_REPAIR', 'ASSIGN_REPAIR', 'RESOLVE_REPAIR', 'CLOSE_REPAIR', 'CLOSE_REPAIR_DIRECT', 'REJECT_REPAIR', 'REGISTER', 'LOGIN', 'LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_RESET', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_CONFIRM', 'CHANGE_PASSWORD', 'CHANGE_ROLE', 'UPDATE_USER', 'DELETE_USER', 'CREATE_STATION', 'UPDATE_STATION', 'DELETE_STATION', 'CREATE_CHARGER', 'UPDATE_CHARGER', 'DELETE_CHARGER', 'EXPORT_CSV', 'CHARGE_ARREARS', 'CALLBACK_SIGNATURE_FAILED', 'TOKEN_REPLAY_DETECTED')) | 操作类型 |
+| action | VARCHAR(128) | NOT NULL CHECK (action IN ('START_CHARGE', 'STOP_CHARGE', 'STOP_CHARGE_DEDUCTED', 'FORCE_STOP', 'FORCE_STOP_ARREARS', 'FORCE_STOP_OFFLINE', 'RECHARGE', 'ARREARS_AUTO_DEDUCT', 'DEDUCT', 'SUBMIT_REPAIR', 'ASSIGN_REPAIR', 'CLAIM_REPAIR', 'RESOLVE_REPAIR', 'CLOSE_REPAIR', 'CLOSE_REPAIR_DIRECT', 'REJECT_REPAIR', 'SOFT_DELETE_REPAIR', 'PLUG_IN', 'UNPLUG', 'REGISTER', 'REGISTRATION_FAILED', 'LOGIN', 'LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_RESET', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_CONFIRM', 'CHANGE_PASSWORD', 'CHANGE_ROLE', 'UPDATE_USER', 'UPDATE_PROFILE', 'DELETE_USER', 'CREATE_STATION', 'UPDATE_STATION', 'DELETE_STATION', 'CREATE_CHARGER', 'UPDATE_CHARGER', 'DELETE_CHARGER', 'EXPORT_CSV', 'CHARGE_ARREARS', 'PAY_ARREARS', 'APPROVE_PAYMENT', 'REJECT_PAYMENT', 'CALLBACK_SIGNATURE_FAILED', 'TOKEN_REPLAY_DETECTED', 'CAPTCHA_FAILED', 'RESET_CHARGER_TOKEN', 'REJECT_REPAIR_IN_PROGRESS', 'APPROVE_DELETE_REPAIR')) | 操作类型 |
 | resource | VARCHAR(128) | | 操作资源 |
 | resource_id | UUID | NULLABLE | |
 | payload | JSONB | NULLABLE | 请求与响应摘要 |
@@ -126,7 +126,27 @@
 
 **对应模块：** 全部模块
 
-### 8. password_history（密码历史表）
+### 8. charger_users（充电桩站设备身份表）
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | UUID | PK | |
+| login_id | VARCHAR(64) | NOT NULL, UNIQUE | 登录账号（非手机号，充电站没有手机号） |
+| name | VARCHAR(100) | NOT NULL | 设备/站点名称 |
+| password_hash | VARCHAR(255) | NOT NULL | bcrypt 散列 |
+| permission_level | VARCHAR(32) | NOT NULL DEFAULT 'CHARGER' CHECK (permission_level IN ('CHARGER', 'STATION', 'STATION_GLOBAL')) | 权限等级: CHARGER（单桩）/ STATION（站级）/ STATION_GLOBAL（全局） |
+| charger_id | UUID | FK REFERENCES chargers(id) | CHARGER 级别：绑定的充电桩 |
+| station_id | UUID | FK REFERENCES stations(id) | STATION 级别：管理的充电站 |
+| parent_id | UUID | FK REFERENCES charger_users(id) | 上级身份 ID，用于权限链和 token 重置 |
+| token_version | INTEGER | DEFAULT 0 | token 版本号，上级重置后递增，旧 token 立即失效 |
+| is_active | BOOLEAN | DEFAULT true | 是否启用 |
+| last_login_at | TIMESTAMP | | 最后登录时间 |
+| created_at | TIMESTAMP | DEFAULT now() | |
+| updated_at | TIMESTAMP | | |
+
+**对应模块：** 充电桩设备认证、三级权限体系
+
+### 9. password_history（密码历史表）
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -149,6 +169,7 @@
 | 权限管理 | users | 角色字段变更（管理员以上操作） |
 | 统计与可视化 | charge_records, payments, stations, chargers | 报表聚合，状态统计 |
 | 审计日志 | audit_logs | 关键操作记录 |
+| 充电桩设备认证 | charger_users | 设备登录、token 管理、权限链 |
 
 ## ER 图
 
@@ -166,6 +187,9 @@
 | repairs | charger_id | chargers(id) | 报修关联充电桩 |
 | repairs | reporter_id | users(id) | 报修提交人 |
 | repairs | handled_by | users(id) | 报修处理人 |
+| charger_users | charger_id | chargers(id) | 设备身份绑定充电桩 |
+| charger_users | station_id | stations(id) | 站级权限管理充电站 |
+| charger_users | parent_id | charger_users(id) | 上级身份权限链 |
 | password_history | user_id | users(id) | 密码历史归属用户 |
 
 ## 索引设计
@@ -184,6 +208,9 @@
 | idx_charge_records_deduction | charge_records | deduction_status | BTREE | 欠费查询，配合扣费重试与欠费通知 |
 | idx_users_password_reset_token_hash | users | password_reset_token_hash | BTREE (partial) | 条件索引，仅非空时有效，密码重置令牌查找 |
 | idx_password_history_user | password_history | (user_id, created_at DESC) | BTREE | 按用户查询密码历史，DESC 排序获取最近记录 |
+| idx_charger_users_login_id | charger_users | login_id | UNIQUE | 设备登录账号唯一索引 |
+| idx_charger_users_permission_level | charger_users | permission_level | BTREE | 权限等级筛选 |
+| idx_charger_users_parent_id | charger_users | parent_id | BTREE (partial) | 条件索引，仅非空时有效，权限链查询 |
 
 ## DDL 建表脚本
 

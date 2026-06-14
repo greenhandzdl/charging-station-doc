@@ -112,9 +112,9 @@
 | 结束扣费 | UPDATE charge_records + UPDATE users + INSERT payments + UPDATE chargers | 多表写操作，事务回滚保证数据一致 |
 | 报修处理 | UPDATE repairs + UPDATE chargers | 两表状态同时变更 |
 
-## 未完成项
+## 实现状态
 
-1. **> ✅ 已实现** audit_logs trigger/REVOKE 保护已同步至 compose init.sql（`REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC` + 触发器强制约束）
+- **> ✅ 已实现** audit_logs trigger/REVOKE 保护已同步至 compose init.sql（`REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC` + 触发器强制约束）
 
 ## 相关文档
 

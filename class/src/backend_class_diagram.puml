@@ -85,6 +85,12 @@ package "实体 (Entity)" as ENT #F0E68C {
     - status: ChargerStatus
     - onlineStatus: String
     - lastHeartbeatAt: LocalDateTime
+    - deviceType: String ' SIMULATED / REAL
+    - ratedPowerKw: BigDecimal
+    - manufacturer: String
+    - model: String
+    - occupiedBy: UUID
+    - occupiedAt: LocalDateTime
     - createdAt: LocalDateTime
     - updatedAt: LocalDateTime
   }
@@ -161,6 +167,23 @@ package "实体 (Entity)" as ENT #F0E68C {
     - userAgent: String
     - createdAt: LocalDateTime
   }
+
+  class ChargerUser {
+    - id: UUID
+    - loginId: String
+    - name: String
+    - passwordHash: String
+    - permissionLevel: String ' CHARGER / STATION / STATION_GLOBAL
+    - chargerId: UUID
+    - stationId: UUID
+    - parentId: UUID
+    - tokenVersion: Integer
+    - isActive: Boolean
+    - lastLoginAt: LocalDateTime
+    - createdAt: LocalDateTime
+    - updatedAt: LocalDateTime
+  }
+  note right of ChargerUser : 充电桩站设备身份表，三级权限体系\n与 users 表完全解耦\ntoken_version 递增实现旧 token 失效\nparent_id 构建权限链
 }
 
 package "枚举 (Enum)" as ENUM #F0E68C {
@@ -185,7 +208,6 @@ package "枚举 (Enum)" as ENUM #F0E68C {
     MAINTAINER
     ADMIN
     SUPER_ADMIN
-    CHARGER
   }
 
   enum RecordStatus {
@@ -211,6 +233,7 @@ package "枚举 (Enum)" as ENUM #F0E68C {
     IN_PROGRESS
     RESOLVED
     CLOSED
+    DELETED
   }
 }
 
@@ -229,6 +252,21 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @GetMapping("/charges")
     @PreAuthorize("isAuthenticated()")
     + queryCharges(@RequestParam params): ResponseEntity
+    @PostMapping("/chargers/heartbeat")
+    @PreAuthorize("permitAll()")
+    + heartbeat(@RequestBody req): ResponseEntity
+    @PostMapping("/chargers/{id}/plug-in")
+    @PreAuthorize("hasScope('charger')")
+    + plugIn(@PathVariable id, @RequestBody req): ResponseEntity
+    @PostMapping("/chargers/{id}/unplug")
+    @PreAuthorize("hasScope('charger')")
+    + unplug(@PathVariable id, @RequestBody req): ResponseEntity
+    @PostMapping("/chargers/{id}/select")
+    @PreAuthorize("isAuthenticated()")
+    + selectCharger(@PathVariable id, @RequestBody req): ResponseEntity
+    @GetMapping("/charges/active")
+    @PreAuthorize("isAuthenticated()")
+    + getActiveCharges(): ResponseEntity
   }
 
   class PaymentController {
@@ -236,9 +274,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PreAuthorize("isAuthenticated()")
     + recharge(@RequestBody req): ResponseEntity
     @PostMapping("/payments/callback")
-    @PreAuthorize("hasIpAddress('10.0.0.0/8')")  ' 此 IP 段为开发环境示例，生产环境需精确配置网关 IP 或启用 mTLS
+    @PreAuthorize("permitAll()")
     + handleCallback(@RequestBody callback): ResponseEntity
-    note right of PaymentController : handleCallback 由支付网关回调\n此 IP 段为开发环境示例，生产环境需精确配置网关 IP 或启用 mTLS\nNginx 层: IP 白名单 + mTLS\nController 层: @PreAuthorize hasIpAddress 防御深度\nService 层: HMAC-SHA256 签名校验
+    note right of PaymentController : handleCallback 由支付网关回调\n生产环境建议: Nginx 层 IP 白名单 + mTLS\nController 层: permitAll() + HMAC-SHA256 签名校验\nService 层: HMAC-SHA256 签名校验 + 幂等处理
     @GetMapping("/payments")
     @PreAuthorize("isAuthenticated()")
     + queryPayments(@RequestParam params): ResponseEntity
@@ -255,6 +293,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PostMapping("/payments/pay-arrears")
     @PreAuthorize("isAuthenticated()")
     + payArrears(@RequestBody req): ResponseEntity
+    @GetMapping("/payments/deductions")
+    @PreAuthorize("isAuthenticated()")
+    + queryDeductions(@RequestParam params): ResponseEntity
   }
 
   class UserController {
@@ -280,6 +321,9 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @GetMapping("/users")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + listUsers(@RequestParam params): ResponseEntity
+    @GetMapping("/users/search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + searchUsers(@RequestParam keyword): ResponseEntity
     @PutMapping("/users/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + updateUser(@PathVariable id, @RequestBody req): ResponseEntity
@@ -291,10 +335,13 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @GetMapping("/users/balance")
     @PreAuthorize("isAuthenticated()")
     + getBalance(): ResponseEntity
+    @PutMapping("/users/profile")
+    @PreAuthorize("isAuthenticated()")
+    + updateProfile(@RequestBody req): ResponseEntity
     @PutMapping("/users/{id}/role")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + changeRole(@PathVariable id, @RequestBody req): ResponseEntity
-    note right of UserController : changeRole 仅限 ADMIN/SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\n审计日志 payload 格式: {"old_role": "user", "new_role": "maintainer"}\n\ndeleteUser 安全约束：\n- ADMIN 不可删除/修改其他 ADMIN 或 SUPER_ADMIN\n- SUPER_ADMIN 不可删除自身\nService 层在 updateUser/deleteUser 中校验\n违反约束返回 HTTP 403\n\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp
+    note right of UserController : changeRole 仅限 ADMIN/SUPER_ADMIN\n禁止 ADMIN 自我提权或修改其他 ADMIN 角色\nService 层校验目标用户非本人\n角色变更属敏感操作，必须记录 actor/action/target\n审计日志 payload 格式: {"old_role": "user", "new_role": "maintainer"}\n\ndeleteUser 安全约束：\n- ADMIN 不可删除/修改其他 ADMIN 或 SUPER_ADMIN\n- SUPER_ADMIN 不可删除自身\nService 层在 updateUser/deleteUser 中校验\n违反约束返回 HTTP 403\n\nresetPassword / changePassword 同样记录审计日志\n密码变更属敏感操作，记录 actor_id + clientIp\n\nupdateProfile 允许当前用户编辑自身资料(name, plateNumber)
   }
 
   class RepairController {
@@ -320,6 +367,24 @@ package "控制器 (Controller)" as CTRL #B0C4DE {
     @PutMapping("/repairs/{id}/reject")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     + rejectRepair(@PathVariable id, @RequestBody req): ResponseEntity
+    @PutMapping("/repairs/{id}/delete")
+    @PreAuthorize("hasAnyRole('MAINTAINER', 'ADMIN', 'SUPER_ADMIN')")
+    + softDeleteRepair(@PathVariable id): ResponseEntity
+    @PutMapping("/repairs/{id}/approve-delete")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + approveDeleteRepair(@PathVariable id): ResponseEntity
+  }
+
+  class ChargerAuthController {
+    @PostMapping("/auth/charger-login")
+    @PreAuthorize("permitAll()")
+    + chargerLogin(@RequestBody req): ResponseEntity
+    @PostMapping("/auth/charger-reset-token/{targetUserId}")
+    @PreAuthorize("hasScope('charger')")
+    + resetChargerToken(@PathVariable targetUserId): ResponseEntity
+    @GetMapping("/auth/charger-users")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    + getChargerUsers(@RequestParam params): ResponseEntity
   }
 
   class StationController {
@@ -393,6 +458,12 @@ package "服务 (Service)" as SVC #F0E68C {
     + calculateFee()
     + forceStop()
     + queryCharges(params: Map): List
+    + autoStopOnInsufficientBalance(): int
+    + plugIn(chargerId: UUID, deviceUserId: UUID): Map
+    + unplug(chargerId: UUID, deviceUserId: UUID): Map
+    + selectCharger(chargerId: UUID, userId: UUID, sessionId: String): Map
+    + forceStopByChargerId(chargerId: UUID, reason: String): int
+    + getActiveChargesWithChargerInfo(userId: UUID): List
   }
 
   class ChargingServiceImpl implements ChargingService {
@@ -401,6 +472,12 @@ package "服务 (Service)" as SVC #F0E68C {
     + calculateFee()
     + forceStop()
     + queryCharges(params: Map): List
+    + autoStopOnInsufficientBalance(): int
+    + plugIn(chargerId: UUID, deviceUserId: UUID): Map
+    + unplug(chargerId: UUID, deviceUserId: UUID): Map
+    + selectCharger(chargerId: UUID, userId: UUID, sessionId: String): Map
+    + forceStopByChargerId(chargerId: UUID, reason: String): int
+    + getActiveChargesWithChargerInfo(userId: UUID): List
   }
   note right of ChargingServiceImpl : @Transactional(propagation = Propagation.REQUIRED) 事务控制\n同类内方法调用时 @Transactional 不生效\n必须通过代理对象调用或拆分事务边界\n@PreAuthorize 授权检查\n\n充电流程：\n1. 校验余额 >= 10 元\n2. ChargerConnector 通知充电桩\n3. 桩 ACK 后标记 CHARGING\n4. 结束: 余额不足/用户主动/桩异常
 
@@ -423,6 +500,9 @@ package "服务 (Service)" as SVC #F0E68C {
     + resolve()
     + close()
     + reject()
+    + claim(repairId: UUID, userId: UUID)
+    + softDelete(repairId: UUID, userId: UUID, userRole: String)
+    + approveDelete(repairId: UUID, adminId: UUID)
   }
 
   class RepairServiceImpl implements RepairService {
@@ -432,6 +512,9 @@ package "服务 (Service)" as SVC #F0E68C {
     + resolve()
     + close()
     + reject()
+    + claim(repairId: UUID, userId: UUID)
+    + softDelete(repairId: UUID, userId: UUID, userRole: String)
+    + approveDelete(repairId: UUID, adminId: UUID)
   }
 
   interface UserService {
@@ -513,6 +596,15 @@ package "服务 (Service)" as SVC #F0E68C {
     + validateCaptcha(captchaId, captchaCode): boolean
   }
   note right of RedisCaptchaService : 验证码 Redis 存储\n5 分钟 TTL\nAWT BufferedImage 生成\nMOCK 实现(同时返回明文)
+
+  interface SmsService {
+    + sendCode(phone: String, code: String): void
+  }
+
+  class RedisSmsService implements SmsService {
+    + sendCode(phone: String, code: String): void
+  }
+  note right of RedisSmsService : 短信验证码 Redis 存储\n5 分钟 TTL\n生产环境需接入真实短信网关
 }
 
 package "策略/工厂 (Design Pattern)" as DP #E6E6FA {
@@ -745,6 +837,10 @@ ChargeRecord --> RecordStatus
 ChargeRecord --> DeductionStatus
 Payment --> PaymentStatus
 Repair --> RepairStatus
+
+ChargerUser --> Charger : 绑定
+ChargerUser --> Station : 管理
+ChargerUser "1" --> "0..1" ChargerUser : 上级权限链
 
 User "1" --> "0..*" ChargeRecord : 发起
 Charger "1" --> "0..*" ChargeRecord : 被使用

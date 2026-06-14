@@ -98,13 +98,16 @@
 - [数据库用例](../database/README.md) — 后端与数据库交互场景
 - [容器化与部署](../containerd/README.md) — 容器化与部署用例、架构
 
-## 未完成项
+## 实现状态
 
-1. **> ✅ 已实现** JWT scope claim（`SCOPE_admin`/`SCOPE_advanced`）已在 SecurityConfig 中生效
-2. **> ✅ 已实现** HMAC-SHA256 签名验证已实现（WeChatPayChannel hex + AliPayChannel base64），13 项单元测试验证通过
-3. **> ✅ 已实现** 高级密钥认证（Advanced API Key）已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`
-4. **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
-5. **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity 补充字段 + Mapper 更新方法 + 心跳接收端点 + 60s离线Scheduler）
+- **> ✅ 已实现** JWT scope claim（`SCOPE_admin`/`SCOPE_advanced`）已在 SecurityConfig 中生效
+- **> ✅ 已实现** HMAC-SHA256 签名验证已实现（WeChatPayChannel hex + AliPayChannel base64），13 项单元测试验证通过
+- **> ✅ 已实现** 高级密钥认证（Advanced API Key）已实现，通过请求头 `X-Advanced-Api-Key` 传递密钥，授予 `ROLE_SUPER_ADMIN` + `SCOPE_advanced`
+- **> ✅ 已实现** 充电桩通讯中间件（HttpChargerConnector）已实现为真实 HTTP POST（`POST /api/notify/start`、`POST /api/notify/stop`、`GET /api/health/{chargerCode}`）
+- **> ✅ 已实现** 充电桩遥测/心跳检测（last_heartbeat_at + online_status）已实现（Entity 补充字段 + Mapper 更新方法 + 心跳接收端点 + 60s离线Scheduler）
+- **> ✅ 已实现** 三级充电桩设备权限体系（charger_users 表 + ChargerAuthController）
+- **> ✅ 已实现** 充电桩插枪/拔枪/选择充电桩完整交互流程
+- **> ✅ 已实现** 报修单软删除与审批删除流程（DELETED 状态）
 
 ## 安全要点
 

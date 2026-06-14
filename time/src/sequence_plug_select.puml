@@ -1,0 +1,125 @@
+@startuml
+skinparam defaultFontName "Noto Sans CJK SC"
+skinparam defaultFontSize 14
+title 充电桩插枪/拔枪/选择充电桩时序图
+
+' 所有 SQL 操作使用 PreparedStatement 参数绑定，禁止字符串拼接
+actor 用户 as U
+participant "Mock充电机\n(Swing 客户端)" as MC
+participant "Flutter 客户端" as FE
+participant "充电控制器" as Ctrl
+participant "安全过滤器链" as Security
+participant "充电服务" as Service
+participant "充电桩管理" as CS
+database 数据库 as DB
+
+== 插枪流程 ==
+U -> MC: 选择充电桩，点击"模拟插枪"
+MC -> Ctrl: HTTP POST /api/v1/chargers/{id}/plug-in\n{deviceUserId}
+note right MC : MockChargerClient.callPlugInApi()\n使用设备专用 JWT Token\nscope=charger
+
+group 授权检查 [Spring Security Filter Chain]
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (deviceUserId, scope)
+  alt Token scope != charger
+    Security --> Ctrl: HTTP 403 Forbidden {error: "需要充电桩设备权限"}
+  else 有效 charger scope
+    Security -> Security: @PreAuthorize("hasScope('charger')")
+  end
+end
+
+Ctrl -> Service: plugIn(chargerId, deviceUserId)
+
+Service -> DB: SELECT id, status, online_status, occupied_by FROM chargers WHERE id = ? -- PreparedStatement
+DB --> Service: 充电桩信息
+
+alt 充电桩不在线或已被占用
+  Service --> Ctrl: HTTP 409 Conflict {error: "充电桩不可用"}
+  Ctrl --> MC: 插枪失败
+else 校验通过
+  Service -> DB: UPDATE chargers SET occupied_by = ?, occupied_at = now(), status = 'idle'\nWHERE id = ? AND status = 'idle' AND occupied_by IS NULL -- 乐观锁
+  DB --> Service: updated = 1
+  Service -> Service: 生成 sessionId (UUID)
+  Service -> Service: chargerSessions[chargerId] = sessionId (内存存储)
+
+  Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id)\nVALUES (?, 'device', 'PLUG_IN', 'charger', ?)
+  DB --> Service: 审计日志记录成功
+
+  Service --> Ctrl: 插枪成功 {chargerId, sessionId, message}
+  Ctrl --> MC: HTTP 200 JSON {chargerId, sessionId}
+  MC -> MC: 显示含 chargerId 的二维码
+  MC --> FE: 二维码展示供扫码
+end
+
+== 用户扫码选择充电桩 ==
+FE -> Ctrl: HTTP POST /api/v1/chargers/{id}/select\n{userId, sessionId}
+note right FE : ApiService.selectCharger()\n用户 JWT Token (scope=user)
+
+group 授权检查
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (userId, role, scope=user)
+  Security -> Security: @PreAuthorize("isAuthenticated()")
+end
+
+Ctrl -> Service: selectCharger(chargerId, userId, sessionId)
+
+Service -> Service: 校验 chargerSessions[chargerId] == sessionId
+alt sessionId 无效或过期
+  Service --> Ctrl: HTTP 409 Conflict {error: "会话已过期或无效，请重新扫码"}
+else sessionId 有效
+  Service -> DB: SELECT id, status, online_status FROM chargers WHERE id = ? -- PreparedStatement
+  DB --> Service: 充电桩状态
+
+  alt 充电桩不在线或状态异常
+    Service --> Ctrl: HTTP 409 Conflict {error: "充电桩不可用"}
+  else 校验通过
+    Service --> Ctrl: 选择成功 {chargerId, chargerCode, stationId, type}
+    Ctrl --> FE: HTTP 200 JSON {chargerId, chargerCode, stationId, type}
+    FE -> U: 显示充电桩信息，提示点击启动充电
+  end
+end
+
+== 拔枪流程 (结束充电) ==
+U -> MC: 点击"模拟拔枪"
+MC -> Ctrl: HTTP POST /api/v1/chargers/{id}/unplug\n{deviceUserId}
+
+group 授权检查
+  Ctrl -> Security: JwtAuthenticationFilter 解析 Token\n提取 principal (deviceUserId, scope=charger)
+  Security -> Security: @PreAuthorize("hasScope('charger')")
+end
+
+Ctrl -> Service: unplug(chargerId, deviceUserId)
+
+Service -> DB: SELECT id, status FROM chargers WHERE id = ? -- PreparedStatement
+DB --> Service: 充电桩信息
+
+Service -> DB: SELECT * FROM charge_records WHERE charger_id = ? AND status = 'processing' -- 进行中的充电记录
+DB --> Service: 充电记录列表
+
+loop 遍历每个进行中的充电记录
+  Service -> Service: 估算电量 = estimateEnergyKwh(type, startTime)
+  Service -> Service: 计算费用 = billingService.calculateFee(type, energyKwh)
+
+  alt 用户余额充足
+    Service -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=?, fee=?, status='completed', deduction_status='paid' WHERE id = ?
+    Service -> DB: UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?
+    Service -> DB: INSERT INTO payments (id, user_id, charge_record_id, method, amount, status) VALUES (?, ?, ?, 'auto_deduct', ?, 'success')
+    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'system', 'STOP_CHARGE', 'charge_record', ?)
+  else 余额不足
+    Service -> DB: UPDATE charge_records SET end_time=now(), energy_kwh=?, fee=?, status='completed', deduction_status='arrears' WHERE id = ?
+    Service -> DB: UPDATE users SET frozen_until = now() + INTERVAL '30 days' WHERE id = ?
+    Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'system', 'CHARGE_ARREARS', 'charge_record', ?)
+  end
+end
+
+Service -> DB: UPDATE chargers SET status = 'idle', occupied_by = NULL, occupied_at = NULL WHERE id = ? -- 释放占用锁并恢复空闲
+Service -> Service: chargerSessions.remove(chargerId) -- 清理内存 sessionId
+
+Service -> DB: INSERT INTO audit_logs (actor_id, actor_type, action, resource, resource_id) VALUES (?, 'device', 'UNPLUG', 'charger', ?)
+DB --> Service: 审计日志记录成功
+
+Service --> Ctrl: 拔枪成功 {stoppedRecords}
+Ctrl --> MC: HTTP 200 JSON {message: "拔枪成功", stoppedRecords}
+MC -> MC: 显示结算结果
+MC --> FE: 推送充电结束通知
+FE --> U: 显示充电结果
+
+@enduml

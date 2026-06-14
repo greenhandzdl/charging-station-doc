@@ -71,6 +71,20 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     - reportedAt: String
   }
 
+  class "ChargerUserModel" as FChargerUser {
+    - id: String
+    - loginId: String
+    - name: String
+    - permissionLevel: String
+    - chargerId: String?
+    - stationId: String?
+    - parentId: String?
+    - tokenVersion: int
+    - isActive: bool
+    - lastLoginAt: String?
+  }
+  note right of FChargerUser : 充电桩站设备身份模型\n三级权限：CHARGER/STATION/STATION_GLOBAL
+
   class "LoginRequest" as LoginReq {
     - phone: String
     - password: String
@@ -103,6 +117,8 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} resolveRepair(repairId): Future<void>
     + {static} closeRepair(repairId): Future<void>
     + {static} rejectRepair(repairId, reason): Future<void>
+    + {static} softDeleteRepair(repairId): Future<void>
+    + {static} approveDeleteRepair(repairId): Future<void>
     + {static} getStations(): Future<List<StationModel>>
     + {static} searchStations(name): Future<List<StationModel>>
     + {static} getChargers(stationId): Future<List<ChargerModel>>
@@ -110,6 +126,7 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} getChargeRecords(): Future<List<ChargeRecordModel>>
     + {static} getRepairs(): Future<List<RepairModel>>
     + {static} getPayments(): Future<List<PaymentModel>>
+    + {static} getDeductions(): Future<List<PaymentModel>>
     + {static} getPendingPayments(): Future<List<PaymentModel>>
     + {static} approvePayment(paymentId): Future<void>
     + {static} rejectPayment(paymentId, reason): Future<void>
@@ -121,6 +138,15 @@ package "Flutter 前端 (Dart Model)" as FE #ADD8E6 {
     + {static} changeRole(userId, newRole): Future<void>
     + {static} deleteUser(userId): Future<void>
     + {static} updateUser(userId, data): Future<void>
+    + {static} updateProfile(data): Future<void>
+    + {static} searchUsers(keyword): Future<List<UserModel>>
+    + {static} chargerLogin(loginId, password): Future<LoginResponse>
+    + {static} resetChargerToken(targetUserId): Future<void>
+    + {static} getChargerUsers(): Future<List<Map>>
+    + {static} plugIn(chargerId): Future<Map>
+    + {static} unplug(chargerId): Future<Map>
+    + {static} selectCharger(chargerId, sessionId): Future<Map>
+    + {static} getActiveCharges(): Future<List<Map>>
     + {static} exportCsv(type, params): Future<void>
   }
   note right of Api : 基于 http 包封装 REST API 调用\n自动附加 JWT Token (Authorization: Bearer)\n统一错误处理与异常转换\n所有方法返回 Future，异步非阻塞\n生产环境必须启用 HTTPS，密码仅 HTTPS 加密传输
